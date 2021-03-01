@@ -184,7 +184,7 @@
 				loader.load( './models/ply/ascii/doma-interior_textured.ply', function ( geometry ) {
 					geometry.computeVertexNormals();
 
-					const material = new THREE.MeshStandardMaterial( { map: loaderTex.load('./models/textures/doma-interior_texture16k.png'), } );
+					const material = new THREE.MeshStandardMaterial( { map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), } );
 					const mesh = new THREE.Mesh( geometry, material );
 					mesh.scale.multiplyScalar( 0.03 );
 					//mesh.rotation.x = - Math.PI / 2;
