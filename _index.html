@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - PLY</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+		<div id="info">
+			<img id="captureImage" src="images/0001.jpg" style="visibility:hidden" alt="Image" height="200">
+		</div>
+
+		
+
+		<script type="module">
+
+			import * as THREE from '../build/three.module.js';
+
+			import Stats from './jsm/libs/stats.module.js';
+
+			import { PLYLoader } from './jsm/loaders/PLYLoader.js';
+
+			import { OrbitControls } from './jsm/controls/OrbitControls.js';
+			
+
+			let container, stats;
+
+			let camera, cameraTarget, scene , renderer;
+			var cameraList = [];
+			var captureNames = [];
+			var aux_index = 0;
+			init();
+			animate();
+
+			document.body.appendChild( renderer.domElement );
+			document.addEventListener( 'pointerdown', onDocumentMouseDown );
+
+
+			function showCapture(indexCapture)
+			{
+				if(indexCapture != -1)
+				{
+					var source = "images/"+captureNames[indexCapture]
+
+					document.getElementById('captureImage').src= source
+					document.getElementById("captureImage").style.visibility = "visible";
+					//document.getElementById('captureImage').img.style.visibility = 'visible'
+					//var map = new THREE.TextureLoader().load( "images/"+captureNames[indexCapture] );
+					//var material = new THREE.SpriteMaterial( { map: map, color: 0xffffff } );
+					//var sprite = new THREE.Sprite( material );
+					//sprite.scale.set(0.5);
+					//sprite.center
+					console.log(source)
+					//uiScene.add( sprite );
+				}
+			}
+			function onDocumentMouseDown( event ) {    
+				console.log("intersects")
+	            event.preventDefault();
+	            var mouse3D = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
+	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
+	                                    0.5 );     
+	            var raycaster =  new THREE.Raycaster();                                        
+	           raycaster.setFromCamera( mouse3D, camera );
+	            var intersects = raycaster.intersectObjects( cameraList );
+				console.log(intersects)
+				setDefaultColorsCameras();
+	            if ( intersects.length > 0 ) {
+	            	var photoIndex = -1;
+	            	for (var i = 0; i < cameraList.length; i++) {
+					    if(intersects[ 0 ].object.id == cameraList[i].id)
+					    	photoIndex = i;
+					}
+					//console.log(photoIndex);
+					//console.log(cameraList)
+					//console.log(captureNames)
+					showCapture(photoIndex);
+	                intersects[ 0 ].object.material.color.setHex( 0x0000ff );
+	                intersects[ 0 ].object.material.opacity = 0.3; 
+	                var direction = new THREE.Vector3();
+					intersects[ 0 ].object.getWorldDirection( direction );
+					//direction.makeRotationX(-Math.PI/2)
+
+
+					camera.position.copy( intersects[ 0 ].object.position ).add( direction.multiplyScalar( 0.2 ) );
+					//camera.lookAt( mesh.position );
+					camera.quaternion.copy( intersects[ 0 ].object.quaternion );
+	                //camera.position.set( intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z );
+	                //camera.rotation.set(intersects[ 0 ].object.quaternion.x,intersects[ 0 ].object.quaternion.y,intersects[ 0 ].object.quaternion.z)
+	            }
+	            else
+	            {
+	            	document.getElementById("captureImage").style.visibility = "hidden";
+	            }
+	        }
+	        function setDefaultColorsCameras()
+	        {
+
+	        	var arrayLength = cameraList.length;
+				for (var i = 0; i < arrayLength; i++) {
+				    cameraList[i].material.color.setHex( 0xffffff );
+				    cameraList[i].material.opacity = 0.1; 
+				    //Do something
+				}
+	        }
+			function loadCamera(element, index, array)
+			{
+
+				if(!captureNames[aux_index] || captureNames[aux_index].startsWith("Scan"))
+				{
+					captureNames.splice(aux_index, 1); 
+					return;
+				}
+				aux_index = aux_index +1;
+				 var m = new THREE.Matrix3();
+
+				 m.set( element.m1, element.m2, element.m3,
+			       element.m4, element.m5, element.m6,
+			       element.m7, element.m8, element.m9 );
+				 var R = new THREE.Matrix3();
+				 R.set( element.m1, element.m2, element.m3,
+			       element.m4, element.m5, element.m6,
+			       element.m7, element.m8, element.m9 );
+				 m.transpose();
+				 R.transpose();
+				 m.multiplyScalar(-1);
+
+				 var t = new THREE.Vector3(element.tx, element.ty, element.tz);
+				 var dir = new THREE.Vector3(0, 1, 0);
+				 dir.applyMatrix3(R);
+				 console.log(t)
+				 //console.log(t);
+				 t.applyMatrix3(m);
+				 //console.log(t);
+
+
+
+
+				 const loader = new PLYLoader();
+				 loader.load( './models/ply/ascii/camera.ply', function ( geometry ) {
+					geometry.computeVertexNormals();
+					const edges = new THREE.EdgesGeometry( geometry );
+					//const material = new THREE.MeshStandardMaterial( { color: 0x0055ff, flatShading: true } );
+					const material = new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } );
+					material.transparent = true;
+					material.opacity = 0.1; 
+					//const mesh = new THREE.LineSegments( geometry, material );
+					//const mesh = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } ) );
+					const mesh = new THREE.Mesh( geometry, material );
+					mesh.rotation.x = dir.x - Math.PI / 2;
+					mesh.rotation.y = dir.y ;
+					mesh.rotation.z = dir.z ;
+					//var rotation = new THREE.Matrix4();
+					//mesh.applyMatrix(R);
+
+
+					mesh.scale.multiplyScalar( 0.02 );
+
+					//var rotation2 = new THREE.Matrix4().makeRotationY(-Math.PI/2);
+					var rotation2 = new THREE.Matrix4();
+					var translation = new THREE.Matrix4().makeTranslation(t.x*0.03, t.z*0.03, -t.y*0.03);
+					var transformation = translation.multiply(rotation2);
+
+					mesh.applyMatrix(transformation);
+					/*mesh.rotation.x = - Math.PI / 2;
+					//mesh.applyMatrix( R );
+					mesh.position.x = t.x*0.03;
+					mesh.position.y = t.z*0.03;
+					mesh.position.z = -t.y*0.03;*/
+
+
+					/*const geometry2 = new THREE.BoxGeometry( 0.05, 0.05, 0.05 );
+		        var material = new THREE.MeshBasicMaterial({color: 0x3300ff});
+		        var triangle = new THREE.Mesh(geometry2, material);
+		        triangle.applyMatrix(transformation);
+		        scene.add(triangle);
+				cameraList.push(triangle);*/
+					
+					 
+
+					mesh.castShadow = false;
+					mesh.receiveShadow = false;
+					scene.add( mesh );
+					//if(cameraList.length == 0)
+					cameraList.push(mesh);
+					setDefaultColorsCameras()
+
+				} );
+				 /*
+				const loader = new PLYLoader();
+				const geometry = new THREE.BoxGeometry( 0.03, 0.03, 0.03 );
+				const material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+				const cube = new THREE.Mesh( geometry, material );
+				//cube.position.x = 15.2411;
+				//cube.position.y = 0.308498;
+				//cube.position.z = 6.7556;
+				
+				cube.position.x = t.x*0.03;
+				cube.position.y = t.z*0.03;
+				cube.position.z = -t.y*0.03;
+				cube.rotation.x = - Math.PI / 2;
+				scene.add( cube );
+				*/
+
+				
+				 
+
+			}
+			function loadCameras(cameras) {
+							// TEST CUBE
+				
+				cameras.cameras.forEach(loadCamera);
+
+				
+
+			}
+			function loadDoma()
+			{
+				const loader = new PLYLoader();
+				  const loaderTex = new THREE.TextureLoader();
+				//loader.load( './models/ply/ascii/doma_altar.ply', function ( geometry ) {
+				/*loader.load( './models/ply/ascii/doma_interior.ply', function ( geometry ) {
+					geometry.computeVertexNormals();
+
+					const material = new THREE.MeshStandardMaterial( { map: loaderTex.load('./models/textures/doma-interior_meshed_tex.png'), } );
+					const mesh = new THREE.Mesh( geometry, material );
+					mesh.scale.multiplyScalar( 0.03 );
+					mesh.rotation.x = - Math.PI / 2;
+					mesh.position.x = 0.0;
+					mesh.position.y = 0.0;
+					mesh.position.z = 0.0;
+					
+					 
+
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+
+					scene.add( mesh );
+
+				} );*/
+				loader.load( './models/ply/ascii/doma-interior_textured.ply', function ( geometry ) {
+					geometry.computeVertexNormals();
+
+					const material = new THREE.MeshStandardMaterial( { map: loaderTex.load('./models/textures/doma-interior_texture16k.png'), } );
+					const mesh = new THREE.Mesh( geometry, material );
+					mesh.scale.multiplyScalar( 0.03 );
+					mesh.rotation.x = - Math.PI / 2;
+					mesh.position.x = 0.0;
+					mesh.position.y = 0.0;
+					mesh.position.z = 0.0;
+					
+					 
+
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+
+					scene.add( mesh );
+
+				} );
+			}
+			function loadModels()
+			{
+				// Ground
+/*
+				const plane = new THREE.Mesh(
+					new THREE.PlaneGeometry( 40, 40 ),
+					new THREE.MeshPhongMaterial( { color: 0x999999, specular: 0x101010 } )
+				);
+				plane.rotation.x = - Math.PI / 2;
+				plane.position.y = - 0.5;
+				scene.add( plane );
+
+				plane.receiveShadow = true;*/
+
+
+				
+
+
+				loadDoma();
+
+				scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
+
+				addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
+				addShadowedLight( 0.5, 1, - 1, 0xffaa00, 1 );
+
+
+			}
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 15 );
+				camera.position.set( 3, 0.15, 3 );
+
+
+				//camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 10000 );
+				//camera.position.set( 1000, 50, 1500 );
+
+				cameraTarget = new THREE.Vector3( 0, - 0.1, 0 );
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0x72645b );
+				scene.fog = new THREE.Fog( 0x72645b, 2, 15 );
+
+
+
+				loadModels();
+
+
+								// renderer
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.outputEncoding = THREE.sRGBEncoding;
+
+				renderer.shadowMap.enabled = true;
+
+				container.appendChild( renderer.domElement );
+
+				// stats
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				const controls = new OrbitControls( camera, renderer.domElement );
+				controls.maxPolarAngle = Math.PI * 0.5;
+				controls.minDistance = 0;
+				controls.maxDistance = 3;
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+
+			function addShadowedLight( x, y, z, color, intensity ) {
+
+				const directionalLight = new THREE.DirectionalLight( color, intensity );
+				directionalLight.position.set( x, y, z );
+				scene.add( directionalLight );
+
+				directionalLight.castShadow = true;
+
+				const d = 1;
+				directionalLight.shadow.camera.left = - d;
+				directionalLight.shadow.camera.right = d;
+				directionalLight.shadow.camera.top = d;
+				directionalLight.shadow.camera.bottom = - d;
+
+				directionalLight.shadow.camera.near = 1;
+				directionalLight.shadow.camera.far = 4;
+
+				directionalLight.shadow.mapSize.width = 1024;
+				directionalLight.shadow.mapSize.height = 1024;
+
+				directionalLight.shadow.bias = - 0.001;
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				const timer = Date.now() * 0.0005;
+
+				//camera.position.x = Math.sin( timer ) * 2.5;
+				//camera.position.z = Math.cos( timer ) * 2.5;
+
+				//camera.lookAt( cameraTarget );
+				renderer.clear();
+				renderer.render( scene, camera );
+				//renderer.render( uiScene, orthoCamera );
+
+			}
+
+
+
+			var xmlhttp = new XMLHttpRequest();
+			xmlhttp.onreadystatechange = function() {
+			    if (this.readyState == 4 && this.status == 200) {
+			        var myObj = JSON.parse(this.responseText);
+			        var loader = new THREE.FileLoader();
+			        loader.load('images/doma-interior.list.txt', function ( data ) {
+					        // output the text to the console
+					        captureNames = data.split('\n')
+					        //console.log( data.split('\n') )
+					        loadCameras(myObj)
+			        		setDefaultColorsCameras();
+						
+					});
+					
+			    }
+			};
+			xmlhttp.open("GET", "cameras.json", true);
+			xmlhttp.send();
+
+		</script>
+	</body>
+</html>
