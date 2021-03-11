@@ -7,7 +7,7 @@
 		<link type="text/css" rel="stylesheet" href="main.css">
 	</head>
 	<body>
-		<div id="info">
+		<div style="position: absolute; text-align: center; width: 100%;">
 			<!--<img id="captureImage" src="images/0001.jpg" style="visibility:hidden" alt="Image" height="200">-->
 			<img id="captureImage5" src="images/0001.jpg" alt="Image" height="50" align="top" onclick="moveCamToImage(5)">
 			<img id="captureImage3" src="images/0001.jpg" alt="Image" height="100" align="top" onclick="moveCamToImage(3)">
@@ -17,9 +17,9 @@
 			<img id="captureImage4" src="images/0001.jpg" alt="Image" height="100" align="top" onclick="moveCamToImage(4)">
 			<img id="captureImage6" src="images/0001.jpg" alt="Image" height="50" align="top" onclick="moveCamToImage(6)">
 		</div>
+		<script>
 
-		
-
+		</script>
 		<script type="module">
 
 			import * as THREE from '../build/three.module.js';
@@ -52,6 +52,39 @@
 			document.addEventListener( 'pointerup', onDocumentMouseDown );
 			document.addEventListener("keydown", onDocumentKeyDown, false);
 
+			document.getElementById("captureImage6").onclick = function() {moveCamToImage(6);}
+			document.getElementById("captureImage5").onclick = function() {moveCamToImage(5);}
+			document.getElementById("captureImage4").onclick = function() {moveCamToImage(4);}
+			document.getElementById("captureImage3").onclick = function() {moveCamToImage(3);}
+			document.getElementById("captureImage2").onclick = function() {moveCamToImage(2);}
+			document.getElementById("captureImage1").onclick = function() {moveCamToImage(1);}
+			document.getElementById("captureImage0").onclick = function() {moveCamToImage(0);}
+
+			function moveCamToImage(index_candidate)
+			{
+				var captureCam = cameraList[current_candidates[index_candidate].index]
+				var direction = new THREE.Vector3();
+				captureCam.getWorldDirection( direction );
+				//controls.enabled = false;
+				//camera.position.copy( intersects[ 0 ].object.position )
+				camera.position.copy( captureCam.position ).add( direction.multiplyScalar( 0.09 ) );
+				
+				//camera.quaternion.copy( intersects[ 0 ].object.quaternion );
+
+				var v1 = new THREE.Vector3(); // create once and reuse it
+
+				//v1.copy( captureCam.up ).applyQuaternion( captureCam.quaternion );
+				//camera.up.set(v1.x, v1.y, v1.z); 
+				//camera.lookAt(intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z)
+				controls.update()
+				//controls.update()
+				//controls.coupleCenters = true;
+				
+				controls.target = new THREE.Vector3( captureCam.position.x, captureCam.position.y, captureCam.position.z );
+				//controls.target.copy(v1.x, v1.y, v1.z)
+				//controls.target.add( direction.multiplyScalar( 0.5 ) );
+				controls.update()
+			}
 			function showCapture(indexCapture)
 			{
 				/*if(indexCapture != -1)
@@ -110,10 +143,7 @@
 			    }  
 			    
 			};
-			function moveCamToImage(index_candidate)
-			{
-				console.log(index_candidate)
-			}
+
 			function onDocumentMouseDown( event ) {   
 				if(!cams_enabled)
 					return;
@@ -139,7 +169,7 @@
 					//console.log(cameraList)
 					//console.log(captureNames)
 					//controls.coupleCenters = false;
-					showCapture(photoIndex);
+					//showCapture(photoIndex);
 	                intersects[ 0 ].object.material.color.setHex( 0x0000ff );
 	                intersects[ 0 ].object.material.opacity = 0.3; 
 	                var direction = new THREE.Vector3();
