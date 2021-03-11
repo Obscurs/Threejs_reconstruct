@@ -8,7 +8,14 @@
 	</head>
 	<body>
 		<div id="info">
-			<img id="captureImage" src="images/0001.jpg" style="visibility:hidden" alt="Image" height="200">
+			<!--<img id="captureImage" src="images/0001.jpg" style="visibility:hidden" alt="Image" height="200">-->
+			<img id="captureImage5" src="images/0001.jpg" alt="Image" height="50" align="top" onclick="moveCamToImage(5)">
+			<img id="captureImage3" src="images/0001.jpg" alt="Image" height="100" align="top" onclick="moveCamToImage(3)">
+			<img id="captureImage1" src="images/0001.jpg" alt="Image" height="150" align="top" onclick="moveCamToImage(1)">
+			<img id="captureImage0" src="images/0001.jpg" alt="Image" height="200" align="top" onclick="moveCamToImage(0)">
+			<img id="captureImage2" src="images/0001.jpg" alt="Image" height="150" align="top" onclick="moveCamToImage(2)">
+			<img id="captureImage4" src="images/0001.jpg" alt="Image" height="100" align="top" onclick="moveCamToImage(4)">
+			<img id="captureImage6" src="images/0001.jpg" alt="Image" height="50" align="top" onclick="moveCamToImage(6)">
 		</div>
 
 		
@@ -21,28 +28,33 @@
 
 			import { PLYLoader } from './jsm/loaders/PLYLoader.js';
 
-			import { OrbitControls } from './jsm/controls/OrbitControls.js';
-			
+			import { OrbitControls } from './jsm/controls/CustomOrbitControls.js';
+			import { FlyControls } from './jsm/controls/FlyControls.js';
+			import { TrackballControls } from './jsm/controls/CustomTrackballControls.js';
 
 			let container, stats;
 
-			let camera, cameraTarget, scene , renderer;
+			let camera, scene , renderer;
+			const clock = new THREE.Clock();
 			var cameraList = [];
-			var cameraDirections = [];
 			var captureNames = [];
 			var aux_index = 0;
+			var current_candidates = [];
 
 			var controls;
+			var camera_mode = "ORBIT";
+			var timer_update = 0;
+			var cams_enabled = true;
 			init();
 			animate();
 
 			document.body.appendChild( renderer.domElement );
-			document.addEventListener( 'pointerdown', onDocumentMouseDown );
-
+			document.addEventListener( 'pointerup', onDocumentMouseDown );
+			document.addEventListener("keydown", onDocumentKeyDown, false);
 
 			function showCapture(indexCapture)
 			{
-				if(indexCapture != -1)
+				/*if(indexCapture != -1)
 				{
 					var source = "images/"+captureNames[indexCapture]
 
@@ -50,10 +62,64 @@
 					document.getElementById("captureImage").style.visibility = "visible";
 
 					console.log(source)
-				}
+				}*/
 			}
-			function onDocumentMouseDown( event ) {    
-				console.log("intersects")
+
+			function showCaptures(changed)
+			{
+				if(changed)
+				{
+					var arrayLength = cameraList.length;
+
+					for (var i = 0; i < 5; i++) {
+						var candidate = current_candidates[i]
+						if(candidate)
+						{
+						    var source = "images/"+captureNames[candidate.index]
+
+							document.getElementById('captureImage'+i).src= source
+							document.getElementById("captureImage"+i).style.visibility = "visible";
+						}
+						
+
+					}	
+					//console.log(current_candidates)
+				}
+				
+
+				/*if(indexCapture != -1)
+				{
+					var source = "images/"+captureNames[indexCapture]
+
+					document.getElementById('captureImage').src= source
+					document.getElementById("captureImage").style.visibility = "visible";
+
+					console.log(source)
+				}*/
+			}
+
+
+			function onDocumentKeyDown(event) {
+			    var keyCode = event.which;
+			    if (keyCode == 82) { //R
+			        resetCamera();
+			    } else if (keyCode == 77) { //M
+			        changeMode();
+			    }  else if (keyCode == 72) { //M
+			        toggleEnableCams();
+			    }  
+			    
+			};
+			function moveCamToImage(index_candidate)
+			{
+				console.log(index_candidate)
+			}
+			function onDocumentMouseDown( event ) {   
+				if(!cams_enabled)
+					return;
+				if(camera_mode == "FLY")
+					return;
+				//console.log(camera_mode)
 	            event.preventDefault();
 	            var mouse3D = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
 	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
@@ -77,23 +143,32 @@
 	                intersects[ 0 ].object.material.color.setHex( 0x0000ff );
 	                intersects[ 0 ].object.material.opacity = 0.3; 
 	                var direction = new THREE.Vector3();
-	                //var direction = cameraDirections[photoIndex];
 					intersects[ 0 ].object.getWorldDirection( direction );
 					//controls.enabled = false;
 					//camera.position.copy( intersects[ 0 ].object.position )
 					camera.position.copy( intersects[ 0 ].object.position ).add( direction.multiplyScalar( 0.09 ) );
 					
-					camera.quaternion.copy( intersects[ 0 ].object.quaternion );
+					//camera.quaternion.copy( intersects[ 0 ].object.quaternion );
 
-					
+					var v1 = new THREE.Vector3(); // create once and reuse it
+
+					v1.copy( intersects[ 0 ].object.up ).applyQuaternion( intersects[ 0 ].object.quaternion );
+					camera.up.set(v1.x, v1.y, v1.z); 
+					//camera.lookAt(intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z)
+					controls.update()
 					//controls.update()
-					//controls.coupleCenters = false;
-					controls.target =intersects[ 0 ].object.position
+					//controls.coupleCenters = true;
+					
+					controls.target = new THREE.Vector3( intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z );
+					//controls.target.copy(v1.x, v1.y, v1.z)
+					//controls.target.add( direction.multiplyScalar( 0.5 ) );
+					controls.update()
+					
 
 	            }
 	            else
 	            {
-	            	document.getElementById("captureImage").style.visibility = "hidden";
+	            	//document.getElementById("captureImage").style.visibility = "hidden";
 	            	//console.log(camera)
 	            	//console.log(controls)
 	            }
@@ -117,21 +192,21 @@
 					return;
 				}
 				aux_index = aux_index +1;
-				 var m = new THREE.Matrix3();
+				 var m = new THREE.Matrix4();
 
-				 m.set( element.m1, element.m2, element.m3,
-			       element.m4, element.m5, element.m6,
-			       element.m7, element.m8, element.m9 );
-				 m.transpose();
-				 m.multiplyScalar(-1);
+				 m.set( element.m1, element.m2, element.m3, element.tx,
+		           element.m4, element.m5, element.m6, element.ty,
+		           element.m7, element.m8, element.m9, element.tz,
+		           0, 0, 0, 1 );
+				m.invert();
 
-				 var t = new THREE.Vector3(element.tx, element.ty, element.tz);
-				 var dir = new THREE.Vector3(0, 0, -1);
-				 dir.applyMatrix3(m);
-				 console.log(captureNames[aux_index-1])
-				 console.log(t)
+				 //var t = new THREE.Vector3(element.tx, element.ty, element.tz);
+				 //var dir = new THREE.Vector3(0, 0, -1);
+				 //dir.applyMatrix3(m);
+				 //console.log(captureNames[aux_index-1])
+				 //console.log(t)
 				 //console.log(t);
-				 t.applyMatrix3(m);
+				 //t.applyMatrix3(m);
 				 //console.log(t);
 
 
@@ -153,16 +228,16 @@
 					//var rotation = new THREE.Matrix4();
 					//mesh.applyMatrix(R);
 
-					mesh.lookAt(dir)
+					//mesh.lookAt(dir)
 
-					mesh.scale.multiplyScalar( 0.02 );
 
 					//var rotation2 = new THREE.Matrix4().makeRotationZ(Math.PI/2);
-					var rotation2 = new THREE.Matrix4();
-					var translation = new THREE.Matrix4().makeTranslation(t.x*0.03, t.y*0.03, t.z*0.03);
-					var transformation = translation.multiply(rotation2);
+					//var rotation2 = new THREE.Matrix4();
+					//var translation = new THREE.Matrix4().makeTranslation(t.x*0.03, t.y*0.03, t.z*0.03);
+					//var transformation = translation.multiply(rotation2);
 
-					mesh.applyMatrix(transformation);
+					mesh.applyMatrix(m);
+					mesh.applyMatrix4(new THREE.Matrix4().makeScale(0.03, 0.03, 0.03))
 					mesh.castShadow = false;
 					mesh.receiveShadow = false;
 					scene.add( mesh );
@@ -213,19 +288,154 @@
 
 
 			}
+			function resetCamera()
+			{
+				initControls(camera_mode)
+			}
+			function toggleEnableCams()
+			{
+				cams_enabled = !cams_enabled;
+				var arrayLength = cameraList.length;
+				if(cams_enabled)
+				{
+					for (var i = 0; i < arrayLength; i++) {
+					    cameraList[i].material.opacity = 0.1; 
+					}
+				}
+				else
+				{
+					for (var i = 0; i < arrayLength; i++) {
+					    cameraList[i].material.opacity = 0.0; 
+					}
+				}
+			}
+			function getScorePosition(index_cam)
+			{
+				var dist = cameraList[index_cam].position.distanceTo(camera.position)
+				return dist;
+				
+			}
+			function getScoreRotation(index_cam)
+			{
+				var direction1 = new THREE.Vector3();
+				var direction2 = new THREE.Vector3();
+				cameraList[index_cam].getWorldDirection( direction1 );
+				camera.getWorldDirection( direction2 );
+				var dist = direction1.distanceTo(direction2);
+				return 2 - dist;
+				
+			}
+			function getScoreCam(index_cam)
+			{
+				var distanceScore = getScorePosition(index_cam);
+				var orientationScore = getScoreRotation(index_cam);
+				return distanceScore + orientationScore *10;
+			}
+			function compareCandidates( a, b ) {
+			  if ( a.score < b.score ){
+			    return -1;
+			  }
+			  if ( a.score > b.score ){
+			    return 1;
+			  }
+			  return 0;
+			}
+			function updateCandidates()
+			{
+				var changed = false
+				current_candidates = []
+				var arrayLength = cameraList.length;
+				for (var i = 0; i < arrayLength; i++) {
+				    //cameraList[i].material.opacity = 0.1; 
+				    var scoreCam = getScoreCam(i)
+				    var elem = {
+					    'index': i,
+					    'score': scoreCam
+					};
+					if(i >= current_candidates.length)
+					{
+						current_candidates.push(elem)
+					}
+				    else
+				    {
+				    	current_candidates[i] = elem
+				    }
+				}
+				current_candidates.sort(compareCandidates)
+				showCaptures(true)
+			}
+			
+			function changeMode()
+			{
+				if(camera_mode == "FLY")
+					camera_mode = "ORBIT"
+				else if(camera_mode == "ORBIT")
+					camera_mode = "TRACK"
+				else if(camera_mode == "TRACK")
+					camera_mode = "FLY"
+				else
+					camera_mode = "FLY"
+				initControls(camera_mode)
+			}
+			function initControls(mode)
+			{
+				camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 15 );
+				camera.position.set( 11*0.03,-20*0.03,2*0.03 );
+				//camera.position.set( 3,0.15,3 );
+				
+				camera.up.set(0,0,1);
+
+
+				if(mode == "FLY")
+				{
+					controls = new FlyControls( camera, renderer.domElement );
+					controls.movementSpeed = 10;
+					controls.domElement = renderer.domElement;
+					controls.rollSpeed = Math.PI / 12;
+					controls.autoForward = false;
+					controls.dragToLook = false;
+				}
+				else if(mode == "ORBIT")
+				{
+
+					controls = new OrbitControls( camera, renderer.domElement );
+					controls.minPolarAngle =  - Infinity; // radians
+					controls.maxPolarAngle = Infinity; // radians
+					controls.minDistance = 0;
+					controls.maxDistance = 3;
+					controls.minAzimuthAngle = - Infinity; // radians
+					controls.maxAzimuthAngle = Infinity; // radians
+
+					controls.target.set(-1*0.03,-20*0.03,2*0.03)
+
+				}
+				else if(mode == "TRACK")
+				{
+					controls = new TrackballControls( camera, renderer.domElement );
+					controls.rotateSpeed = 1.0;
+					controls.zoomSpeed = 0.6;
+					controls.panSpeed = 0.2;
+
+					controls.keys = [ 65, 83, 68 ];
+					controls.target.set(-1*0.03,-20*0.03,2*0.03)
+				}
+				else
+				{
+					console.log("ERROR, mode not found");
+				}
+			}
 			function init() {
 
 				container = document.createElement( 'div' );
 				document.body.appendChild( container );
 
-				camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 15 );
-				camera.position.set( 3, 0.15, 3 );
+
 
 
 				//camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 10000 );
 				//camera.position.set( 1000, 50, 1500 );
 
-				cameraTarget = new THREE.Vector3( 0, - 0.1, 0 );
+				//cameraTarget = new THREE.Vector3( 0, - 0.1, 0 );
 
 				scene = new THREE.Scene();
 				scene.background = new THREE.Color( 0x72645b );
@@ -234,6 +444,7 @@
 
 
 				loadModels();
+
 
 
 				// renderer
@@ -245,6 +456,9 @@
 
 				renderer.shadowMap.enabled = true;
 
+
+				
+
 				container.appendChild( renderer.domElement );
 
 				// stats
@@ -252,10 +466,11 @@
 				stats = new Stats();
 				container.appendChild( stats.dom );
 
-				controls = new OrbitControls( camera, renderer.domElement );
-				controls.maxPolarAngle = Math.PI * 0.5;
-				controls.minDistance = 0;
-				controls.maxDistance = 3;
+				initControls(camera_mode)
+				
+
+
+
 
 				window.addEventListener( 'resize', onWindowResize );
 
@@ -295,21 +510,31 @@
 			}
 
 			function animate() {
-
+				const timer = Date.now() * 0.0005;
+				const delta = clock.getDelta();
+				timer_update += delta
 				requestAnimationFrame( animate );
-
-				render();
+				if(camera_mode != "FLY")
+					controls.update();
 				stats.update();
+				if(timer_update > 2)
+				{
+					timer_update = 0
+					updateCandidates();
+				}
+				if(camera_mode == "FLY")
+				{
+					controls.movementSpeed = 0.33 * 1;
+					controls.update( delta );
+				}
+				render();
+
 
 			}
 
 			function render() {
-
-				const timer = Date.now() * 0.0005;
-
 				renderer.clear();
 				renderer.render( scene, camera );
-
 			}
 
 
