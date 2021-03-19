@@ -17,34 +17,39 @@
 			<img id="captureImage4" src="images/0001.jpg" alt="Image" height="100" align="top" onclick="moveCamToImage(4)">
 			<img id="captureImage6" src="images/0001.jpg" alt="Image" height="50" align="top" onclick="moveCamToImage(6)">
 		</div>
+		<script src="scripts/shaders.js"></script>
 		<script>
-
+			
 		</script>
 		<script type="module">
 
 			import * as THREE from '../build/three.module.js';
 
 			import Stats from './jsm/libs/stats.module.js';
-
+			import { GUI } from './jsm/libs/dat.gui.module.js';
 			import { PLYLoader } from './jsm/loaders/PLYLoader.js';
 
 			import { OrbitControls } from './jsm/controls/CustomOrbitControls.js';
 			import { FlyControls } from './jsm/controls/FlyControls.js';
 			import { TrackballControls } from './jsm/controls/CustomTrackballControls.js';
-
-			let container, stats;
+			let container, stats, gui;
 
 			let camera, scene , renderer;
+
 			const clock = new THREE.Clock();
 			var cameraList = [];
+			var scene_models = [];
 			var captureNames = [];
+			var captureRays = [];
 			var aux_index = 0;
 			var current_candidates = [];
-
+			var manager = new THREE.LoadingManager();
 			var controls;
 			var camera_mode = "ORBIT";
 			var timer_update = 0;
 			var cams_enabled = true;
+			var need_to_update = true;
+			var old_pos_cam =  new THREE.Vector3();
 			init();
 			animate();
 
@@ -60,6 +65,17 @@
 			document.getElementById("captureImage1").onclick = function() {moveCamToImage(1);}
 			document.getElementById("captureImage0").onclick = function() {moveCamToImage(0);}
 
+			manager.onLoad = function()
+			{
+				//renderer.render( scene, camera );
+			    console.log("LOADDDED");
+				precomputeRays()
+
+			}
+			function createGUI()
+			{
+				
+			}
 			function moveCamToImage(index_candidate)
 			{
 				var captureCam = cameraList[current_candidates[index_candidate].index]
@@ -104,7 +120,7 @@
 				{
 					var arrayLength = cameraList.length;
 
-					for (var i = 0; i < 5; i++) {
+					for (var i = 0; i < 7; i++) {
 						var candidate = current_candidates[i]
 						if(candidate)
 						{
@@ -143,7 +159,7 @@
 			    }  
 			    
 			};
-
+			
 			function onDocumentMouseDown( event ) {   
 				if(!cams_enabled)
 					return;
@@ -157,7 +173,7 @@
 	            var raycaster =  new THREE.Raycaster();                                        
 	           raycaster.setFromCamera( mouse3D, camera );
 	            var intersects = raycaster.intersectObjects( cameraList );
-				console.log(intersects)
+				//console.log(intersects)
 				setDefaultColorsCameras();
 	            if ( intersects.length > 0 ) {
 	            	var photoIndex = -1;
@@ -272,10 +288,36 @@
 					mesh.receiveShadow = false;
 					scene.add( mesh );
 					cameraList.push(mesh);
+
+					
+
+					
+						
+
 					setDefaultColorsCameras()
+					console.log("CAMERA LOADED")
 
 				} );
 
+			}
+			function precomputeRays()
+			{
+				for (var i = 0; i < cameraList.length; i++) {
+					var directionPhoto = new THREE.Vector3();
+					var pointIntersect = new THREE.Vector3();
+					cameraList[i].getWorldDirection( directionPhoto );
+					var raycasterPhoto =  new THREE.Raycaster(cameraList[i].position, directionPhoto); 
+
+					var intersectsPhoto = raycasterPhoto.intersectObjects( scene_models );  
+					console.log(intersectsPhoto)
+					if(intersectsPhoto.length == 0)
+						captureRays.push(null)
+					else
+					{
+						pointIntersect.copy(intersectsPhoto[0].point)
+						captureRays.push(pointIntersect)
+					}
+				}
 			}
 			function loadCameras(cameras) {
 				cameras.cameras.forEach(loadCamera);
@@ -284,12 +326,25 @@
 			function loadDoma()
 			{
 				const loader = new PLYLoader();
-				const loaderTex = new THREE.TextureLoader();
+				const loaderTex = new THREE.TextureLoader(manager);
 
 				loader.load( './models/ply/ascii/doma-interior_textured.ply', function ( geometry ) {
 					geometry.computeVertexNormals();
-
-					const material = new THREE.MeshStandardMaterial( { map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), } );
+					let uniforms = {
+				        colorB: {type: 'vec3', value: new THREE.Color(0xACB6E5)},
+				        colorA: {type: 'vec3', value: new THREE.Color(0x74ebd5)},
+				        capturePos: {type: 'vec3', value: new THREE.Vector3(0,0,0)},
+				        modelViewMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
+				        projectionMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
+				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
+				        texture1: { type: "t", value: loaderTex.load('./models/textures/doma-interior_texture16k.jpg') }
+				    }
+					const material = new THREE.ShaderMaterial( { 
+						uniforms: uniforms,
+					    fragmentShader: fragmentShader(),
+					    vertexShader: vertexShader(),
+						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
+					} );
 					const mesh = new THREE.Mesh( geometry, material );
 					mesh.scale.multiplyScalar( 0.03 );
 					//mesh.rotation.x = - Math.PI / 2;
@@ -303,8 +358,15 @@
 					mesh.receiveShadow = true;
 
 					scene.add( mesh );
+					scene_models.push(mesh);
+
+					//TODO Check cams loaded
+					console.log("MODEL LOADED")
+					//precomputeRays()
 
 				} );
+
+				
 			}
 			function loadModels()
 			{
@@ -355,11 +417,41 @@
 				return 2 - dist;
 				
 			}
-			function getScoreCam(index_cam)
+			function getScoreRays(index_cam, intersectsCamera)
+			{
+				if(intersectsCamera.length == 0)
+					return 1;
+				/*var directionPhoto = new THREE.Vector3();
+				cameraList[index_cam].getWorldDirection( directionPhoto );
+				var raycasterPhoto =  new THREE.Raycaster(cameraList[index_cam].position, directionPhoto); 
+
+				var intersectsPhoto = raycasterPhoto.intersectObjects( scene_models );  
+
+				if(intersectsPhoto.length == 0)
+					return 1;*/
+				camera.updateProjectionMatrix();
+				//console.log(intersectsPhoto[0].point.project(camera))
+				var projected1 = new THREE.Vector3();
+				var projected2 = new THREE.Vector3();
+				console.log(captureRays)
+				console.log(index_cam)
+				projected1.copy(captureRays[index_cam])
+				projected2.copy(intersectsCamera[0].point)
+				projected1.project(camera)
+				projected2.project(camera)
+				console.log(projected1)
+				console.log(projected2)
+				var center = new THREE.Vector3(0,0,projected1.z);
+				return projected1.distanceTo(center)
+				//return intersectsPhoto[0].point.distanceTo(intersectsCamera[0].point);
+				
+
+			}
+			function getScoreCam(index_cam, intersectsCamera)
 			{
 				var distanceScore = getScorePosition(index_cam);
 				var orientationScore = getScoreRotation(index_cam);
-				return distanceScore + orientationScore *10;
+				return distanceScore*0 + orientationScore*0 + getScoreRays(index_cam, intersectsCamera);
 			}
 			function compareCandidates( a, b ) {
 			  if ( a.score < b.score ){
@@ -372,16 +464,25 @@
 			}
 			function updateCandidates()
 			{
+				console.log("START UPDATE")
+				var directionCamera = new THREE.Vector3();
+				camera.getWorldDirection( directionCamera );
+				var raycasterCamera =  new THREE.Raycaster(camera.position, directionCamera);    
+				var intersectsCamera = raycasterCamera.intersectObjects( scene_models );  
+				console.log(intersectsCamera);
+
 				var changed = false
 				current_candidates = []
 				var arrayLength = cameraList.length;
 				for (var i = 0; i < arrayLength; i++) {
+					
 				    //cameraList[i].material.opacity = 0.1; 
-				    var scoreCam = getScoreCam(i)
+				    var scoreCam = getScoreCam(i, intersectsCamera)
 				    var elem = {
 					    'index': i,
 					    'score': scoreCam
 					};
+					console.log(captureNames[i]+" "+i + " score: "+ scoreCam)
 					if(i >= current_candidates.length)
 					{
 						current_candidates.push(elem)
@@ -392,6 +493,31 @@
 				    }
 				}
 				current_candidates.sort(compareCandidates)
+
+				var directionCapture = new THREE.Vector3();
+				var v1 = new THREE.Vector3();
+				cameraList[current_candidates[0].index].getWorldDirection( directionCapture );
+				var positionCapture = new THREE.Vector3();
+				positionCapture.copy(cameraList[current_candidates[0].index].position);
+				var cameraCapture = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 15 );
+				//var cameraCapture = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 0.1, 15 );
+
+				//cameraCapture.matrixAutoUpdate  = true;
+				
+				cameraCapture.position.set( positionCapture.x,positionCapture.y,positionCapture.z );
+
+				v1.copy( cameraList[current_candidates[0].index].up ).applyQuaternion( cameraList[current_candidates[0].index].quaternion );
+				cameraCapture.quaternion.copy( cameraList[current_candidates[0].index].quaternion );
+				cameraCapture.up.set(v1.x, v1.y, v1.z); 
+
+				//var cameraCapture = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 15 );
+				//cameraCapture.position.set( 11*0.03,-20*0.03,2*0.03 );
+				//cameraCapture.up.set(0,0,1);
+
+				cameraCapture.updateMatrixWorld();
+				cameraCapture.updateProjectionMatrix();
+				scene_models[0].material.uniforms.modelViewMatrixCapture.value = cameraCapture.matrixWorldInverse;
+				scene_models[0].material.uniforms.projectionMatrixCapture.value = cameraCapture.projectionMatrix;
 				showCaptures(true)
 			}
 			
@@ -542,13 +668,24 @@
 			function animate() {
 				const timer = Date.now() * 0.0005;
 				const delta = clock.getDelta();
-				timer_update += delta
+				if(need_to_update)
+					timer_update += delta
+
+				if(old_pos_cam.distanceTo(camera.position) > 0.0001)
+				{
+					console.log("changed!! " + old_pos_cam.x + " " +camera.position.x)
+					timer_update = 0;
+					need_to_update = true;
+				}
+					
 				requestAnimationFrame( animate );
 				if(camera_mode != "FLY")
 					controls.update();
 				stats.update();
-				if(timer_update > 2)
+				if(timer_update > 1)
 				{
+					console.log("update")
+					need_to_update = false
 					timer_update = 0
 					updateCandidates();
 				}
@@ -557,6 +694,7 @@
 					controls.movementSpeed = 0.33 * 1;
 					controls.update( delta );
 				}
+				old_pos_cam.copy(camera.position);
 				render();
 
 
@@ -580,6 +718,7 @@
 					        //console.log( data.split('\n') )
 					        loadCameras(myObj)
 			        		setDefaultColorsCameras();
+
 						
 					});
 					
