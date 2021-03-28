@@ -4,12 +4,12 @@ function vertexShader() {
     varying vec3 capturePos;
     varying vec4 modelViewPosition; 
     varying vec3 vecNormal;
-    uniform mat4 modelViewMatrixCapture;
+    uniform mat4 viewMatrixCapture;
     uniform mat4 projectionMatrixCapture;
 
     void main() {
     	vUv = uv;
-    	capturePos = (projectionMatrixCapture * modelViewMatrixCapture * modelMatrix* vec4(position,1.0)).xyz;
+    	capturePos = (projectionMatrixCapture * viewMatrixCapture * modelMatrix* vec4(position,1.0)).xyz;
     	//capturePos =   (projectionMatrixCapture *  modelViewMatrix * vec4(position,1.0)).xyz;
       //vUv = position; 
       //vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
@@ -32,16 +32,16 @@ function fragmentShader() {
       varying vec3 capturePos;
       void main() {
         //gl_FragColor = vec4(mix(colorA, colorB, vUv.z), 1.0);
-        if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > 0.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
+        //if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > 0.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
         //if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > 0.0 && capturePos.z < 1.0)
         {
-        	gl_FragColor = vec4(capturePos.x,capturePos.y,capturePos.z,1.0);
+        	//gl_FragColor = vec4(capturePos.x,capturePos.y,capturePos.z,1.0);
         	//gl_FragColor = vec4(mix(vec3(1.0,0.0,0.0), texture2D(texture1, vUv).xyz, 0.5), 1.0);
         }
-        else
+        //else
         {
-			//gl_FragColor = texture2D(texture1, vUv); 
-			discard;
+			gl_FragColor = texture2D(texture1, vUv); 
+			//discard;
         }
          
       }

@@ -5,21 +5,108 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<link type="text/css" rel="stylesheet" href="main.css">
+
+		<style>
+			.selectBox {
+				border: 1px solid #55aaff;
+				background-color: rgba(75, 160, 255, 0.3);
+				position: fixed;
+			}
+		</style>
+
 	</head>
 	<body>
-		<div style="position: absolute; text-align: center; width: 100%;">
+				<!--script src="scripts/shaders.js"--></script>
+		<script src="modules/FileSaver.js"></script>
+		<div id="selection_menu" style="position: absolute; text-align: center; width: 100%;">
 			<!--<img id="captureImage" src="images/0001.jpg" style="visibility:hidden" alt="Image" height="200">-->
-			<img id="captureImage5" src="images/0001.jpg" alt="Image" height="50" align="top" onclick="moveCamToImage(5)">
-			<img id="captureImage3" src="images/0001.jpg" alt="Image" height="100" align="top" onclick="moveCamToImage(3)">
-			<img id="captureImage1" src="images/0001.jpg" alt="Image" height="150" align="top" onclick="moveCamToImage(1)">
-			<img id="captureImage0" src="images/0001.jpg" alt="Image" height="200" align="top" onclick="moveCamToImage(0)">
-			<img id="captureImage2" src="images/0001.jpg" alt="Image" height="150" align="top" onclick="moveCamToImage(2)">
-			<img id="captureImage4" src="images/0001.jpg" alt="Image" height="100" align="top" onclick="moveCamToImage(4)">
-			<img id="captureImage6" src="images/0001.jpg" alt="Image" height="50" align="top" onclick="moveCamToImage(6)">
+			<img id="captureImage5" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="50" align="top" onclick="selectCapture(5)">
+			<img id="captureImage3" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="100" align="top" onclick="selectCapture(3)">
+			<img id="captureImage1" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="150" align="top" onclick="selectCapture(1)">
+			<img id="captureImage0" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="200" align="top" onclick="selectCapture(0)">
+			<img id="captureImage2" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="150" align="top" onclick="selectCapture(2)">
+			<img id="captureImage4" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="100" align="top" onclick="selectCapture(4)">
+			<img id="captureImage6" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="50" align="top" onclick="selectCapture(6)">
 		</div>
-		<script src="scripts/shaders.js"></script>
+		<canvas style="position: absolute;" id="canvas"></canvas>
+
 		<script>
-			
+
+			let m_container, m_stats, m_gui;
+
+			let m_camera, m_camera_capture, m_scene , m_renderer;
+
+			var m_camera_list = [];
+			var m_camera_mesh_list = [];
+			var m_scene_models = [];
+			var m_capture_rays = [];
+			var m_current_candidates = [];
+			var m_controls;
+			var m_camera_mode = "ORBIT";
+			var m_timer_update = 0;
+			var m_cams_enabled = false;
+			var m_need_to_update = true;
+			var m_system_ready = false;
+			var m_current_capture_in_view_index = -1;
+
+			var m_testVec1;
+			var m_testVec2;
+			var m_num_rays_precomputation = 10;	//rays x rays
+			var m_select_controls_enabled = false;
+			var m_dragging = false;
+			var m_selection_rectangle = {
+				startNDC: null,
+				endNDC: null,
+				selectionBox: null,
+				helper: null,
+			}
+
+			/*var m_canvas = new fabric.Canvas('canvas');
+
+			m_canvas.setHeight(0);
+			m_canvas.setWidth(0);
+			m_canvas.renderAll();
+			m_canvas.renderAll.bind(m_canvas)();
+			m_canvas.backgroundColor = null;*/
+
+			const m_views = [
+				{
+					left: 0.0,
+					bottom: 0.0,
+					width: 0.5,
+					height: 1.0,
+				},
+				{
+					left: 0.5,
+					bottom: 0.0,
+					width: 0.5,
+					height: 0.5,
+				},
+				{
+					left: 0.0,
+					bottom: 0.0,
+					width: 1.0,
+					height: 1.0,
+				}
+			];
+			var m_gui_options =
+			{
+				projection: 0,
+				orientation: 5,
+				position: 1,
+				timer_recalc: 1,
+
+				red_area_enabled: false,
+				show_camera_enabled: false,
+				show_view_enabled: false,
+				auto_score_enabled: false,
+			}
+
+
+
+
+
+
 		</script>
 		<script type="module">
 
@@ -32,74 +119,182 @@
 			import { OrbitControls } from './jsm/controls/CustomOrbitControls.js';
 			import { FlyControls } from './jsm/controls/FlyControls.js';
 			import { TrackballControls } from './jsm/controls/CustomTrackballControls.js';
-			let container, stats, gui;
+			import { SelectionBox } from './jsm/interactive/SelectionBox.js';
+			import { SelectionHelper } from './jsm/interactive/SelectionHelper.js';
 
-			let camera, scene , renderer;
+			//import { saveAs } from './modules/FileSaver.js';
 
-			const clock = new THREE.Clock();
-			var cameraList = [];
-			var scene_models = [];
-			var captureNames = [];
-			var captureRays = [];
-			var aux_index = 0;
-			var current_candidates = [];
-			var manager = new THREE.LoadingManager();
-			var controls;
-			var camera_mode = "ORBIT";
-			var timer_update = 0;
-			var cams_enabled = true;
-			var need_to_update = true;
-			var old_pos_cam =  new THREE.Vector3();
+			const m_clock = new THREE.Clock();
+			var m_cameraHelper;
+			var m_manager = new THREE.LoadingManager();
+			m_testVec1 = new THREE.Vector3();
+			m_testVec2 = new THREE.Vector3();
+			var m_old_pos_cam =  new THREE.Vector3();
+			
 			init();
+
 			animate();
 
-			document.body.appendChild( renderer.domElement );
-			document.addEventListener( 'pointerup', onDocumentMouseDown );
+			m_selection_rectangle.selectionBox = new SelectionBox( m_camera, m_scene );
+			m_selection_rectangle.helper = new SelectionHelper( m_selection_rectangle.selectionBox, m_renderer, 'selectBox' );
+			m_selection_rectangle.helper.element.hidden = true;
+			document.body.appendChild( m_renderer.domElement );
+			document.addEventListener( 'pointerup', onDocumentPointerUp );
+			document.addEventListener('pointermove', onDocumentPointerMove)
+			document.addEventListener( 'pointerdown', onDocumentPointerDown );
 			document.addEventListener("keydown", onDocumentKeyDown, false);
 
-			document.getElementById("captureImage6").onclick = function() {moveCamToImage(6);}
-			document.getElementById("captureImage5").onclick = function() {moveCamToImage(5);}
-			document.getElementById("captureImage4").onclick = function() {moveCamToImage(4);}
-			document.getElementById("captureImage3").onclick = function() {moveCamToImage(3);}
-			document.getElementById("captureImage2").onclick = function() {moveCamToImage(2);}
-			document.getElementById("captureImage1").onclick = function() {moveCamToImage(1);}
-			document.getElementById("captureImage0").onclick = function() {moveCamToImage(0);}
+			document.getElementById("captureImage6").onclick = function() {selectCapture(6);}
+			document.getElementById("captureImage5").onclick = function() {selectCapture(5);}
+			document.getElementById("captureImage4").onclick = function() {selectCapture(4);}
+			document.getElementById("captureImage3").onclick = function() {selectCapture(3);}
+			document.getElementById("captureImage2").onclick = function() {selectCapture(2);}
+			document.getElementById("captureImage1").onclick = function() {selectCapture(1);}
+			document.getElementById("captureImage0").onclick = function() {selectCapture(0);}
 
-			manager.onLoad = function()
+			document.addEventListener("keyup", event => {
+			  if (/*event.isComposing || */event.keyCode === 18) {
+			    m_select_controls_enabled = false;
+			    endDragging();
+			    m_controls.enabled = true;
+
+			    m_selection_rectangle.helper.element.hidden = true;
+				/*m_canvas.setHeight(0);
+				m_canvas.setWidth(0);*/
+			  }
+			});
+
+			m_manager.onLoad = function()
 			{
-				//renderer.render( scene, camera );
-			    console.log("LOADDDED");
-				precomputeRays()
-
+				//m_renderer.render( m_scene, camera );
+			    console.log("DOMA_TEXTURE_LOADED");
+			    animate()
+			    if(m_capture_rays[0].length == 0)
+					precomputeRays(m_num_rays_precomputation,m_num_rays_precomputation)
+				console.log("RAYS_PRECOMPUTED");
+				m_system_ready = true;
 			}
+			function endDragging()
+			{
+				m_dragging = false;
+			}
+
+
+			function onMouseDown(e) {
+				  var relative = get3DPosition(e);
+				  if (!relative) {
+				    return;
+				  }
+				  m_dragging = true;
+				  //startPosition.x = e.pageX;
+				  //startPosition.y = e.pageY;
+				  //scene.children[1].position.set(relative.x + vertexSize, relative.y, relative.z);
+				  console.log("MOUSE DOWN");
+				}
+
+			function onDrag(e) {
+			  if (m_dragging) {
+			    /*var clientX = (e.pageX - startPosition.x) / 10;
+			    var clientY = (e.pageY - startPosition.y) / 10;
+			    var vertices = geometry.vertices;
+			    vertices[1].x = -clientX * -1;
+			    vertices[2].x = -clientX * -1;
+			    vertices[2].y = -clientY *-1;
+			    vertices[3].y = -clientY * -1;
+			    geometry.verticesNeedUpdate = true;*/
+			    console.log("DRAGGING");
+			  }
+			}
+
+			function onMouseUp(e) {
+			  m_dragging = false;
+			  console.log("NOT DRAGGING");
+			}
+
+
 			function createGUI()
 			{
-				
+				// expressions
+
+				m_gui = new GUI();
+				const scoreFolder = m_gui.addFolder( 'Score computation' );
+
+
+				scoreFolder.add(m_gui_options, 'projection', 0, 10, 0.1 ).name( 'Projection' );
+				scoreFolder.add(m_gui_options, 'position', 0, 10, 0.1 ).name( 'Position' );
+				scoreFolder.add(m_gui_options, 'orientation', 0, 10, 0.1 ).name( 'Orientation' );
+				scoreFolder.add(m_gui_options, 'timer_recalc', 0, 10, 0.1 ).name( 'Recalc timer' );
+
+				scoreFolder.open();
+
+				const viewFolder = m_gui.addFolder( 'Display options' );
+
+
+				viewFolder.add(m_gui_options, 'red_area_enabled').name( 'Show area' );
+				viewFolder.add(m_gui_options, 'show_camera_enabled').name( 'Show camera' );
+				viewFolder.add(m_gui_options, 'show_view_enabled').name( 'Show view' );
+				viewFolder.add(m_gui_options, 'auto_score_enabled').name( 'Auto-detect' );
+
+
+				viewFolder.open();
 			}
-			function moveCamToImage(index_candidate)
+			function moveToCapturePosition(index_capture)
 			{
-				var captureCam = cameraList[current_candidates[index_candidate].index]
+				var captureCam = m_camera_list[index_capture].mesh
 				var direction = new THREE.Vector3();
 				captureCam.getWorldDirection( direction );
-				//controls.enabled = false;
-				//camera.position.copy( intersects[ 0 ].object.position )
-				camera.position.copy( captureCam.position ).add( direction.multiplyScalar( 0.09 ) );
+				m_camera.position.copy( captureCam.position ).add( direction.multiplyScalar( 0.09 ) );
 				
-				//camera.quaternion.copy( intersects[ 0 ].object.quaternion );
-
 				var v1 = new THREE.Vector3(); // create once and reuse it
-
-				//v1.copy( captureCam.up ).applyQuaternion( captureCam.quaternion );
-				//camera.up.set(v1.x, v1.y, v1.z); 
-				//camera.lookAt(intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z)
-				controls.update()
-				//controls.update()
-				//controls.coupleCenters = true;
+				m_controls.update()
 				
-				controls.target = new THREE.Vector3( captureCam.position.x, captureCam.position.y, captureCam.position.z );
-				//controls.target.copy(v1.x, v1.y, v1.z)
-				//controls.target.add( direction.multiplyScalar( 0.5 ) );
-				controls.update()
+				m_controls.target = new THREE.Vector3( captureCam.position.x, captureCam.position.y, captureCam.position.z );
+				m_controls.update()
+			}
+			function changeCaptureInView(index_capture)
+			{
+				var directionCapture = new THREE.Vector3();
+				var v1 = new THREE.Vector3();
+				m_camera_list[index_capture].mesh.getWorldDirection( directionCapture );
+				var positionCapture = new THREE.Vector3();
+				positionCapture.copy(m_camera_list[index_capture].mesh.position);
+				
+				/*m_camera_capture.position.set( positionCapture.x,positionCapture.y,positionCapture.z );
+
+				v1.copy( m_camera_list[index_capture].mesh.up ).applyQuaternion( m_camera_list[index_capture].mesh.quaternion );
+				m_camera_capture.quaternion.copy( m_camera_list[index_capture].mesh.quaternion );
+				m_camera_capture.up.set(v1.x, v1.y, v1.z); 
+				*/
+
+				m_camera_capture.copy(m_camera_list[index_capture].camera,true)
+
+
+				//TODO: GET THIS VALUE FROM FILE:
+				m_camera_capture.aspect = m_camera_list[index_capture].width / m_camera_list[index_capture].height;
+				m_camera_capture.updateMatrixWorld();
+				m_camera_capture.updateProjectionMatrix();
+				var viewMat = new THREE.Matrix4();
+				var projMat = new THREE.Matrix4();
+
+
+				viewMat.copy(m_camera_capture.matrixWorldInverse);
+				projMat.copy(m_camera_capture.projectionMatrix)
+				m_scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
+				m_scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
+			}
+			function selectCapture(index_candidate)
+			{
+				var index_capture = m_current_candidates[index_candidate].index;
+				if(m_current_capture_in_view_index == index_capture)
+				{
+					moveToCapturePosition(index_capture)
+				}
+				else
+				{
+					changeCaptureInView(index_capture)
+				}
+				m_current_capture_in_view_index = index_capture;
+				
 			}
 			function showCapture(indexCapture)
 			{
@@ -118,13 +313,13 @@
 			{
 				if(changed)
 				{
-					var arrayLength = cameraList.length;
+					var arrayLength = m_camera_list.length;
 
 					for (var i = 0; i < 7; i++) {
-						var candidate = current_candidates[i]
+						var candidate = m_current_candidates[i]
 						if(candidate)
 						{
-						    var source = "images/"+captureNames[candidate.index]
+						    var source = "captures/"+m_camera_list[candidate.index].name
 
 							document.getElementById('captureImage'+i).src= source
 							document.getElementById("captureImage"+i).style.visibility = "visible";
@@ -132,7 +327,7 @@
 						
 
 					}	
-					//console.log(current_candidates)
+					//console.log(m_current_candidates)
 				}
 				
 
@@ -149,116 +344,251 @@
 
 
 			function onDocumentKeyDown(event) {
-			    var keyCode = event.which;
-			    if (keyCode == 82) { //R
-			        resetCamera();
-			    } else if (keyCode == 77) { //M
-			        changeMode();
-			    }  else if (keyCode == 72) { //M
-			        toggleEnableCams();
-			    }  
-			    
+				if(m_system_ready)
+				{
+					var keyCode = event.which;
+				    if (keyCode == 82) { //R
+				        resetCamera();
+				    } else if (keyCode == 77) { //M
+				        changeMode();
+				    }  else if (keyCode == 67) { //C
+				        toggleEnableCams();
+				    }  else if (keyCode == 18) {
+				    	m_select_controls_enabled = true;
+				    	m_controls.enabled = false;
+
+				    	m_selection_rectangle.helper.element.hidden = false;
+				    	
+				    	/*m_canvas.setHeight(window.innerHeight);
+						m_canvas.setWidth(window.innerWidth);*/
+				    }
+				}
 			};
-			
-			function onDocumentMouseDown( event ) {   
-				if(!cams_enabled)
+
+
+			function vertexShader() {
+			  return `
+			    varying vec2 vUv; 
+			    varying vec3 capturePos;
+			    varying vec4 modelViewPosition; 
+			    varying vec3 vecNormal;
+			    uniform mat4 viewMatrixCapture;
+			    uniform mat4 projectionMatrixCapture;
+
+			    void main() {
+			    	vUv = uv;
+			    	vec4 auxCapture = projectionMatrixCapture * viewMatrixCapture * modelMatrix* vec4(position,1.0);
+			    	capturePos = vec3(auxCapture.x/auxCapture.w,auxCapture.y/auxCapture.w,auxCapture.z/auxCapture.w);
+			    	//capturePos =   (projectionMatrixCapture *  modelViewMatrix * vec4(position,1.0)).xyz;
+			      //vUv = position; 
+			      //vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
+			      //vecNormal = (modelViewMatrix * vec4(normal, 0.0)).xyz; //????????
+			      //gl_Position = projectionMatrix * modelViewPosition; 
+			      gl_Position =   projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0);
+			      
+			      //gl_Position = capturePos;
+			    }
+			  `
+			}
+
+			function fragmentShader() {
+			  return `
+			      uniform vec3 colorA; 
+			      uniform vec3 colorB; 
+			      uniform sampler2D texture1;
+			      uniform bool showRedArea;
+
+			      varying vec2 vUv;
+			      varying vec3 capturePos;
+			      void main() {
+			        //gl_FragColor = vec4(mix(colorA, colorB, vUv.z), 1.0);
+			        //if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > 0.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
+			        if(showRedArea && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
+			        {
+
+			        	if(capturePos.x < -0.95 || capturePos.x > 0.95 || capturePos.y < -0.95 || capturePos.y > 0.95)
+			        		gl_FragColor = vec4(mix(vec3(1.0,0.0,0.0), texture2D(texture1, vUv).xyz, 0.6), 1.0);
+			        	else
+			        		gl_FragColor = vec4(mix(vec3(1.0,0.0,0.0), texture2D(texture1, vUv).xyz, 0.8), 1.0);
+			        }
+			        else 
+			        {
+
+						gl_FragColor = texture2D(texture1, vUv); 
+						//discard;
+			        }
+
+			        
+			         
+			      }
+			  `
+			}
+
+
+
+			function onDocumentPointerMove(event)
+			{
+				if(!m_system_ready)
+				return;
+				if(m_select_controls_enabled && m_dragging)
+				{
+					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
+				                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
+				                                    0.5 );   
+					m_selection_rectangle.endNDC = mouseNDC
+
+					m_selection_rectangle.selectionBox.endPoint.set(
+									( event.clientX / window.innerWidth ) * 2 - 1,
+									- ( event.clientY / window.innerHeight ) * 2 + 1,
+									0.5 );
+				}
+				else
+				{
+
+				}
+			}
+			function onDocumentPointerDown(event)
+			{
+				if(!m_system_ready)
+				return;
+				if(m_select_controls_enabled)
+				{
+					document.getElementById("selection_menu").style.display = "none";
+					GUI.toggleHide();
+					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
+				                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
+				                                    0.5 );   
+					
+					m_selection_rectangle.startNDC = mouseNDC
+					m_selection_rectangle.endNDC = mouseNDC
+					console.log("NDC down" + mouseNDC);
+					m_dragging = true;
+
+					m_selection_rectangle.selectionBox.startPoint.set(
+								( event.clientX / window.innerWidth ) * 2 - 1,
+								- ( event.clientY / window.innerHeight ) * 2 + 1,
+								0.5 );
+				}
+				else
+				{
+
+				}
+			}
+
+			function onDocumentPointerUp( event ) {   
+				if(!m_system_ready)
 					return;
-				if(camera_mode == "FLY")
+				if(m_select_controls_enabled)
+				{
+					document.getElementById("selection_menu").style.display = "block";
+					GUI.toggleHide();
+					m_dragging = false;
+					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
+	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
+	                                    0.5 );   
+					m_selection_rectangle.endNDC = mouseNDC
+					console.log("NDC up" + mouseNDC);
+
+					m_selection_rectangle.selectionBox.endPoint.set(
+					( event.clientX / window.innerWidth ) * 2 - 1,
+					- ( event.clientY / window.innerHeight ) * 2 + 1,
+					0.5 );
+
+					updateCandidates(true);
+				}
+				else
+				{
+
+				}
+				return;
+				console.log("pointer up")
+				
+				if(!m_cams_enabled || !m_system_ready)
 					return;
-				//console.log(camera_mode)
+				if(m_camera_mode == "FLY")
+					return;
+				//console.log(m_camera_mode)
 	            event.preventDefault();
 	            var mouse3D = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
 	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
 	                                    0.5 );     
 	            var raycaster =  new THREE.Raycaster();                                        
-	           raycaster.setFromCamera( mouse3D, camera );
-	            var intersects = raycaster.intersectObjects( cameraList );
+	           raycaster.setFromCamera( mouse3D, m_camera );
+	            var intersects = raycaster.intersectObjects( m_camera_mesh_list );
 				//console.log(intersects)
 				setDefaultColorsCameras();
 	            if ( intersects.length > 0 ) {
 	            	var photoIndex = -1;
-	            	for (var i = 0; i < cameraList.length; i++) {
-					    if(intersects[ 0 ].object.id == cameraList[i].id)
+	            	for (var i = 0; i < m_camera_list.length; i++) {
+					    if(intersects[ 0 ].object.id == m_camera_list[i].mesh.id)
 					    	photoIndex = i;
 					}
 					//console.log(photoIndex);
-					//console.log(cameraList)
+					//console.log(m_camera_list)
 					//console.log(captureNames)
-					//controls.coupleCenters = false;
+					//m_controls.coupleCenters = false;
 					//showCapture(photoIndex);
 	                intersects[ 0 ].object.material.color.setHex( 0x0000ff );
 	                intersects[ 0 ].object.material.opacity = 0.3; 
 	                var direction = new THREE.Vector3();
 					intersects[ 0 ].object.getWorldDirection( direction );
-					//controls.enabled = false;
-					//camera.position.copy( intersects[ 0 ].object.position )
-					camera.position.copy( intersects[ 0 ].object.position ).add( direction.multiplyScalar( 0.09 ) );
+					//m_controls.enabled = false;
+					//m_camera.position.copy( intersects[ 0 ].object.position )
+					m_camera.position.copy( intersects[ 0 ].object.position ).add( direction.multiplyScalar( 0.09 ) );
 					
-					//camera.quaternion.copy( intersects[ 0 ].object.quaternion );
+					//m_camera.quaternion.copy( intersects[ 0 ].object.quaternion );
 
 					var v1 = new THREE.Vector3(); // create once and reuse it
 
 					v1.copy( intersects[ 0 ].object.up ).applyQuaternion( intersects[ 0 ].object.quaternion );
-					camera.up.set(v1.x, v1.y, v1.z); 
-					//camera.lookAt(intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z)
-					controls.update()
-					//controls.update()
-					//controls.coupleCenters = true;
+					m_camera.up.set(v1.x, v1.y, v1.z); 
+					//m_camera.lookAt(intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z)
+					m_controls.update()
+					//m_controls.update()
+					//m_controls.coupleCenters = true;
 					
-					controls.target = new THREE.Vector3( intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z );
-					//controls.target.copy(v1.x, v1.y, v1.z)
-					//controls.target.add( direction.multiplyScalar( 0.5 ) );
-					controls.update()
+					m_controls.target = new THREE.Vector3( intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z );
+					//m_controls.target.copy(v1.x, v1.y, v1.z)
+					//m_controls.target.add( direction.multiplyScalar( 0.5 ) );
+					m_controls.update()
 					
 
 	            }
 	            else
 	            {
 	            	//document.getElementById("captureImage").style.visibility = "hidden";
-	            	//console.log(camera)
+	            	//console.log(m_camera)
 	            	//console.log(controls)
 	            }
 	        }
+
+
 	        function setDefaultColorsCameras()
 	        {
 
-	        	var arrayLength = cameraList.length;
+	        	var arrayLength = m_camera_list.length;
 				for (var i = 0; i < arrayLength; i++) {
-				    cameraList[i].material.color.setHex( 0xffffff );
-				    cameraList[i].material.opacity = 0.1; 
+				    m_camera_list[i].mesh.material.color.setHex( 0xffffff );
+				    m_camera_list[i].mesh.material.opacity = 0.0; 
 				    //Do something
 				}
 	        }
 			function loadCamera(element, index, array)
 			{
-
-				if(!captureNames[aux_index] || captureNames[aux_index].startsWith("Scan"))
-				{
-					captureNames.splice(aux_index, 1); 
-					return;
-				}
-				aux_index = aux_index +1;
-				 var m = new THREE.Matrix4();
-
-				 m.set( element.m1, element.m2, element.m3, element.tx,
-		           element.m4, element.m5, element.m6, element.ty,
-		           element.m7, element.m8, element.m9, element.tz,
-		           0, 0, 0, 1 );
-				m.invert();
-
-				 //var t = new THREE.Vector3(element.tx, element.ty, element.tz);
-				 //var dir = new THREE.Vector3(0, 0, -1);
-				 //dir.applyMatrix3(m);
-				 //console.log(captureNames[aux_index-1])
-				 //console.log(t)
-				 //console.log(t);
-				 //t.applyMatrix3(m);
-				 //console.log(t);
-
-
+				
+				//https://github.com/colmap/colmap/issues/797
+				//https://github.com/colmap/colmap/issues/572
 
 				 const loader = new PLYLoader();
 				 loader.load( './models/ply/ascii/camera.ply', function ( geometry ) {
+
+				 	var m = new THREE.Matrix4();
+					m.set( element.m1, element.m2, element.m3, element.tx,
+			           element.m4, element.m5, element.m6, element.ty,
+			           element.m7, element.m8, element.m9, element.tz,
+			           0, 0, 0, 1 );
+					m.invert();
+
 					geometry.computeVertexNormals();
 					const edges = new THREE.EdgesGeometry( geometry );
 					//const material = new THREE.MeshStandardMaterial( { color: 0x0055ff, flatShading: true } );
@@ -268,57 +598,61 @@
 					//const mesh = new THREE.LineSegments( geometry, material );
 					//const mesh = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } ) );
 					const mesh = new THREE.Mesh( geometry, material );
-					//mesh.rotation.x = dir.x;
-					//mesh.rotation.y = dir.y;
-					//mesh.rotation.z = dir.z;
-					//var rotation = new THREE.Matrix4();
-					//mesh.applyMatrix(R);
-
-					//mesh.lookAt(dir)
-
-
-					//var rotation2 = new THREE.Matrix4().makeRotationZ(Math.PI/2);
-					//var rotation2 = new THREE.Matrix4();
-					//var translation = new THREE.Matrix4().makeTranslation(t.x*0.03, t.y*0.03, t.z*0.03);
-					//var transformation = translation.multiply(rotation2);
 
 					mesh.applyMatrix(m);
 					mesh.applyMatrix4(new THREE.Matrix4().makeScale(0.03, 0.03, 0.03))
 					mesh.castShadow = false;
 					mesh.receiveShadow = false;
-					scene.add( mesh );
-					cameraList.push(mesh);
+					m_scene.add( mesh );
+
+					var capture_camera = new THREE.PerspectiveCamera( 50, element.width / element.height, 0.01, 10 );
+					capture_camera.position.set( mesh.position.x,mesh.position.y,mesh.position.z );
+					capture_camera.name = element.name
+						/////////////
+
+						//capture_camera.setFocalLength(element.f)
+						var v1 = new THREE.Vector3();
+					v1.copy(mesh.up ).applyQuaternion(mesh.quaternion );
+					capture_camera.quaternion.copy(mesh.quaternion );
+					capture_camera.up.set(v1.x, v1.y, v1.z); 
+
+					//capture_camera.aspect = element.width/element.height;
+
+					capture_camera.updateMatrixWorld();
+					capture_camera.updateProjectionMatrix();
+					
+					////////////////////////
 
 					
 
-					
-						
+					var new_camera = {
+						name: element.name,
+						width: element.width,
+						height: element.height,
+						matrix: m,
+						focal: element.f,
+						mesh: mesh,
+						camera: capture_camera,
+					}
+					m_camera_list.push(new_camera);
+					var loader2 = new THREE.TextureLoader();
+					var texture = loader2.load( "./captures/"+element.name, function ( tex ) {
+					    // tex and texture are the same in this example, but that might not always be the case
+					    new_camera.width = tex.image.width
+					    new_camera.height = tex.image.height
+					    capture_camera.aspect = new_camera.width/new_camera.height;
+					    //console.log( tex.image.width, tex.image.height );
+					    //console.log( texture.image.width, texture.image.height );
+					} );
 
+					m_camera_mesh_list.push(mesh);
 					setDefaultColorsCameras()
-					console.log("CAMERA LOADED")
+					//console.log("CAMERA LOADED")
 
 				} );
 
 			}
-			function precomputeRays()
-			{
-				for (var i = 0; i < cameraList.length; i++) {
-					var directionPhoto = new THREE.Vector3();
-					var pointIntersect = new THREE.Vector3();
-					cameraList[i].getWorldDirection( directionPhoto );
-					var raycasterPhoto =  new THREE.Raycaster(cameraList[i].position, directionPhoto); 
-
-					var intersectsPhoto = raycasterPhoto.intersectObjects( scene_models );  
-					console.log(intersectsPhoto)
-					if(intersectsPhoto.length == 0)
-						captureRays.push(null)
-					else
-					{
-						pointIntersect.copy(intersectsPhoto[0].point)
-						captureRays.push(pointIntersect)
-					}
-				}
-			}
+			
 			function loadCameras(cameras) {
 				cameras.cameras.forEach(loadCamera);
 			}
@@ -326,7 +660,7 @@
 			function loadDoma()
 			{
 				const loader = new PLYLoader();
-				const loaderTex = new THREE.TextureLoader(manager);
+				const loaderTex = new THREE.TextureLoader(m_manager);
 
 				loader.load( './models/ply/ascii/doma-interior_textured.ply', function ( geometry ) {
 					geometry.computeVertexNormals();
@@ -334,8 +668,9 @@
 				        colorB: {type: 'vec3', value: new THREE.Color(0xACB6E5)},
 				        colorA: {type: 'vec3', value: new THREE.Color(0x74ebd5)},
 				        capturePos: {type: 'vec3', value: new THREE.Vector3(0,0,0)},
-				        modelViewMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
+				        viewMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
 				        projectionMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
+				        showRedArea: {type: 'bool', value: false},
 				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
 				        texture1: { type: "t", value: loaderTex.load('./models/textures/doma-interior_texture16k.jpg') }
 				    }
@@ -357,8 +692,8 @@
 					mesh.castShadow = true;
 					mesh.receiveShadow = true;
 
-					scene.add( mesh );
-					scene_models.push(mesh);
+					m_scene.add( mesh );
+					m_scene_models.push(mesh);
 
 					//TODO Check cams loaded
 					console.log("MODEL LOADED")
@@ -373,7 +708,7 @@
 
 				loadDoma();
 
-				scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
+				m_scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
 
 				addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
 				addShadowedLight( 0.5, 1, - 1, 0xffaa00, 1 );
@@ -382,28 +717,28 @@
 			}
 			function resetCamera()
 			{
-				initControls(camera_mode)
+				initControls(m_camera_mode)
 			}
 			function toggleEnableCams()
 			{
-				cams_enabled = !cams_enabled;
-				var arrayLength = cameraList.length;
-				if(cams_enabled)
+				m_cams_enabled = !m_cams_enabled;
+				var arrayLength = m_camera_list.length;
+				if(m_cams_enabled)
 				{
 					for (var i = 0; i < arrayLength; i++) {
-					    cameraList[i].material.opacity = 0.1; 
+					    m_camera_list[i].mesh.material.opacity = 0.1; 
 					}
 				}
 				else
 				{
 					for (var i = 0; i < arrayLength; i++) {
-					    cameraList[i].material.opacity = 0.0; 
+					    m_camera_list[i].mesh.material.opacity = 0.0; 
 					}
 				}
 			}
 			function getScorePosition(index_cam)
 			{
-				var dist = cameraList[index_cam].position.distanceTo(camera.position)
+				var dist = m_camera_list[index_cam].mesh.position.distanceTo(m_camera.position)
 				return dist;
 				
 			}
@@ -411,47 +746,67 @@
 			{
 				var direction1 = new THREE.Vector3();
 				var direction2 = new THREE.Vector3();
-				cameraList[index_cam].getWorldDirection( direction1 );
-				camera.getWorldDirection( direction2 );
+				m_camera_list[index_cam].mesh.getWorldDirection( direction1 );
+				m_camera.getWorldDirection( direction2 );
 				var dist = direction1.distanceTo(direction2);
 				return 2 - dist;
 				
 			}
-			function getScoreRays(index_cam, intersectsCamera)
+			function getScoreRays(index_cam, intersectsCamera, min_x, max_x, min_y, max_y)
 			{
-				if(intersectsCamera.length == 0)
-					return 1;
+				//if(intersectsCamera.length == 0)
+				//	return 1;
 				/*var directionPhoto = new THREE.Vector3();
-				cameraList[index_cam].getWorldDirection( directionPhoto );
-				var raycasterPhoto =  new THREE.Raycaster(cameraList[index_cam].position, directionPhoto); 
+				m_camera_list[index_cam].getWorldDirection( directionPhoto );
+				var raycasterPhoto =  new THREE.Raycaster(m_camera_list[index_cam].position, directionPhoto); 
 
-				var intersectsPhoto = raycasterPhoto.intersectObjects( scene_models );  
+				var intersectsPhoto = raycasterPhoto.intersectObjects( m_scene_models );  
 
 				if(intersectsPhoto.length == 0)
 					return 1;*/
-				camera.updateProjectionMatrix();
-				//console.log(intersectsPhoto[0].point.project(camera))
-				var projected1 = new THREE.Vector3();
-				var projected2 = new THREE.Vector3();
-				console.log(captureRays)
-				console.log(index_cam)
-				projected1.copy(captureRays[index_cam])
-				projected2.copy(intersectsCamera[0].point)
-				projected1.project(camera)
-				projected2.project(camera)
-				console.log(projected1)
-				console.log(projected2)
-				var center = new THREE.Vector3(0,0,projected1.z);
-				return projected1.distanceTo(center)
+
+				m_camera.updateProjectionMatrix();
+				var count_inside_rays = 1
+				for(var index_ray = 0; index_ray < m_capture_rays[index_cam].length; ++index_ray)
+				{
+					var projected = new THREE.Vector3();
+					projected.copy(m_capture_rays[index_cam][index_ray])
+					projected.project(m_camera)
+					console.log(projected)
+					if(projected.x > min_x && projected.x < max_x && projected.y > min_y && projected.y < max_y)
+					{
+						//console.log("added " + index_cam)
+						count_inside_rays = count_inside_rays +1
+					}
+						
+				}
+
+					 return (m_num_rays_precomputation*m_num_rays_precomputation)/count_inside_rays
 				//return intersectsPhoto[0].point.distanceTo(intersectsCamera[0].point);
 				
 
 			}
-			function getScoreCam(index_cam, intersectsCamera)
+			function getScoreCam(index_cam, intersectsCamera, usingSelectionRectangle)
 			{
-				var distanceScore = getScorePosition(index_cam);
-				var orientationScore = getScoreRotation(index_cam);
-				return distanceScore*0 + orientationScore*0 + getScoreRays(index_cam, intersectsCamera);
+				var distanceScore, orientationScore, raysScore;
+				distanceScore = orientationScore = raysScore = 0;
+				if(usingSelectionRectangle)
+				{
+					raysScore = getScoreRays(index_cam, intersectsCamera,m_selection_rectangle.startNDC.x,m_selection_rectangle.endNDC.x,m_selection_rectangle.startNDC.y,m_selection_rectangle.endNDC.y);
+					return raysScore;
+				}
+				else
+				{
+					if(m_gui_options.position)
+						distanceScore = getScorePosition(index_cam);
+					if(m_gui_options.orientation)
+						orientationScore = getScoreRotation(index_cam);
+					if(m_gui_options.projection)
+						raysScore = getScoreRays(index_cam, intersectsCamera,-1,1,-1,1);
+					return distanceScore*m_gui_options.position + orientationScore*m_gui_options.orientation + raysScore*m_gui_options.projection;
+				}
+
+				
 			}
 			function compareCandidates( a, b ) {
 			  if ( a.score < b.score ){
@@ -462,118 +817,107 @@
 			  }
 			  return 0;
 			}
-			function updateCandidates()
+			function updateCandidates(usingSelectionRectangle)
 			{
 				console.log("START UPDATE")
 				var directionCamera = new THREE.Vector3();
-				camera.getWorldDirection( directionCamera );
-				var raycasterCamera =  new THREE.Raycaster(camera.position, directionCamera);    
-				var intersectsCamera = raycasterCamera.intersectObjects( scene_models );  
+				m_camera.getWorldDirection( directionCamera );
+				var raycasterCamera =  new THREE.Raycaster(m_camera.position, directionCamera);    
+				var intersectsCamera = raycasterCamera.intersectObjects( m_scene_models );  
 				console.log(intersectsCamera);
 
 				var changed = false
-				current_candidates = []
-				var arrayLength = cameraList.length;
+				m_current_candidates = []
+				var arrayLength = m_camera_list.length;
 				for (var i = 0; i < arrayLength; i++) {
 					
-				    //cameraList[i].material.opacity = 0.1; 
-				    var scoreCam = getScoreCam(i, intersectsCamera)
+				    //m_camera_list[i].material.opacity = 0.1; 
+				    var scoreCam = getScoreCam(i, intersectsCamera, usingSelectionRectangle)
 				    var elem = {
 					    'index': i,
 					    'score': scoreCam
 					};
-					console.log(captureNames[i]+" "+i + " score: "+ scoreCam)
-					if(i >= current_candidates.length)
+					console.log(m_camera_list[i].name+" "+i + " score: "+ scoreCam)
+					if(i >= m_current_candidates.length)
 					{
-						current_candidates.push(elem)
+						m_current_candidates.push(elem)
 					}
 				    else
 				    {
-				    	current_candidates[i] = elem
+				    	m_current_candidates[i] = elem
 				    }
 				}
-				current_candidates.sort(compareCandidates)
+				m_current_candidates.sort(compareCandidates)
 
-				var directionCapture = new THREE.Vector3();
-				var v1 = new THREE.Vector3();
-				cameraList[current_candidates[0].index].getWorldDirection( directionCapture );
-				var positionCapture = new THREE.Vector3();
-				positionCapture.copy(cameraList[current_candidates[0].index].position);
-				var cameraCapture = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 15 );
-				//var cameraCapture = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 0.1, 15 );
-
-				//cameraCapture.matrixAutoUpdate  = true;
+				if(m_current_capture_in_view_index == -1)
+				{
+					changeCaptureInView(m_current_candidates[0].index)
+				}
 				
-				cameraCapture.position.set( positionCapture.x,positionCapture.y,positionCapture.z );
-
-				v1.copy( cameraList[current_candidates[0].index].up ).applyQuaternion( cameraList[current_candidates[0].index].quaternion );
-				cameraCapture.quaternion.copy( cameraList[current_candidates[0].index].quaternion );
-				cameraCapture.up.set(v1.x, v1.y, v1.z); 
-
-				//var cameraCapture = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 15 );
-				//cameraCapture.position.set( 11*0.03,-20*0.03,2*0.03 );
-				//cameraCapture.up.set(0,0,1);
-
-				cameraCapture.updateMatrixWorld();
-				cameraCapture.updateProjectionMatrix();
-				scene_models[0].material.uniforms.modelViewMatrixCapture.value = cameraCapture.matrixWorldInverse;
-				scene_models[0].material.uniforms.projectionMatrixCapture.value = cameraCapture.projectionMatrix;
 				showCaptures(true)
 			}
 			
 			function changeMode()
 			{
-				if(camera_mode == "FLY")
-					camera_mode = "ORBIT"
-				else if(camera_mode == "ORBIT")
-					camera_mode = "TRACK"
-				else if(camera_mode == "TRACK")
-					camera_mode = "FLY"
+				if(m_camera_mode == "FLY")
+					m_camera_mode = "ORBIT"
+				else if(m_camera_mode == "ORBIT")
+					m_camera_mode = "TRACK"
+				else if(m_camera_mode == "TRACK")
+					m_camera_mode = "FLY"
 				else
-					camera_mode = "FLY"
-				initControls(camera_mode)
+					m_camera_mode = "FLY"
+				initControls(m_camera_mode)
 			}
 			function initControls(mode)
 			{
-				camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 15 );
-				camera.position.set( 11*0.03,-20*0.03,2*0.03 );
+				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.01, 10 );
+				m_camera.position.set( 11*0.03,-20*0.03,2*0.03 );
 				//camera.position.set( 3,0.15,3 );
 				
-				camera.up.set(0,0,1);
+				m_camera.up.set(0,0,1);
+
+				m_camera_capture = new THREE.PerspectiveCamera( 50.5, 4000 / 2950, 0.01, 10 );
+				m_camera_capture.position.set( 11*0.03,-20*0.03,2*0.03 );
+				m_cameraHelper = new THREE.CameraHelper(m_camera_capture);
+				m_scene.add(m_cameraHelper);
+				//camera.position.set( 3,0.15,3 );
+				
+				m_camera_capture.up.set(0,0,1);
 
 
 				if(mode == "FLY")
 				{
-					controls = new FlyControls( camera, renderer.domElement );
-					controls.movementSpeed = 10;
-					controls.domElement = renderer.domElement;
-					controls.rollSpeed = Math.PI / 12;
-					controls.autoForward = false;
-					controls.dragToLook = false;
+					m_controls = new FlyControls( m_camera, m_renderer.domElement );
+					m_controls.movementSpeed = 10;
+					m_controls.domElement = m_renderer.domElement;
+					m_controls.rollSpeed = Math.PI / 12;
+					m_controls.autoForward = false;
+					m_controls.dragToLook = false;
 				}
 				else if(mode == "ORBIT")
 				{
 
-					controls = new OrbitControls( camera, renderer.domElement );
-					controls.minPolarAngle =  - Infinity; // radians
-					controls.maxPolarAngle = Infinity; // radians
-					controls.minDistance = 0;
-					controls.maxDistance = 3;
-					controls.minAzimuthAngle = - Infinity; // radians
-					controls.maxAzimuthAngle = Infinity; // radians
+					m_controls = new OrbitControls( m_camera, m_renderer.domElement );
+					m_controls.minPolarAngle =  - Infinity; // radians
+					m_controls.maxPolarAngle = Infinity; // radians
+					m_controls.minDistance = 0;
+					m_controls.maxDistance = 3;
+					m_controls.minAzimuthAngle = - Infinity; // radians
+					m_controls.maxAzimuthAngle = Infinity; // radians
 
-					controls.target.set(-1*0.03,-20*0.03,2*0.03)
+					m_controls.target.set(-1*0.03,-20*0.03,2*0.03)
 
 				}
 				else if(mode == "TRACK")
 				{
-					controls = new TrackballControls( camera, renderer.domElement );
-					controls.rotateSpeed = 1.0;
-					controls.zoomSpeed = 0.6;
-					controls.panSpeed = 0.2;
+					m_controls = new TrackballControls( m_camera, m_renderer.domElement );
+					m_controls.rotateSpeed = 1.0;
+					m_controls.zoomSpeed = 0.6;
+					m_controls.panSpeed = 0.2;
 
-					controls.keys = [ 65, 83, 68 ];
-					controls.target.set(-1*0.03,-20*0.03,2*0.03)
+					m_controls.keys = [ 65, 83, 68 ];
+					m_controls.target.set(-1*0.03,-20*0.03,2*0.03)
 				}
 				else
 				{
@@ -582,8 +926,8 @@
 			}
 			function init() {
 
-				container = document.createElement( 'div' );
-				document.body.appendChild( container );
+				m_container = document.createElement( 'div' );
+				document.body.appendChild( m_container );
 
 
 
@@ -593,9 +937,9 @@
 
 				//cameraTarget = new THREE.Vector3( 0, - 0.1, 0 );
 
-				scene = new THREE.Scene();
-				scene.background = new THREE.Color( 0x72645b );
-				scene.fog = new THREE.Fog( 0x72645b, 2, 15 );
+				m_scene = new THREE.Scene();
+				m_scene.background = new THREE.Color( 0x72645b );
+				m_scene.fog = new THREE.Fog( 0x72645b, 2, 15 );
 
 
 
@@ -603,26 +947,27 @@
 
 
 
-				// renderer
+				// m_renderer
 
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-				renderer.outputEncoding = THREE.sRGBEncoding;
+				m_renderer = new THREE.WebGLRenderer( { antialias: true } );
+				m_renderer.setPixelRatio( window.devicePixelRatio );
+				m_renderer.setSize( window.innerWidth, window.innerHeight );
+				m_renderer.outputEncoding = THREE.sRGBEncoding;
 
-				renderer.shadowMap.enabled = true;
+				m_renderer.shadowMap.enabled = true;
 
 
 				
 
-				container.appendChild( renderer.domElement );
+				m_container.appendChild( m_renderer.domElement );
 
 				// stats
 
-				stats = new Stats();
-				container.appendChild( stats.dom );
+				m_stats = new Stats();
+				m_container.appendChild( m_stats.dom );
 
-				initControls(camera_mode)
+				initControls(m_camera_mode)
+				createGUI();
 				
 
 
@@ -636,7 +981,7 @@
 
 				const directionalLight = new THREE.DirectionalLight( color, intensity );
 				directionalLight.position.set( x, y, z );
-				scene.add( directionalLight );
+				m_scene.add( directionalLight );
 
 				directionalLight.castShadow = true;
 
@@ -656,65 +1001,260 @@
 
 			}
 
+
+
 			function onWindowResize() {
 
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
+				m_camera.aspect = window.innerWidth / window.innerHeight;
+				m_camera.updateProjectionMatrix();
 
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				m_renderer.setSize( window.innerWidth, window.innerHeight );
+				/*if(m_select_controls_enabled)
+				{
+					m_canvas.setHeight(window.innerHeight);
+				    m_canvas.setWidth(window.innerWidth);
+				}
+				else {
+					m_canvas.setHeight(0);
+			    	m_canvas.setWidth(0);
+				}
+
+			    m_canvas.renderAll();*/
 
 			}
 
 			function animate() {
 				const timer = Date.now() * 0.0005;
-				const delta = clock.getDelta();
-				if(need_to_update)
-					timer_update += delta
-
-				if(old_pos_cam.distanceTo(camera.position) > 0.0001)
-				{
-					console.log("changed!! " + old_pos_cam.x + " " +camera.position.x)
-					timer_update = 0;
-					need_to_update = true;
-				}
-					
+				const delta = m_clock.getDelta();
 				requestAnimationFrame( animate );
-				if(camera_mode != "FLY")
-					controls.update();
-				stats.update();
-				if(timer_update > 1)
+				if(m_system_ready)
 				{
-					console.log("update")
-					need_to_update = false
-					timer_update = 0
-					updateCandidates();
+					if(m_need_to_update)
+						m_timer_update += delta
+
+					if(m_old_pos_cam.distanceTo(m_camera.position) > 0.0001)
+					{
+						console.log("changed!! " + m_old_pos_cam.x + " " +m_camera.position.x)
+						m_timer_update = 0;
+						m_need_to_update = true;
+					}
+						
+					
+					if(m_camera_mode != "FLY")
+						m_controls.update();
+					m_stats.update();
+					if(m_timer_update > m_gui_options.timer_recalc)
+					{
+						console.log("update")
+						m_need_to_update = false
+						m_timer_update = 0
+						if(m_gui_options.auto_score_enabled)
+							updateCandidates(false);
+					}
+					if(m_camera_mode == "FLY")
+					{
+						m_controls.movementSpeed = 0.33 * 1;
+						m_controls.update( delta );
+					}
+					m_old_pos_cam.copy(m_camera.position);
 				}
-				if(camera_mode == "FLY")
+				if(m_system_ready)
 				{
-					controls.movementSpeed = 0.33 * 1;
-					controls.update( delta );
+					m_scene_models[0].material.uniforms.showRedArea.value = m_gui_options.red_area_enabled;
 				}
-				old_pos_cam.copy(camera.position);
+				
 				render();
 
 
 			}
 
 			function render() {
-				renderer.clear();
-				renderer.render( scene, camera );
+				//if ( windowWidth != window.innerWidth || windowHeight != window.innerHeight ) {
+
+				//	windowWidth = window.innerWidth;
+				//	windowHeight = window.innerHeight;
+
+				m_renderer.setSize( window.innerWidth, window.innerHeight );
+
+				//}
+				m_cameraHelper.update();
+				m_renderer.clear();
+				if(m_gui_options.show_view_enabled)
+				{
+					//RENDER CAM 1
+					{
+						const left = Math.floor( window.innerWidth * m_views[0].left );
+						const bottom = Math.floor( window.innerHeight * m_views[0].bottom );
+						const width = Math.floor( window.innerWidth * m_views[0].width );
+						const height = Math.floor( window.innerHeight * m_views[0].height );
+
+						m_renderer.setViewport( left, bottom, width, height );
+						m_renderer.setScissor( left, bottom, width, height );
+						m_renderer.setScissorTest( true );
+
+						m_camera.aspect = width / height;
+						m_camera.updateProjectionMatrix();
+						m_cameraHelper.visible = m_gui_options.show_camera_enabled;
+						m_renderer.render( m_scene, m_camera );
+					}
+					//RENDER CAM 2
+					{
+						const left = Math.floor( window.innerWidth * m_views[1].left );
+						const bottom = Math.floor( window.innerHeight * m_views[1].bottom );
+						const width = Math.floor( window.innerWidth * m_views[1].width );
+						const height = Math.floor( window.innerHeight * m_views[1].height );
+
+						m_renderer.setViewport( left, bottom, width, height );
+						m_renderer.setScissor( left, bottom, width, height );
+						m_renderer.setScissorTest( true );
+
+						m_camera_capture.aspect = width / height;
+						m_camera_capture.updateProjectionMatrix();
+						m_cameraHelper.visible = false;
+
+
+
+
+						m_renderer.render( m_scene, m_camera_capture );
+					}
+				}
+				else
+				{
+					const left = Math.floor( window.innerWidth * m_views[2].left );
+					const bottom = Math.floor( window.innerHeight * m_views[2].bottom );
+					const width = Math.floor( window.innerWidth * m_views[2].width );
+					const height = Math.floor( window.innerHeight * m_views[2].height );
+
+					m_renderer.setViewport( left, bottom, width, height );
+					m_renderer.setScissor( left, bottom, width, height );
+					m_renderer.setScissorTest( true );
+
+					m_camera.aspect = width / height;
+					m_camera.updateProjectionMatrix();
+					m_cameraHelper.visible = m_gui_options.show_camera_enabled;
+					m_renderer.render( m_scene, m_camera );
+				}
+				
+
 			}
 
+			function precomputeRays(rays_x, rays_y)
+			{
+				m_capture_rays = []
+				for (var i = 0; i < m_camera_list.length; i++) 
+				{
+					m_camera_list[i].camera.updateProjectionMatrix()
+					var capture_rays = []
+					for(var x = 0; x <= 1; x +=(1/(rays_x-1)))
+					{
+						for(var y = 0; y <= 1; y +=(1/(rays_y-1)))
+						{
 
+							var NDC_position = new THREE.Vector3(x*2-1,y*2-1,1);
+							var pointIntersect = new THREE.Vector3();
+							NDC_position.unproject(m_camera_list[i].camera);
+							var test_ray = new THREE.Vector3();
+
+							//m_camera_list[i].getWorldDirection( directionPhoto );
+							var raycasterPhoto =  new THREE.Raycaster(m_camera_list[i].mesh.position, NDC_position); 
+
+							var intersectsPhoto = raycasterPhoto.intersectObjects( m_scene_models );  
+							//console.log(intersectsPhoto)
+							if(intersectsPhoto.length > 0)
+							{
+								pointIntersect.copy(intersectsPhoto[0].point)
+								capture_rays.push(pointIntersect)
+
+								/*if(x*2-1 ==0.0 && y*2-1==0.0)
+								{
+									console.log(m_camera_list[i].mesh.position)
+									console.log("point intersect unproject: ")
+									console.log(pointIntersect)
+									console.log(NDC_position)
+									var directionPhoto = new THREE.Vector3();
+									test_ray.copy(m_camera_list[i].mesh.getWorldDirection( directionPhoto ))
+									var raycasterPhoto2 =  new THREE.Raycaster(m_camera_list[i].mesh.position, test_ray); 
+
+									var intersectsPhoto2 = raycasterPhoto2.intersectObjects( m_scene_models );  
+									console.log("point intersect center: ")
+									console.log(intersectsPhoto2[0].point)
+									console.log(test_ray)
+
+								}*/
+
+							}
+						}
+					}
+
+					m_capture_rays.push(capture_rays)
+					console.log("finished precomputing capture: "+i)
+				}
+				console.log("finished precomputing rays")
+				savePrecomputedFile()
+			}
+
+			function loadPrecomputedFile(data)
+			{
+				m_capture_rays = []
+				var data_cameras = data.split('\n');
+
+				for(var index_cam=0; index_cam < data_cameras.length; ++index_cam)
+				{
+					var capture_rays = []
+					var data_camera = data_cameras[index_cam].split(' ')
+					while(data_camera[0] == "")
+						data_camera.shift()
+					var num_rays = data_camera[0]
+
+					for(var ray = 0; ray < num_rays; ++ray)
+					{
+						var x = data_camera[ray*3+1]
+						var y = data_camera[ray*3+1+1]
+						var z = data_camera[ray*3+1+2]
+						var position_ray = new THREE.Vector3(x,y,z);
+						capture_rays.push(position_ray);
+					}
+					m_capture_rays.push(capture_rays)
+				}
+					
+			}
+			function savePrecomputedFile()
+			{
+
+            	var parts = []
+            	var first = true
+				for(var index_cam=0; index_cam < m_capture_rays.length; ++index_cam)
+				{	
+					if(first)
+					{
+						parts.push(m_capture_rays[index_cam].length);
+						first = false
+					}
+					else
+					{
+						parts.push(" " + m_capture_rays[index_cam].length);
+					}
+					for(var index_ray=0; index_ray < m_capture_rays[index_cam].length; ++index_ray)
+					{
+						var raypos = m_capture_rays[index_cam][index_ray]
+						parts.push(" " + raypos.x + " " + raypos.y + " " + raypos.z);
+					}
+					if(index_cam < m_capture_rays.length -1)
+						parts.push("\n");
+				}
+				var blob = new Blob(parts);
+				saveAs(blob, 'precomputedCameraRays.txt')
+			}
 
 			var xmlhttp = new XMLHttpRequest();
 			xmlhttp.onreadystatechange = function() {
 			    if (this.readyState == 4 && this.status == 200) {
 			        var myObj = JSON.parse(this.responseText);
 			        var loader = new THREE.FileLoader();
-			        loader.load('images/doma-interior.list.txt', function ( data ) {
+			        loader.load('capture_info/precomputedCameraRays.txt', function ( data ) {
 					        // output the text to the console
-					        captureNames = data.split('\n')
+					        loadPrecomputedFile(data)
+					        //captureNames = data.split('\n')
 					        //console.log( data.split('\n') )
 					        loadCameras(myObj)
 			        		setDefaultColorsCameras();
@@ -724,7 +1264,7 @@
 					
 			    }
 			};
-			xmlhttp.open("GET", "cameras.json", true);
+			xmlhttp.open("GET", "capture_info/cameraInfo.json", true);
 			xmlhttp.send();
 
 		</script>
