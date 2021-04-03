@@ -12,6 +12,18 @@
 				background-color: rgba(75, 160, 255, 0.3);
 				position: fixed;
 			}
+			div.container4 {
+			    height: 100vh;
+			    width: 100%;
+			    position: absolute }
+			div.container4 p {
+			    margin: 0;
+			    position: absolute;
+			    top: 50%;
+			    left: 50%;
+			    margin-right: -50%;
+			    font-size:40px;
+			    transform: translate(-50%, -50%) }
 		</style>
 
 	</head>
@@ -27,6 +39,9 @@
 			<img id="captureImage2" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="150" align="top" onclick="selectCapture(2)">
 			<img id="captureImage4" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="100" align="top" onclick="selectCapture(4)">
 			<img id="captureImage6" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="50" align="top" onclick="selectCapture(6)">
+		</div>
+		<div class=container4 id="loadingTextContainer">
+		  <p id="loadingText">Loading: 0% 
 		</div>
 		<canvas style="position: absolute;" id="canvas"></canvas>
 
@@ -81,6 +96,7 @@
 				precomputed_file_loaded: false,
 				precomputation_done: false,
 				textures_loaded: false,
+				count_precomputation_iterations: 0,
 			}
 
 			/*var m_canvas = new fabric.Canvas('canvas');
@@ -610,6 +626,8 @@
 					setDefaultColorsCameras()
 					m_application_state.num_cameras_loaded +=1
 
+					var completation = Math.floor(((m_application_state.num_cameras_loaded+m_application_state.num_models_loaded*10)/(m_application_state.num_cameras_to_load+m_application_state.num_models_to_load*10))*80)
+					document.getElementById("loadingText").innerHTML = "Loading: "+completation.toString() +"%";
 					if(m_min_pos == null)
 					{
 						m_min_pos = new THREE.Vector3(mesh.position.x,mesh.position.y,mesh.position.z)
@@ -686,6 +704,9 @@
 					//TODO Check cams loaded
 					m_application_state.num_models_loaded +=1
 					console.log("INFO: Loading Doma: DONE")
+					var completation = Math.floor(((m_application_state.num_cameras_loaded+m_application_state.num_models_loaded*10)/(m_application_state.num_cameras_to_load+m_application_state.num_models_to_load*10))*80)
+					document.getElementById("loadingText").innerHTML = "Loading: "+completation.toString() +"%";
+
 					//precomputeRays()
 
 				} );
@@ -1188,6 +1209,7 @@
 					{
 						if(m_application_state.num_models_to_load == m_application_state.num_models_to_load && m_application_state.num_cameras_loaded == m_application_state.num_cameras_to_load)
 						{
+							document.getElementById("loadingText").innerHTML = "Loading: 80%";
 							m_application_state.state = AppStates.LOADING_TEXTURES
 						}
 						break
@@ -1203,7 +1225,7 @@
 							        // output the text to the console
 							        loadPrecomputedFile(data)
 							        m_application_state.precomputed_file_loaded = true
-						
+									document.getElementById("loadingText").innerHTML = "Loading: 90%";
 							});
 							
 						}
@@ -1214,9 +1236,18 @@
 						if(m_application_state.precomputed_file_loaded)
 						{
 							if(m_capture_rays_need_recomputation)
-								precomputeCaptureInfo(m_num_rays_precomputation,m_num_rays_precomputation)
-							m_application_state.state = AppStates.READY_TO_GO
-							console.log("INFO: System ready to go!")
+							{
+								
+								precomputeCaptureInfo(m_num_rays_precomputation,m_num_rays_precomputation,m_application_state.count_precomputation_iterations)
+							}
+							else
+							{
+								m_application_state.state = AppStates.READY_TO_GO
+								document.getElementById("loadingText").innerHTML = "";
+								document.getElementById("loadingTextContainer").style.visibility = "hidden";
+								console.log("INFO: System ready to go!")
+							}
+							
 						}
 							
 						break
@@ -1298,17 +1329,27 @@
 				
 
 			}
-			function precomputeCaptureInfo(rays_x, rays_y)
+			function precomputeCaptureInfo(rays_x, rays_y, iteration)
 			{
-				precomputeRays(rays_x, rays_y);
-				precomputeCaptureSimilitude();
-				savePrecomputedFile()
-				m_application_state.precomputation_done = true
+				
+
+				precomputeRays(rays_x, rays_y, iteration);
+				m_application_state.count_precomputation_iterations = m_application_state.count_precomputation_iterations +1
+				if(m_application_state.count_precomputation_iterations == m_camera_list.length)
+				{
+					m_capture_rays_need_recomputation = false
+					precomputeCaptureSimilitude();
+					savePrecomputedFile()
+					m_application_state.precomputation_done = true
+					m_application_state.count_precomputation_iterations = 0
+				}
+				
+				
 			}
-			function precomputeRays(rays_x, rays_y)
+			function precomputeRays(rays_x, rays_y, i)
 			{
 				console.log("INFO: precomputing rays...")
-				for (var i = 0; i < m_camera_list.length; i++) 
+				//for (var i = 0; i < m_camera_list.length; i++) 
 				{
 					m_camera_list[i].camera.updateProjectionMatrix()
 					m_camera_list[i].rays = []
@@ -1334,10 +1375,13 @@
 							}
 						}
 					}
+					var completation = Math.floor((i/m_camera_list.length)*90)
+
+					document.getElementById("loadingText").innerHTML = "Precomputing rays: "+completation.toString() +"%";
 
 					console.log("      finished precomputing capture positions for cam: "+i+" , rays found: "+m_camera_list[i].rays.length)
 				}
-				m_capture_rays_need_recomputation = false
+				
 				console.log("INFO: finished precomputing rays")
 				
 			}
@@ -1409,6 +1453,9 @@
 					{
 						m_camera_list[index_cam].similitudes.push(computeSimilitudeForCams(m_camera_list[index_cam],m_camera_list[index_cam2]))
 					}
+					//var completation = Math.floor((index_cam/m_camera_list.length)*50+50)
+
+					//document.getElementById("loadingText").innerHTML = "Precomputed rays not found, precomputing again: "+completation.toString() +"%";
 				}
 				computeSimilitudesIndicesOrdered()
 				console.log("INFO: Precomputing Similitudes: DONE")
