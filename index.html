@@ -35,20 +35,26 @@
 			let m_container, m_stats, m_gui;
 
 			let m_camera, m_camera_capture, m_scene , m_renderer;
+			const AppStates =
+			{
+				THREE_JS_INIT: "init_state",
+				LOADING_MESHES: "loading_meshes_state",
+				LOADING_TEXTURES: "loading_textures_state",
+				LOADING_PRECOMPUTED_DATA: "loading_precomputed_state",
+				READY_TO_GO: "ready_state",
 
+			}
 			var m_camera_list = [];
 			var m_camera_mesh_list = [];
 			var m_scene_models = [];
-			var m_capture_rays = [];
 			var m_current_candidates = [];
 			var m_controls;
 			var m_camera_mode = "ORBIT";
 			var m_timer_update = 0;
 			var m_cams_enabled = false;
 			var m_need_to_update = true;
-			var m_system_ready = false;
 			var m_current_capture_in_view_index = -1;
-
+			var m_capture_rays_need_recomputation = true;
 			var m_testVec1;
 			var m_testVec2;
 			var m_num_rays_precomputation = 10;	//rays x rays
@@ -59,6 +65,18 @@
 				endNDC: null,
 				selectionBox: null,
 				helper: null,
+			}
+			var m_application_state = 
+			{
+				state: AppStates.THREE_JS_INIT,
+				num_cameras_loaded: 0,
+				num_models_loaded: 0,
+				three_js_inited: false,
+				num_cameras_to_load: 0,
+				num_models_to_load: 0,
+				precomputed_file_loaded: false,
+				precomputation_done: false,
+				textures_loaded: false,
 			}
 
 			/*var m_canvas = new fabric.Canvas('canvas');
@@ -133,48 +151,7 @@
 			
 			init();
 
-			animate();
-
-			m_selection_rectangle.selectionBox = new SelectionBox( m_camera, m_scene );
-			m_selection_rectangle.helper = new SelectionHelper( m_selection_rectangle.selectionBox, m_renderer, 'selectBox' );
-			m_selection_rectangle.helper.element.hidden = true;
-			document.body.appendChild( m_renderer.domElement );
-			document.addEventListener( 'pointerup', onDocumentPointerUp );
-			document.addEventListener('pointermove', onDocumentPointerMove)
-			document.addEventListener( 'pointerdown', onDocumentPointerDown );
-			document.addEventListener("keydown", onDocumentKeyDown, false);
-
-			document.getElementById("captureImage6").onclick = function() {selectCapture(6);}
-			document.getElementById("captureImage5").onclick = function() {selectCapture(5);}
-			document.getElementById("captureImage4").onclick = function() {selectCapture(4);}
-			document.getElementById("captureImage3").onclick = function() {selectCapture(3);}
-			document.getElementById("captureImage2").onclick = function() {selectCapture(2);}
-			document.getElementById("captureImage1").onclick = function() {selectCapture(1);}
-			document.getElementById("captureImage0").onclick = function() {selectCapture(0);}
-
-			document.addEventListener("keyup", event => {
-			  if (/*event.isComposing || */event.keyCode === 18) {
-			    m_select_controls_enabled = false;
-			    endDragging();
-			    m_controls.enabled = true;
-
-			    m_selection_rectangle.helper.element.hidden = true;
-				/*m_canvas.setHeight(0);
-				m_canvas.setWidth(0);*/
-			  }
-			});
-
-			m_manager.onLoad = function()
-			{
-				//m_renderer.render( m_scene, camera );
-			    console.log("DOMA_TEXTURE_LOADED");
-			    animate()
-			    if(m_capture_rays[0].length == 0)
-					precomputeRays(m_num_rays_precomputation,m_num_rays_precomputation)
-				console.log("RAYS_PRECOMPUTED");
-				m_system_ready = true;
-			}
-
+			
 
 
 			function createGUI()
@@ -309,7 +286,7 @@
 
 
 			function onDocumentKeyDown(event) {
-				if(m_system_ready)
+				if(m_application_state.state == AppStates.READY_TO_GO)
 				{
 					var keyCode = event.which;
 				    if (keyCode == 82) { //R
@@ -393,7 +370,7 @@
 
 			function onDocumentPointerMove(event)
 			{
-				if(!m_system_ready)
+				if(!m_application_state.state == AppStates.READY_TO_GO)
 				return;
 				if(m_select_controls_enabled && m_dragging)
 				{
@@ -414,7 +391,7 @@
 			}
 			function onDocumentPointerDown(event)
 			{
-				if(!m_system_ready)
+				if(!m_application_state.state == AppStates.READY_TO_GO)
 				return;
 				if(m_select_controls_enabled)
 				{
@@ -441,7 +418,7 @@
 			}
 
 			function onDocumentPointerUp( event ) {   
-				if(!m_system_ready)
+				if(!m_application_state.state == AppStates.READY_TO_GO)
 					return;
 				if(m_select_controls_enabled)
 				{
@@ -452,7 +429,7 @@
 	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
 	                                    0.5 );   
 					m_selection_rectangle.endNDC = mouseNDC
-					console.log("NDC up" + mouseNDC);
+					//console.log("NDC up" + mouseNDC);
 
 					m_selection_rectangle.selectionBox.endPoint.set(
 					( event.clientX / window.innerWidth ) * 2 - 1,
@@ -466,9 +443,9 @@
 
 				}
 				return;
-				console.log("pointer up")
+				//console.log("pointer up")
 				
-				if(!m_cams_enabled || !m_system_ready)
+				if(!m_cams_enabled || !m_application_state.state == AppStates.READY_TO_GO)
 					return;
 				if(m_camera_mode == "FLY")
 					return;
@@ -543,7 +520,7 @@
 				
 				//https://github.com/colmap/colmap/issues/797
 				//https://github.com/colmap/colmap/issues/572
-
+				console.log("      Loading Camera "+element.name+" ...")
 				 const loader = new PLYLoader();
 				 loader.load( './models/ply/ascii/camera.ply', function ( geometry ) {
 
@@ -564,7 +541,7 @@
 					//const mesh = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } ) );
 					const mesh = new THREE.Mesh( geometry, material );
 
-					mesh.applyMatrix(m);
+					mesh.applyMatrix4(m);
 					mesh.applyMatrix4(new THREE.Matrix4().makeScale(0.03, 0.03, 0.03))
 					mesh.castShadow = false;
 					mesh.receiveShadow = false;
@@ -576,7 +553,7 @@
 					var fov_x = 2*Math.atan(element.width/(2*element.f))
 
 
-					console.log("FOVS: "+fov_y + " "+fov_x)
+					//console.log("FOVS: "+fov_y + " "+fov_x)
 					var capture_camera = new THREE.PerspectiveCamera( fov_y*(180/Math.PI), element.width / element.height, 0.01, 10 );
 
 
@@ -607,6 +584,8 @@
 						focal: element.f,
 						mesh: mesh,
 						camera: capture_camera,
+						similitudes: [],
+						rays: [],
 					}
 					m_camera_list.push(new_camera);
 					/*var loader2 = new THREE.TextureLoader();
@@ -621,6 +600,8 @@
 
 					m_camera_mesh_list.push(mesh);
 					setDefaultColorsCameras()
+					m_application_state.num_cameras_loaded +=1
+					console.log("      Loading Camera "+element.name+" : DONE")
 					//console.log("CAMERA LOADED")
 
 				} );
@@ -628,11 +609,14 @@
 			}
 			
 			function loadCameras(cameras) {
+				m_application_state.num_cameras_to_load = cameras.cameras.length
+				console.log("INFO: Loading cameras...")
 				cameras.cameras.forEach(loadCamera);
 			}
 			
 			function loadDoma()
 			{
+				console.log("INFO: Loading Doma...")
 				const loader = new PLYLoader();
 				const loaderTex = new THREE.TextureLoader(m_manager);
 
@@ -670,7 +654,8 @@
 					m_scene_models.push(mesh);
 
 					//TODO Check cams loaded
-					console.log("MODEL LOADED")
+					m_application_state.num_models_loaded +=1
+					console.log("INFO: Loading Doma: DONE")
 					//precomputeRays()
 
 				} );
@@ -679,7 +664,7 @@
 			}
 			function loadModels()
 			{
-
+				m_application_state.num_models_to_load = 1
 				loadDoma();
 
 				m_scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
@@ -741,12 +726,13 @@
 
 				m_camera.updateProjectionMatrix();
 				var count_inside_rays = 1
-				for(var index_ray = 0; index_ray < m_capture_rays[index_cam].length; ++index_ray)
+
+				for(var index_ray = 0; index_ray <m_camera_list[index_cam].rays.length; ++index_ray)
 				{
 					var projected = new THREE.Vector3();
-					projected.copy(m_capture_rays[index_cam][index_ray])
+					projected.copy(m_camera_list[index_cam].rays[index_ray])
 					projected.project(m_camera)
-					console.log(projected)
+					//console.log(projected)
 					if(projected.x > min_x && projected.x < max_x && projected.y > min_y && projected.y < max_y)
 					{
 						//console.log("added " + index_cam)
@@ -755,7 +741,7 @@
 						
 				}
 
-					 return (m_num_rays_precomputation*m_num_rays_precomputation)/count_inside_rays
+				return (m_num_rays_precomputation*m_num_rays_precomputation)/count_inside_rays
 				//return intersectsPhoto[0].point.distanceTo(intersectsCamera[0].point);
 				
 
@@ -793,12 +779,12 @@
 			}
 			function updateCandidates(usingSelectionRectangle)
 			{
-				console.log("START UPDATE")
+				console.log("INFO: Updating candidates...")
 				var directionCamera = new THREE.Vector3();
 				m_camera.getWorldDirection( directionCamera );
 				var raycasterCamera =  new THREE.Raycaster(m_camera.position, directionCamera);    
 				var intersectsCamera = raycasterCamera.intersectObjects( m_scene_models );  
-				console.log(intersectsCamera);
+				//console.log(intersectsCamera);
 
 				var changed = false
 				m_current_candidates = []
@@ -811,7 +797,7 @@
 					    'index': i,
 					    'score': scoreCam
 					};
-					console.log(m_camera_list[i].name+" "+i + " score: "+ scoreCam)
+					//console.log(m_camera_list[i].name+" "+i + " score: "+ scoreCam)
 					if(i >= m_current_candidates.length)
 					{
 						m_current_candidates.push(elem)
@@ -829,6 +815,7 @@
 				}
 				
 				showCaptures(true)
+				console.log("INFO: Updating candidates: DONE")
 			}
 			
 			function changeMode()
@@ -895,7 +882,7 @@
 				}
 				else
 				{
-					console.log("ERROR, mode not found");
+					console.log("ERROR, mode "+mode+ " not found");
 				}
 			}
 			function init() {
@@ -948,7 +935,49 @@
 
 
 				window.addEventListener( 'resize', onWindowResize );
+				
+				animate();
 
+				m_selection_rectangle.selectionBox = new SelectionBox( m_camera, m_scene );
+				m_selection_rectangle.helper = new SelectionHelper( m_selection_rectangle.selectionBox, m_renderer, 'selectBox' );
+				m_selection_rectangle.helper.element.hidden = true;
+				document.body.appendChild( m_renderer.domElement );
+				document.addEventListener( 'pointerup', onDocumentPointerUp );
+				document.addEventListener('pointermove', onDocumentPointerMove)
+				document.addEventListener( 'pointerdown', onDocumentPointerDown );
+				document.addEventListener("keydown", onDocumentKeyDown, false);
+
+				document.getElementById("captureImage6").onclick = function() {selectCapture(6);}
+				document.getElementById("captureImage5").onclick = function() {selectCapture(5);}
+				document.getElementById("captureImage4").onclick = function() {selectCapture(4);}
+				document.getElementById("captureImage3").onclick = function() {selectCapture(3);}
+				document.getElementById("captureImage2").onclick = function() {selectCapture(2);}
+				document.getElementById("captureImage1").onclick = function() {selectCapture(1);}
+				document.getElementById("captureImage0").onclick = function() {selectCapture(0);}
+
+				document.addEventListener("keyup", event => {
+				  if (/*event.isComposing || */event.keyCode === 18) {
+				    m_select_controls_enabled = false;
+				    endDragging();
+				    m_controls.enabled = true;
+
+				    m_selection_rectangle.helper.element.hidden = true;
+					/*m_canvas.setHeight(0);
+					m_canvas.setWidth(0);*/
+				  }
+				});
+
+				m_manager.onLoad = function()
+				{
+					//m_renderer.render( m_scene, camera );
+				    console.log("INFO: DOMA_TEXTURE_LOADED");
+				    animate()
+				    
+					m_application_state.textures_loaded = true
+				}
+
+				
+				m_application_state.three_js_inited = true
 			}
 
 			function addShadowedLight( x, y, z, color, intensity ) {
@@ -1001,41 +1030,92 @@
 				const timer = Date.now() * 0.0005;
 				const delta = m_clock.getDelta();
 				requestAnimationFrame( animate );
-				if(m_system_ready)
+
+				switch(m_application_state.state)
 				{
-					if(m_need_to_update)
+					case AppStates.READY_TO_GO:
+					{
+						if(m_need_to_update)
 						m_timer_update += delta
 
-					if(m_old_pos_cam.distanceTo(m_camera.position) > 0.0001)
-					{
-						console.log("changed!! " + m_old_pos_cam.x + " " +m_camera.position.x)
-						m_timer_update = 0;
-						m_need_to_update = true;
-					}
+						if(m_old_pos_cam.distanceTo(m_camera.position) > 0.0001)
+						{
+							//console.log("changed!! " + m_old_pos_cam.x + " " +m_camera.position.x)
+							m_timer_update = 0;
+							m_need_to_update = true;
+						}
+							
 						
-					
-					if(m_camera_mode != "FLY")
-						m_controls.update();
-					m_stats.update();
-					if(m_timer_update > m_gui_options.timer_recalc)
-					{
-						console.log("update")
-						m_need_to_update = false
-						m_timer_update = 0
-						if(m_gui_options.auto_score_enabled)
-							updateCandidates(false);
+						if(m_camera_mode != "FLY")
+							m_controls.update();
+						m_stats.update();
+						if(m_timer_update > m_gui_options.timer_recalc)
+						{
+							//console.log("update")
+							m_need_to_update = false
+							m_timer_update = 0
+							if(m_gui_options.auto_score_enabled)
+								updateCandidates(false);
+						}
+						if(m_camera_mode == "FLY")
+						{
+							m_controls.movementSpeed = 0.33 * 1;
+							m_controls.update( delta );
+						}
+						m_old_pos_cam.copy(m_camera.position);
+
+						m_scene_models[0].material.uniforms.showRedArea.value = m_gui_options.red_area_enabled;
+						break
 					}
-					if(m_camera_mode == "FLY")
+
+
+					case AppStates.THREE_JS_INIT:
 					{
-						m_controls.movementSpeed = 0.33 * 1;
-						m_controls.update( delta );
+						if(m_application_state.three_js_inited)
+						{
+							m_application_state.state = AppStates.LOADING_MESHES
+						}
+						break
 					}
-					m_old_pos_cam.copy(m_camera.position);
+					case AppStates.LOADING_MESHES:
+					{
+						if(m_application_state.num_models_to_load == m_application_state.num_models_to_load && m_application_state.num_cameras_loaded == m_application_state.num_cameras_to_load)
+						{
+							m_application_state.state = AppStates.LOADING_TEXTURES
+						}
+						break
+					}
+					case AppStates.LOADING_TEXTURES:
+					{
+						if(m_application_state.textures_loaded)
+						{
+
+							m_application_state.state = AppStates.LOADING_PRECOMPUTED_DATA
+							var loader = new THREE.FileLoader();
+					        loader.load('capture_info/precomputedCameraData.txt', function ( data ) {
+							        // output the text to the console
+							        loadPrecomputedFile(data)
+							        m_application_state.precomputed_file_loaded = true
+						
+							});
+							
+						}
+						break
+					}
+					case AppStates.LOADING_PRECOMPUTED_DATA:
+					{
+						if(m_application_state.precomputed_file_loaded)
+						{
+							if(m_capture_rays_need_recomputation)
+								precomputeCaptureInfo(m_num_rays_precomputation,m_num_rays_precomputation)
+							m_application_state.state = AppStates.READY_TO_GO
+							console.log("INFO: System ready to go!")
+						}
+							
+						break
+					}
 				}
-				if(m_system_ready)
-				{
-					m_scene_models[0].material.uniforms.showRedArea.value = m_gui_options.red_area_enabled;
-				}
+
 				
 				render();
 
@@ -1111,14 +1191,20 @@
 				
 
 			}
-
+			function precomputeCaptureInfo(rays_x, rays_y)
+			{
+				precomputeRays(rays_x, rays_y);
+				precomputeCaptureSimilitude();
+				savePrecomputedFile()
+				m_application_state.precomputation_done = true
+			}
 			function precomputeRays(rays_x, rays_y)
 			{
-				m_capture_rays = []
+				console.log("INFO: precomputing rays...")
 				for (var i = 0; i < m_camera_list.length; i++) 
 				{
 					m_camera_list[i].camera.updateProjectionMatrix()
-					var capture_rays = []
+					m_camera_list[i].rays = []
 					for(var x = 0; x <= 1; x +=(1/(rays_x-1)))
 					{
 						for(var y = 0; y <= 1; y +=(1/(rays_y-1)))
@@ -1137,108 +1223,153 @@
 							if(intersectsPhoto.length > 0)
 							{
 								pointIntersect.copy(intersectsPhoto[0].point)
-								capture_rays.push(pointIntersect)
-
-								/*if(x*2-1 ==0.0 && y*2-1==0.0)
-								{
-									console.log(m_camera_list[i].mesh.position)
-									console.log("point intersect unproject: ")
-									console.log(pointIntersect)
-									console.log(NDC_position)
-									var directionPhoto = new THREE.Vector3();
-									test_ray.copy(m_camera_list[i].mesh.getWorldDirection( directionPhoto ))
-									var raycasterPhoto2 =  new THREE.Raycaster(m_camera_list[i].mesh.position, test_ray); 
-
-									var intersectsPhoto2 = raycasterPhoto2.intersectObjects( m_scene_models );  
-									console.log("point intersect center: ")
-									console.log(intersectsPhoto2[0].point)
-									console.log(test_ray)
-
-								}*/
-
+								m_camera_list[i].rays.push(pointIntersect)
 							}
 						}
 					}
 
-					m_capture_rays.push(capture_rays)
-					console.log("finished precomputing capture: "+i)
+					console.log("      finished precomputing capture positions for cam: "+i+" , rays found: "+m_camera_list[i].rays.length)
 				}
-				console.log("finished precomputing rays")
-				savePrecomputedFile()
+				m_capture_rays_need_recomputation = false
+				console.log("INFO: finished precomputing rays")
+				
+			}
+			function computeSimilitudeForCams(cam1, cam2)
+			{
+				
+				var count_inside_rays_cam1 = 0
+				var count_inside_rays_cam2 = 0
+				var rate_cam1 = 0;
+				var rate_cam2 = 0;
+				for(var index_ray = 0; index_ray <cam1.rays.length; ++index_ray)
+				{
+					var projected = new THREE.Vector3();
+					projected.copy(cam1.rays[index_ray])
+					projected.project(cam2.camera)
+					//console.log(projected)
+					if(projected.x > -1.0 && projected.x < 1.0 && projected.y > -1.0 && projected.y < 1.0)
+					{
+						//console.log("added " + index_cam)
+						count_inside_rays_cam1 = count_inside_rays_cam1 +1
+					}
+						
+				}
+				if(cam1.rays.length > 0)
+					rate_cam1 = count_inside_rays_cam1/cam1.rays.length;
+
+				for(var index_ray = 0; index_ray <cam2.rays.length; ++index_ray)
+				{
+					var projected = new THREE.Vector3();
+					projected.copy(cam2.rays[index_ray])
+					projected.project(cam1.camera)
+					//console.log(projected)
+					if(projected.x > -1.0 && projected.x < 1.0 && projected.y > -1.0 && projected.y < 1.0)
+					{
+						//console.log("added " + index_cam)
+						count_inside_rays_cam2 = count_inside_rays_cam2 +1
+					}
+						
+				}
+				if(cam2.rays.length > 0)
+					rate_cam2 = count_inside_rays_cam2/cam2.rays.length;
+
+				return (rate_cam1+rate_cam2)/2
+			}
+			function precomputeCaptureSimilitude()
+			{
+				console.log("INFO: Precomputing Similitudes....")
+				for(var index_cam=0; index_cam < m_camera_list.length; ++index_cam)
+				{	
+					m_camera_list[index_cam].similitudes = []
+					for(var index_cam2=0; index_cam2 < m_camera_list.length; ++index_cam2)
+					{
+						m_camera_list[index_cam].similitudes.push(computeSimilitudeForCams(m_camera_list[index_cam],m_camera_list[index_cam2]))
+					}
+				}
+				console.log("INFO: Precomputing Similitudes: DONE")
 			}
 
 			function loadPrecomputedFile(data)
 			{
-				m_capture_rays = []
+				console.log("INFO: Loading Precomputed File...")
 				var data_cameras = data.split('\n');
-
-				for(var index_cam=0; index_cam < data_cameras.length; ++index_cam)
+				if(data_cameras.length != m_camera_list.length)
 				{
-					var capture_rays = []
-					var data_camera = data_cameras[index_cam].split(' ')
-					while(data_camera[0] == "")
-						data_camera.shift()
-					var num_rays = data_camera[0]
-
-					for(var ray = 0; ray < num_rays; ++ray)
-					{
-						var x = data_camera[ray*3+1]
-						var y = data_camera[ray*3+1+1]
-						var z = data_camera[ray*3+1+2]
-						var position_ray = new THREE.Vector3(x,y,z);
-						capture_rays.push(position_ray);
-					}
-					m_capture_rays.push(capture_rays)
+					m_capture_rays_need_recomputation = true
+					console.log("INFO: Precomputed File outdated, need to recompute")
+					return
 				}
+				else
+				{
+					for(var index_cam=0; index_cam < data_cameras.length; ++index_cam)
+					{
+						m_camera_list[index_cam].rays = []
+						var data_camera = data_cameras[index_cam].split(' ')
+						while(data_camera[0] == "")
+							data_camera.shift()
+						var num_rays = data_camera[0]
+
+						for(var ray = 0; ray < num_rays; ++ray)
+						{
+							var x = data_camera[ray*3+1]
+							var y = data_camera[ray*3+1+1]
+							var z = data_camera[ray*3+1+2]
+							var position_ray = new THREE.Vector3(x,y,z);
+							m_camera_list[index_cam].rays.push(position_ray);
+						}
+						m_camera_list[index_cam].similitudes = []
+						for(var simil_cam_index = 0; simil_cam_index <m_camera_list.length; ++simil_cam_index)
+						{
+							var simil = data_camera[num_rays*3+1+simil_cam_index]
+							m_camera_list[index_cam].similitudes.push(simil)
+						}
+					}
+					m_capture_rays_need_recomputation = false
+				}
+				console.log("INFO: Loading Precomputed File: DONE")
+
+				
+				
 					
 			}
 			function savePrecomputedFile()
 			{
-
+				console.log("INFO: Saving Precomputed File...")
             	var parts = []
-            	var first = true
-				for(var index_cam=0; index_cam < m_capture_rays.length; ++index_cam)
+				for(var index_cam=0; index_cam < m_camera_list.length; ++index_cam)
 				{	
-					if(first)
+
+					parts.push(m_camera_list[index_cam].rays.length);
+
+					for(var index_ray=0; index_ray < m_camera_list[index_cam].rays.length; ++index_ray)
 					{
-						parts.push(m_capture_rays[index_cam].length);
-						first = false
-					}
-					else
-					{
-						parts.push(" " + m_capture_rays[index_cam].length);
-					}
-					for(var index_ray=0; index_ray < m_capture_rays[index_cam].length; ++index_ray)
-					{
-						var raypos = m_capture_rays[index_cam][index_ray]
+						var raypos = m_camera_list[index_cam].rays[index_ray]
 						parts.push(" " + raypos.x + " " + raypos.y + " " + raypos.z);
 					}
-					if(index_cam < m_capture_rays.length -1)
+					for(var index_sim=0; index_sim < m_camera_list[index_cam].similitudes.length; ++index_sim)
+					{
+						var sim = m_camera_list[index_cam].similitudes[index_sim]
+						parts.push(" " + sim);
+					}
+					if(index_cam < m_camera_list.length -1)
 						parts.push("\n");
 				}
 				var blob = new Blob(parts);
-				saveAs(blob, 'precomputedCameraRays.txt')
+				saveAs(blob, 'precomputedCameraData.txt')
+				console.log("INFO: Saving Precomputed File: DONE")
 			}
 
 			var xmlhttp = new XMLHttpRequest();
 			xmlhttp.onreadystatechange = function() {
 			    if (this.readyState == 4 && this.status == 200) {
 			        var myObj = JSON.parse(this.responseText);
-			        var loader = new THREE.FileLoader();
-			        loader.load('capture_info/precomputedCameraRays.txt', function ( data ) {
-					        // output the text to the console
-					        loadPrecomputedFile(data)
-					        //captureNames = data.split('\n')
-					        //console.log( data.split('\n') )
-					        loadCameras(myObj)
-			        		setDefaultColorsCameras();
-
-						
-					});
-					
+			        console.log("INFO: Capture info json loading... DONE")
+			        loadCameras(myObj)
+			        setDefaultColorsCameras();
 			    }
 			};
 			xmlhttp.open("GET", "capture_info/cameraInfo.json", true);
+			console.log("INFO: Capture info json loading...")
 			xmlhttp.send();
 
 		</script>
