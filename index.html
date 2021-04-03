@@ -66,6 +66,8 @@
 				selectionBox: null,
 				helper: null,
 			}
+			var m_min_pos = null;
+			var m_max_pos = null;
 			var m_application_state = 
 			{
 				state: AppStates.THREE_JS_INIT,
@@ -295,7 +297,7 @@
 				        changeMode();
 				    }  else if (keyCode == 67) { //C
 				        toggleEnableCams();
-				    }  else if (keyCode == 18) {
+				    }  else if (keyCode == 17) {
 				    	m_select_controls_enabled = true;
 				    	m_controls.enabled = false;
 
@@ -601,6 +603,28 @@
 					m_camera_mesh_list.push(mesh);
 					setDefaultColorsCameras()
 					m_application_state.num_cameras_loaded +=1
+
+					if(m_min_pos == null)
+					{
+						m_min_pos = new THREE.Vector3(mesh.position.x,mesh.position.y,mesh.position.z)
+					}
+					if(m_max_pos == null)
+					{
+						m_max_pos = new THREE.Vector3(mesh.position.x,mesh.position.y,mesh.position.z)
+					}
+					if(m_min_pos.x > mesh.position.x)
+						m_min_pos.x = mesh.position.x
+					if(m_min_pos.y > mesh.position.z)
+						m_min_pos.y = mesh.position.z
+					if(m_min_pos.z > mesh.position.z)
+						m_min_pos.z = mesh.position.z
+
+					if(m_max_pos.x < mesh.position.x)
+						m_max_pos.x = mesh.position.x
+					if(m_max_pos.y < mesh.position.z)
+						m_max_pos.y = mesh.position.z
+					if(m_max_pos.z < mesh.position.z)
+						m_max_pos.z = mesh.position.z
 					console.log("      Loading Camera "+element.name+" : DONE")
 					//console.log("CAMERA LOADED")
 
@@ -697,8 +721,11 @@
 			}
 			function getScorePosition(index_cam)
 			{
+				var dist_max_aprox = (m_min_pos.distanceTo(m_max_pos))*2
 				var dist = m_camera_list[index_cam].mesh.position.distanceTo(m_camera.position)
-				return dist;
+				if(dist > dist_max_aprox)
+					dist = dist_max_aprox;
+				return (dist_max_aprox-dist)/dist_max_aprox;
 				
 			}
 			function getScoreRotation(index_cam)
@@ -708,7 +735,7 @@
 				m_camera_list[index_cam].mesh.getWorldDirection( direction1 );
 				m_camera.getWorldDirection( direction2 );
 				var dist = direction1.distanceTo(direction2);
-				return 2 - dist;
+				return dist/2;
 				
 			}
 			function getScoreRays(index_cam, intersectsCamera, min_x, max_x, min_y, max_y)
@@ -725,7 +752,7 @@
 					return 1;*/
 
 				m_camera.updateProjectionMatrix();
-				var count_inside_rays = 1
+				var count_inside_rays = 0
 
 				for(var index_ray = 0; index_ray <m_camera_list[index_cam].rays.length; ++index_ray)
 				{
@@ -740,8 +767,10 @@
 					}
 						
 				}
-
-				return (m_num_rays_precomputation*m_num_rays_precomputation)/count_inside_rays
+				if(m_camera_list[index_cam].rays.length > 0)
+					return count_inside_rays/m_camera_list[index_cam].rays.length
+				else
+					return 0
 				//return intersectsPhoto[0].point.distanceTo(intersectsCamera[0].point);
 				
 
@@ -769,10 +798,10 @@
 				
 			}
 			function compareCandidates( a, b ) {
-			  if ( a.score < b.score ){
+			  if ( a.score > b.score ){
 			    return -1;
 			  }
-			  if ( a.score > b.score ){
+			  if ( a.score < b.score ){
 			    return 1;
 			  }
 			  return 0;
@@ -956,9 +985,10 @@
 				document.getElementById("captureImage0").onclick = function() {selectCapture(0);}
 
 				document.addEventListener("keyup", event => {
-				  if (/*event.isComposing || */event.keyCode === 18) {
+				  if (/*event.isComposing || */event.keyCode === 17) {
 				    m_select_controls_enabled = false;
-				    endDragging();
+					m_dragging = false
+
 				    m_controls.enabled = true;
 
 				    m_selection_rectangle.helper.element.hidden = true;
