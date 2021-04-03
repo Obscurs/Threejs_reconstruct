@@ -174,42 +174,7 @@
 				console.log("RAYS_PRECOMPUTED");
 				m_system_ready = true;
 			}
-			function endDragging()
-			{
-				m_dragging = false;
-			}
 
-
-			function onMouseDown(e) {
-				  var relative = get3DPosition(e);
-				  if (!relative) {
-				    return;
-				  }
-				  m_dragging = true;
-				  //startPosition.x = e.pageX;
-				  //startPosition.y = e.pageY;
-				  //scene.children[1].position.set(relative.x + vertexSize, relative.y, relative.z);
-				  console.log("MOUSE DOWN");
-				}
-
-			function onDrag(e) {
-			  if (m_dragging) {
-			    /*var clientX = (e.pageX - startPosition.x) / 10;
-			    var clientY = (e.pageY - startPosition.y) / 10;
-			    var vertices = geometry.vertices;
-			    vertices[1].x = -clientX * -1;
-			    vertices[2].x = -clientX * -1;
-			    vertices[2].y = -clientY *-1;
-			    vertices[3].y = -clientY * -1;
-			    geometry.verticesNeedUpdate = true;*/
-			    console.log("DRAGGING");
-			  }
-			}
-
-			function onMouseUp(e) {
-			  m_dragging = false;
-			  console.log("NOT DRAGGING");
-			}
 
 
 			function createGUI()
@@ -605,12 +570,21 @@
 					mesh.receiveShadow = false;
 					m_scene.add( mesh );
 
-					var capture_camera = new THREE.PerspectiveCamera( 50, element.width / element.height, 0.01, 10 );
+
+
+					var fov_y = 2*Math.atan(element.height/(2*element.f))
+					var fov_x = 2*Math.atan(element.width/(2*element.f))
+
+
+					console.log("FOVS: "+fov_y + " "+fov_x)
+					var capture_camera = new THREE.PerspectiveCamera( fov_y*(180/Math.PI), element.width / element.height, 0.01, 10 );
+
+
 					capture_camera.position.set( mesh.position.x,mesh.position.y,mesh.position.z );
 					capture_camera.name = element.name
 						/////////////
 
-						//capture_camera.setFocalLength(element.f)
+						//capture_camera.setFocalLength(element.f*(180/3.14))
 						var v1 = new THREE.Vector3();
 					v1.copy(mesh.up ).applyQuaternion(mesh.quaternion );
 					capture_camera.quaternion.copy(mesh.quaternion );
@@ -623,7 +597,7 @@
 					
 					////////////////////////
 
-					
+
 
 					var new_camera = {
 						name: element.name,
@@ -635,7 +609,7 @@
 						camera: capture_camera,
 					}
 					m_camera_list.push(new_camera);
-					var loader2 = new THREE.TextureLoader();
+					/*var loader2 = new THREE.TextureLoader();
 					var texture = loader2.load( "./captures/"+element.name, function ( tex ) {
 					    // tex and texture are the same in this example, but that might not always be the case
 					    new_camera.width = tex.image.width
@@ -643,7 +617,7 @@
 					    capture_camera.aspect = new_camera.width/new_camera.height;
 					    //console.log( tex.image.width, tex.image.height );
 					    //console.log( texture.image.width, texture.image.height );
-					} );
+					} );*/
 
 					m_camera_mesh_list.push(mesh);
 					setDefaultColorsCameras()
@@ -1079,7 +1053,7 @@
 				//}
 				m_cameraHelper.update();
 				m_renderer.clear();
-				if(m_gui_options.show_view_enabled)
+				if(m_gui_options.show_view_enabled && !m_select_controls_enabled)
 				{
 					//RENDER CAM 1
 					{
