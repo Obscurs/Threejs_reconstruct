@@ -48,6 +48,8 @@
 			var m_camera_mesh_list = [];
 			var m_scene_models = [];
 			var m_current_candidates = [];
+			var m_current_candidates_stacks = [];
+
 			var m_controls;
 			var m_camera_mode = "ORBIT";
 			var m_timer_update = 0;
@@ -116,6 +118,10 @@
 				position: 1,
 				timer_recalc: 1,
 
+				max_num_stacks: 7,
+				max_stack_size: 5,
+				similitude_treshold: 0.7,
+
 				red_area_enabled: false,
 				show_camera_enabled: false,
 				show_view_enabled: false,
@@ -178,9 +184,17 @@
 				viewFolder.add(m_gui_options, 'show_camera_enabled').name( 'Show camera' );
 				viewFolder.add(m_gui_options, 'show_view_enabled').name( 'Show view' );
 				viewFolder.add(m_gui_options, 'auto_score_enabled').name( 'Auto-detect' );
-
-
 				viewFolder.open();
+
+				const candidatesFolder = m_gui.addFolder( 'Candidate selection' );
+
+
+				candidatesFolder.add(m_gui_options, 'max_num_stacks', 0, 20, 1 ).name( 'Max num stack' );
+				candidatesFolder.add(m_gui_options, 'max_stack_size', 0, 20, 1 ).name( 'Max size stack' );
+				candidatesFolder.add(m_gui_options, 'similitude_treshold', 0, 1, 0.01 ).name( 'Similitude treshold' );
+
+				candidatesFolder.open();
+
 			}
 			function moveToCapturePosition(index_capture)
 			{
@@ -275,15 +289,6 @@
 				}
 				
 
-				/*if(indexCapture != -1)
-				{
-					var source = "images/"+captureNames[indexCapture]
-
-					document.getElementById('captureImage').src= source
-					document.getElementById("captureImage").style.visibility = "visible";
-
-					console.log(source)
-				}*/
 			}
 
 
@@ -587,6 +592,7 @@
 						mesh: mesh,
 						camera: capture_camera,
 						similitudes: [],
+						similitudes_indices_ordered: [],
 						rays: [],
 					}
 					m_camera_list.push(new_camera);
@@ -797,6 +803,15 @@
 
 				
 			}
+			function compareCanditateIndices( a, b ) {
+			  if ( a.index < b.index ){
+			    return -1;
+			  }
+			  if ( a.index > b.index ){
+			    return 1;
+			  }
+			  return 0;
+			}
 			function compareCandidates( a, b ) {
 			  if ( a.score > b.score ){
 			    return -1;
@@ -805,6 +820,66 @@
 			    return 1;
 			  }
 			  return 0;
+			}
+			function compareSimilitudes( a, b ) {
+			  if ( a.similitude > b.similitude ){
+			    return -1;
+			  }
+			  if ( a.similitude < b.similitude ){
+			    return 1;
+			  }
+			  return 0;
+			}
+			function updateCandidateStacks()
+			{
+				var aux_candidate_list = []
+				for (var i = 0; i < m_current_candidates.length; i++) {
+					aux_candidate_list.push(m_current_candidates[i])
+				}
+				aux_candidate_list.sort(compareCanditateIndices)
+				m_current_candidates_stacks = []
+				var current_stack_index = 0
+				for (var i = 0; i < m_current_candidates.length; i++) {
+					if(m_current_candidates[i].stack_index == -1 && m_current_candidates_stacks.length < m_gui_options.max_num_stacks)
+					{
+						var aux_stack_elem = {
+							score: m_current_candidates[i].score,
+							elems: [m_current_candidates[i].index]
+						}
+						m_current_candidates_stacks.push(aux_stack_elem)
+						m_current_candidates[i].stack_index=current_stack_index;
+						var reached_treshold = false;
+						var aux_index_capture = 0;
+						while(m_current_candidates_stacks[current_stack_index].elems.length < m_gui_options.max_stack_size && !reached_treshold && aux_index_capture < m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered.length)
+						{
+							if(m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].similitude > m_gui_options.similitude_treshold)
+							{
+								if(aux_candidate_list[m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].index].stack_index == -1)
+								{
+									aux_candidate_list[m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].index].stack_index = current_stack_index;
+
+									m_current_candidates_stacks[current_stack_index].elems.push(m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].index)
+								}
+							}
+							else
+							{
+								reached_treshold = true;
+							}
+							aux_index_capture = aux_index_capture+1;
+						}
+						current_stack_index = current_stack_index +1
+					}
+					else if(m_current_candidates_stacks.length >= m_gui_options.max_num_stacks)
+						break;
+				}
+
+			}
+			function normalizeScores()
+			{
+				var biggest_score = m_current_candidates[0].score;
+				for (var i = 0; i < m_current_candidates.length; i++) {
+					m_current_candidates[i].score = m_current_candidates[i].score/biggest_score;
+				}
 			}
 			function updateCandidates(usingSelectionRectangle)
 			{
@@ -824,7 +899,8 @@
 				    var scoreCam = getScoreCam(i, intersectsCamera, usingSelectionRectangle)
 				    var elem = {
 					    'index': i,
-					    'score': scoreCam
+					    'score': scoreCam,
+					    'stack_index': -1,
 					};
 					//console.log(m_camera_list[i].name+" "+i + " score: "+ scoreCam)
 					if(i >= m_current_candidates.length)
@@ -837,7 +913,8 @@
 				    }
 				}
 				m_current_candidates.sort(compareCandidates)
-
+				normalizeScores()
+				updateCandidateStacks()
 				if(m_current_capture_in_view_index == -1)
 				{
 					changeCaptureInView(m_current_candidates[0].index)
@@ -1305,6 +1382,23 @@
 
 				return (rate_cam1+rate_cam2)/2
 			}
+			function computeSimilitudesIndicesOrdered()
+			{
+				for(var index_cam=0; index_cam < m_camera_list.length; ++index_cam)
+				{	
+					m_camera_list[index_cam].similitudes_indices_ordered = []
+					for(var index_cam2=0; index_cam2 < m_camera_list[index_cam].similitudes.length; ++index_cam2)
+					{
+						var curr_sim = 
+						{
+							index: index_cam2,
+							similitude: m_camera_list[index_cam].similitudes[index_cam2]
+						}
+						m_camera_list[index_cam].similitudes_indices_ordered.push(curr_sim)
+					}
+					m_camera_list[index_cam].similitudes_indices_ordered.sort(compareSimilitudes)
+				}
+			}
 			function precomputeCaptureSimilitude()
 			{
 				console.log("INFO: Precomputing Similitudes....")
@@ -1316,6 +1410,7 @@
 						m_camera_list[index_cam].similitudes.push(computeSimilitudeForCams(m_camera_list[index_cam],m_camera_list[index_cam2]))
 					}
 				}
+				computeSimilitudesIndicesOrdered()
 				console.log("INFO: Precomputing Similitudes: DONE")
 			}
 
@@ -1355,6 +1450,7 @@
 						}
 					}
 					m_capture_rays_need_recomputation = false
+					computeSimilitudesIndicesOrdered()
 				}
 				console.log("INFO: Loading Precomputed File: DONE")
 
