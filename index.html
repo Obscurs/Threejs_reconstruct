@@ -97,6 +97,7 @@
 				precomputation_done: false,
 				textures_loaded: false,
 				count_precomputation_iterations: 0,
+				capture_index_over_mouse: -1,
 			}
 
 			/*var m_canvas = new fabric.Canvas('canvas');
@@ -256,10 +257,10 @@
 				m_scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
 				m_scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
 			}
-			function selectCapture(index_capture)
+			function selectCapture(index_capture, allow_jump = false)
 			{
 				//var index_capture = m_current_candidates[index_candidate].index;
-				if(m_current_capture_in_view_index == index_capture)
+				if(m_current_capture_in_view_index == index_capture && allow_jump)
 				{
 					moveToCapturePosition(index_capture)
 				}
@@ -284,7 +285,7 @@
 			}
 
 
-			function showCollectionSprite(min_pos, max_pos, index_capture, order, sprites_to_remove)
+			function showCollectionSprite(min_pos, max_pos, index_capture, order, sprites_to_remove = [], isShifting = false)
 			{
 
 				var scale1 = (max_pos.x -min_pos.x)/m_camera_list[index_capture].width;
@@ -303,19 +304,26 @@
 				sprite.renderOrder = order;
 				sprite.name = index_capture;
 				
+				if(!isShifting)
+				{
+					m_scene_collections.add(sprite);
 
-				m_scene_collections.add(sprite);
-
-				m_current_sprites_in_scene.push(sprite)
-				const index = sprites_to_remove.indexOf(sprite.name);
-				if (index > -1) {
-				  sprites_to_remove.splice(index, 1);
+					m_current_sprites_in_scene.push(sprite)
 				}
+
+				if(sprites_to_remove.length > 0)
+				{
+					const index = sprites_to_remove.indexOf(sprite.name);
+					if (index > -1) {
+					  sprites_to_remove.splice(index, 1);
+					}
+				}
+				
 					
 
 				
 			}
-			function showCollection(min_pos, max_pos, index_collection, sprites_to_remove)
+			function showCollection(min_pos, max_pos, index_collection, sprites_to_remove = [], isShifting = false)
 			{
 				var currentOffset = new THREE.Vector2(5,5)
 				var remaining_width = max_pos.x-min_pos.x-currentOffset.x;
@@ -330,7 +338,7 @@
 					var max = new THREE.Vector2( min_pos.x+currentOffset.x+width_image ,min_pos.y+currentOffset.y+height_image);
 					currentOffset.x = currentOffset.x + offset_per_image;
 					currentOffset.y = currentOffset.y + offset_per_image;
-					showCollectionSprite(min, max, m_current_candidates_collections[index_collection].elems[i],num_elems-i,sprites_to_remove)
+					showCollectionSprite(min, max, m_current_candidates_collections[index_collection].elems[i],num_elems-i,sprites_to_remove, isShifting)
 				}
 				
 			}
@@ -351,12 +359,14 @@
 					var collection_width = remaining_width/4
 					var min = new THREE.Vector2( current_min_x, 0 );
 					var max = new THREE.Vector2(current_min_x+ collection_width,collection_height);
+					m_current_candidates_collections[i].min = min;
+					m_current_candidates_collections[i].max = max;
 					showCollection(min,max,i, sprites_to_remove);
 					remaining_width = remaining_width - collection_width;
 					current_min_x = current_min_x + collection_width;
 				}
-				console.log(m_current_candidates_collections.length)
-				console.log(sprites_to_remove)
+				//console.log(m_current_candidates_collections.length)
+				//console.log(sprites_to_remove)
 				for(var i = 0; i < sprites_to_remove.length; i++)
 				{
 					var existing = m_scene_collections.getObjectByName(sprites_to_remove[i]);
@@ -482,7 +492,7 @@ function onBeforeCompile( shader ) {
 
   shader.fragmentShader = 'uniform vec3 outlineColor;\n' + shader.fragmentShader;
   shader.fragmentShader = 'uniform vec2 resolution;\n' + shader.fragmentShader;
-  console.log("HHHHH")
+  //console.log("HHHHH")
   shader.fragmentShader = shader.fragmentShader.replace(
     '#include <map_fragment>',
     [
@@ -519,7 +529,23 @@ function onBeforeCompile( shader ) {
 			function onDocumentPointerMove(event)
 			{
 				if(!m_application_state.state == AppStates.READY_TO_GO)
-				return;
+					return;
+				var captureIndex = getCaptureUnderMouse(event);
+				if(captureIndex >= 0)
+				{
+					//console.log("mouse move, capture: "+ captureIndex)
+					if(m_application_state.capture_index_over_mouse != captureIndex && !m_select_controls_enabled)
+						selectCapture(captureIndex)
+					m_application_state.capture_index_over_mouse = captureIndex;
+					m_controls.enabled = false;
+				}
+				else
+				{
+					if(!m_select_controls_enabled)
+						m_controls.enabled = true;
+					m_application_state.capture_index_over_mouse = -1;
+				}
+					
 				if(m_select_controls_enabled && m_dragging)
 				{
 					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
@@ -539,7 +565,6 @@ function onBeforeCompile( shader ) {
 			}
 			function getCaptureUnderMouse(event)
 			{
-				event.preventDefault();
 	            var mouse3D = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
 	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
 	                                    0.5 );     
@@ -548,14 +573,44 @@ function onBeforeCompile( shader ) {
 	            var intersects = raycaster.intersectObjects( m_current_sprites_in_scene );
 				//console.log(intersects)
 				setDefaultColorsCameras();
+
 	            if ( intersects.length > 0 ) 
-	            	return intersects[ 0 ].object.name
+	            {
+	            	var curr_index = intersects[ 0 ].object.name
+	            	var curr_depth = intersects[ 0 ].object.renderOrder
+	            	for(var i=0; i <intersects.length; i++)
+	            	{
+	            		if(intersects[ i ].object.renderOrder > curr_depth)
+	            		{
+	            			curr_depth = intersects[ i ].object.renderOrder;
+	            			curr_index = intersects[ i ].object.name;
+	            		}
+	            	}
+	            	return curr_index
+	            }
 	            else
 	            	return -1
 			}
 			function getCollectionIndexUnderMouse(event)
 			{
-
+				if(m_application_state.capture_index_over_mouse != -1)
+				{
+					var index_collection = -1
+					for(var i=0; i<m_current_candidates_collections.length; i++)
+					{
+						for(var j=0; j < m_current_candidates_collections[i].elems.length; j++)
+						{
+							if(m_current_candidates_collections[i].elems[j] == m_application_state.capture_index_over_mouse)
+							{
+								index_collection = i;
+								break;
+							}
+						}
+						
+					}
+					return index_collection;
+				}
+				return -1;
 			}
 			function onDocumentPointerDown(event)
 			{
@@ -585,6 +640,28 @@ function onBeforeCompile( shader ) {
 				}
 			}
 
+			function onDocumentMouseWheel(event)
+			{
+				//console.log("here we go again")
+				/*var captureIndex = getCaptureUnderMouse(event);
+				if(captureIndex >= 0)
+					console.log(captureIndex)*/
+
+				var collection = getCollectionIndexUnderMouse(event)
+				//console.log(collection)
+				if(collection >=0)
+				{
+					if(event.wheelDelta > 0)
+					{
+						m_current_candidates_collections[collection].animating = 1
+					}
+					else
+					{
+						m_current_candidates_collections[collection].animating = -1
+					}
+				}
+
+			}
 			function onDocumentPointerUp( event ) {   
 				if(!m_application_state.state == AppStates.READY_TO_GO)
 					return;
@@ -610,7 +687,7 @@ function onBeforeCompile( shader ) {
 				{
 					var captureIndex = getCaptureUnderMouse(event);
 					if(captureIndex >= 0)
-						selectCapture(captureIndex)
+						selectCapture(captureIndex, true)
 				}
 				return;
 				//console.log("pointer up")
@@ -1004,6 +1081,34 @@ function onBeforeCompile( shader ) {
 			  }
 			  return 0;
 			}
+
+			function shiftCollectionSprites(collection,index, direction)
+			{
+				if(direction > 0)
+				{
+					var elem = collection.elems.shift()
+					collection.elems.push(elem)
+					//console.log("shifted1")
+				} else
+				{
+					var elem = collection.elems.pop();
+					collection.elems.unshift(elem);
+					//console.log("shifted2")
+				}
+				showCollection(collection.min, collection.max,index, [], true)
+			}
+			function updateCollectionsAnims(delta)
+			{
+				for(var i=0; i < m_current_candidates_collections.length; i++)
+				{
+					if(m_current_candidates_collections[i].animating !=0)
+					{
+						shiftCollectionSprites(m_current_candidates_collections[i],i, m_current_candidates_collections[i].animating)
+						m_current_candidates_collections[i].animating = 0;
+					}
+				}
+				//m_application_state.
+			}
 			function updateCandidateCollections()
 			{
 				var aux_candidate_list = []
@@ -1018,7 +1123,10 @@ function onBeforeCompile( shader ) {
 					{
 						var aux_collection_elem = {
 							score: m_current_candidates[i].score,
-							elems: [m_current_candidates[i].index]
+							elems: [m_current_candidates[i].index],
+							animating: 0,
+							min: null,
+							max: null,
 						}
 						m_current_candidates_collections.push(aux_collection_elem)
 						m_current_candidates[i].collection_index=current_collection_index;
@@ -1234,6 +1342,7 @@ function onBeforeCompile( shader ) {
 				m_selection_rectangle.selectionBox = new SelectionBox( m_camera, m_scene );
 				m_selection_rectangle.helper = new SelectionHelper( m_selection_rectangle.selectionBox, m_renderer, 'selectBox' );
 				m_selection_rectangle.helper.element.hidden = true;
+				document.addEventListener( 'mousewheel', onDocumentMouseWheel );
 				document.addEventListener( 'pointerup', onDocumentPointerUp );
 				document.addEventListener('pointermove', onDocumentPointerMove)
 				document.addEventListener( 'pointerdown', onDocumentPointerDown );
@@ -1314,7 +1423,7 @@ function onBeforeCompile( shader ) {
 				m_camera_collections.bottom = window.innerHeight / - 2;
 				m_camera_collections.updateProjectionMatrix();
 
-				m_captureShader.uniforms.resolution.value.set( window.innerWidth, window.innerWidth );
+				//m_captureShader.uniforms.resolution.value.set( window.innerWidth, window.innerWidth );
 				/*if(m_select_controls_enabled)
 				{
 					m_canvas.setHeight(window.innerHeight);
@@ -1338,8 +1447,9 @@ function onBeforeCompile( shader ) {
 				{
 					case AppStates.READY_TO_GO:
 					{
+						updateCollectionsAnims(delta)
 						if(m_need_to_update)
-						m_timer_update += delta
+							m_timer_update += delta
 
 						if(m_old_pos_cam.distanceTo(m_camera.position) > 0.0001)
 						{
@@ -1509,8 +1619,8 @@ function onBeforeCompile( shader ) {
 
 				m_renderer.setViewport( left, bottom, width, height );
 				m_renderer.setScissor( left, bottom, width, height );
-
-				m_renderer.render( m_scene_collections, m_camera_collections );
+				if(!m_select_controls_enabled)
+					m_renderer.render( m_scene_collections, m_camera_collections );
 				
 
 			}
