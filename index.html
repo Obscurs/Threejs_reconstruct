@@ -285,7 +285,7 @@
 			}
 
 
-			function showCollectionSprite(min_pos, max_pos, index_capture, order, sprites_to_remove = [], isShifting = false)
+			function showCollectionSprite(min_pos, max_pos, index_capture, order, sprites_to_remove = [], isShifting = false, opacity = 1)
 			{
 
 				var scale1 = (max_pos.x -min_pos.x)/m_camera_list[index_capture].width;
@@ -303,7 +303,7 @@
 				sprite.position.set(spritepos.x,spritepos.y, spritepos.z);
 				sprite.renderOrder = order;
 				sprite.name = index_capture;
-				
+				sprite.material.opacity = opacity;
 				if(!isShifting)
 				{
 					m_scene_collections.add(sprite);
@@ -323,9 +323,17 @@
 
 				
 			}
-			function showCollection(min_pos, max_pos, index_collection, sprites_to_remove = [], isShifting = false)
+			function showCollection(min_pos, max_pos, index_collection, sprites_to_remove = [], isShifting = false, offsetAnim = 0)
 			{
-				var currentOffset = new THREE.Vector2(5,5)
+				var animOffset = 0;
+				if(offsetAnim > 0)
+				{
+					animOffset = 1-offsetAnim;
+				} else if(offsetAnim < 0)
+				{
+					animOffset = -(offsetAnim+1);
+				}
+				var currentOffset = new THREE.Vector2(5+animOffset*5,5+animOffset*5)
 				var remaining_width = max_pos.x-min_pos.x-currentOffset.x;
 				var remaining_height = max_pos.y-min_pos.y-currentOffset.y;
 				var offset_per_image = 10;
@@ -335,10 +343,19 @@
 				for(var i = num_elems-1; i >= 0; i--)
 				{
 					var min = new THREE.Vector2( min_pos.x+currentOffset.x, min_pos.y-currentOffset.y );
-					var max = new THREE.Vector2( min_pos.x+currentOffset.x+width_image ,min_pos.y+currentOffset.y+height_image);
+					var max = new THREE.Vector2( min_pos.x+currentOffset.x+width_image+animOffset*5 ,min_pos.y+currentOffset.y+height_image+animOffset*5);
 					currentOffset.x = currentOffset.x + offset_per_image;
 					currentOffset.y = currentOffset.y + offset_per_image;
-					showCollectionSprite(min, max, m_current_candidates_collections[index_collection].elems[i],num_elems-i,sprites_to_remove, isShifting)
+					var opacity = 1
+					if(animOffset > 0 && i == 0)
+					{
+						opacity = 1 - animOffset
+					} else if(animOffset < 0 && i == num_elems-1)
+					{
+						opacity = 1 - animOffset*(-1)
+					}
+						
+					showCollectionSprite(min, max, m_current_candidates_collections[index_collection].elems[i],num_elems-i,sprites_to_remove, isShifting, opacity)
 				}
 				
 			}
@@ -649,7 +666,7 @@ function onBeforeCompile( shader ) {
 
 				var collection = getCollectionIndexUnderMouse(event)
 				//console.log(collection)
-				if(collection >=0)
+				if(collection >=0 && m_current_candidates_collections[collection].elems.length > 1)
 				{
 					if(event.wheelDelta > 0)
 					{
@@ -1095,7 +1112,7 @@ function onBeforeCompile( shader ) {
 					collection.elems.unshift(elem);
 					//console.log("shifted2")
 				}
-				showCollection(collection.min, collection.max,index, [], true)
+				
 			}
 			function updateCollectionsAnims(delta)
 			{
@@ -1103,8 +1120,23 @@ function onBeforeCompile( shader ) {
 				{
 					if(m_current_candidates_collections[i].animating !=0)
 					{
-						shiftCollectionSprites(m_current_candidates_collections[i],i, m_current_candidates_collections[i].animating)
-						m_current_candidates_collections[i].animating = 0;
+						var value_shift = m_current_candidates_collections[i].animating
+						if(m_current_candidates_collections[i].animating >0)
+						{
+							m_current_candidates_collections[i].animating = m_current_candidates_collections[i].animating - delta*2;
+							if(m_current_candidates_collections[i].animating < 0)
+								m_current_candidates_collections[i].animating = 0
+						}
+						else 
+						{
+							m_current_candidates_collections[i].animating = m_current_candidates_collections[i].animating + delta*2;
+							if(m_current_candidates_collections[i].animating > 0)
+								m_current_candidates_collections[i].animating = 0
+						}
+						if(m_current_candidates_collections[i].animating == 0)
+							shiftCollectionSprites(m_current_candidates_collections[i],i, value_shift)
+						var offset = m_current_candidates_collections[i].animating
+						showCollection(m_current_candidates_collections[i].min, m_current_candidates_collections[i].max,i, [], true, offset)
 					}
 				}
 				//m_application_state.
