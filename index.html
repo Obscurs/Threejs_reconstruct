@@ -32,7 +32,7 @@
 		<script src="modules/FileSaver.js"></script>
 		<div id="selection_menu" style="position: absolute; text-align: center; width: 100%;">
 			<!--<img id="captureImage" src="images/0001.jpg" style="visibility:hidden" alt="Image" height="200">-->
-			<!--<img id="captureImage5" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="50" align="top" onclick="selectCapture(5)"-->
+			<!--<img id="captureImage5" src="thumbnails/0001.jpg" alt="Image" style="border: 5px solid #555;" height="50" align="top" onclick="selectCapture(5)"-->
 			<!--<img id="captureImage3" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="100" align="top" onclick="selectCapture(3)"-->
 			<!--<img id="captureImage1" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="150" align="top" onclick="selectCapture(1)"-->
 			<!--<img id="captureImage0" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="200" align="top" onclick="selectCapture(0)"-->
@@ -298,12 +298,15 @@
 				var spritepos = new THREE.Vector3(_x,_y,0);
 				//var spritepos = new THREE.Vector3(0,0,1);
 
-				sprite.center.set(0,1)
+				//sprite.center.set(0,1)
 				sprite.scale.set(m_camera_list[index_capture].width*scale, m_camera_list[index_capture].height*scale, 1);
-				sprite.position.set(spritepos.x,spritepos.y, spritepos.z);
+				sprite.position.set(spritepos.x+(m_camera_list[index_capture].width*scale)/2,spritepos.y-(m_camera_list[index_capture].height*scale)/2, spritepos.z);
 				sprite.renderOrder = order;
 				sprite.name = index_capture;
-				sprite.material.opacity = opacity;
+				//sprite.material.opacity = opacity;
+				sprite.material.uniforms.opacity.value = opacity;
+				sprite.material.uniforms.minSel.value = new THREE.Vector2(0.5,0.5);
+				sprite.material.uniforms.maxSel.value = new THREE.Vector2(0.8,0.8);
 				if(!isShifting)
 				{
 					m_scene_collections.add(sprite);
@@ -318,6 +321,8 @@
 					  sprites_to_remove.splice(index, 1);
 					}
 				}
+
+
 				
 					
 
@@ -366,6 +371,8 @@
 				var current_min_x = 0;
 				var collection_height = 500
 				var sprites_to_remove = []
+				
+
 				for(var i = 0; i < m_current_sprites_in_scene.length; i++)
 				{
 					sprites_to_remove.push(m_current_sprites_in_scene[i].name)
@@ -391,6 +398,7 @@
 						m_scene_collections.remove( existing );
 
 				}
+
 			}
 			function showCaptures(changed)
 			{
@@ -402,7 +410,7 @@
 						var candidate = m_current_candidates[i]
 						if(candidate)
 						{
-						    var source = "captures/"+m_camera_list[candidate.index].name
+						    var source = "thumbnails/"+m_camera_list[candidate.index].name
 
 							document.getElementById('captureImage'+i).src= source
 							document.getElementById("captureImage"+i).style.visibility = "visible";
@@ -439,6 +447,56 @@
 				}
 			};
 
+			function vertexShaderSprite() {
+			  return `
+			    varying vec2 vUv;
+
+			    void main() {
+			    	vUv = uv;
+			      gl_Position =   projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0);
+
+			    }
+			  `
+			}
+			function fragmentShaderSprite() {
+			  return `
+			      uniform vec2 minSel; 
+			      uniform vec2 maxSel; 
+			      uniform sampler2D texture1;
+			      uniform float opacity;
+
+			      varying vec2 vUv;
+			      float borderSel = 0.015;
+			      void main() {
+
+			      	if(vUv.x > 0.98 || vUv.x < 0.02 || vUv.y > 0.98 || vUv.y < 0.02)
+			      	{
+			      		gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+			      	}
+			      	else
+			      	{
+			      		vec4 color;
+			      		if(minSel != maxSel && (
+			      			(vUv.x > minSel.x && vUv.x < minSel.x+borderSel && vUv.y > minSel.y && vUv.y < maxSel.y+borderSel) ||
+			      			(vUv.y > minSel.y && vUv.y < minSel.y+borderSel && vUv.x > minSel.x && vUv.x < maxSel.x+borderSel) ||
+			      			(vUv.x > maxSel.x && vUv.x < maxSel.x+borderSel && vUv.y > minSel.y && vUv.y < maxSel.y+borderSel) ||
+			      			(vUv.y > maxSel.y && vUv.y < maxSel.y+borderSel && vUv.x > minSel.x && vUv.x < maxSel.x+borderSel)
+			      			))
+			      		{
+			      			color = vec4(1.0,0.0,0.0,1.0);
+			      		}
+			      		else
+			      		{
+			      			color = texture2D(texture1, vUv); 
+				      		
+			      		}
+			      		color.a = opacity;
+				      	gl_FragColor = color;
+			      		
+			      	}
+			      }
+			  `
+			}
 
 			function vertexShader() {
 			  return `
@@ -497,50 +555,8 @@
 			      }
 			  `
 			}
-function onBeforeCompile( shader ) {
+			
 
-	// code based on: https://www.daniel-buckley.com/blog/2017/12/6/dev-diary-research-report-2d-sprite-outline-shaders
-
-  var width = window.innerWidth;
-  var height = window.innerHeight;
-
-  shader.uniforms.outlineColor = { value: new THREE.Color(0x000000) };
-  shader.uniforms.resolution = { value: new THREE.Vector2( width, height ) };
-
-  shader.fragmentShader = 'uniform vec3 outlineColor;\n' + shader.fragmentShader;
-  shader.fragmentShader = 'uniform vec2 resolution;\n' + shader.fragmentShader;
-  //console.log("HHHHH")
-  shader.fragmentShader = shader.fragmentShader.replace(
-    '#include <map_fragment>',
-    [
-      '#ifdef USE_MAP',
-
-      '	vec4 texelColor = mapTexelToLinear( texture2D( map, vUv ) );',
-
-      '	texelColor = mapTexelToLinear( texelColor );',
-
-      ' if ( texelColor.a > 0.0 ) {',
-
-      '		float a = 0.0f;',
-	  '		if(vUv.x > 0.98 || vUv.x < 0.02 || vUv.y > 0.98 || vUv.y < 0.02)',
-	  '			a = 0.0f;',
-	  '		else',
-	  '			a = 1.0f;',
-
-      ' 	vec3 finalColor = mix( outlineColor, texelColor.rgb, a );',
-      ' 	texelColor.rgb = finalColor;',
-
-      ' }',
-
-      '	diffuseColor *= texelColor;',
-
-      '#endif'
-    ].join( '\n' )
-  );
-
-  m_captureShader = shader;
-
-}
 
 
 			function onDocumentPointerMove(event)
@@ -799,6 +815,7 @@ function onBeforeCompile( shader ) {
 					const edges = new THREE.EdgesGeometry( geometry );
 					//const material = new THREE.MeshStandardMaterial( { color: 0x0055ff, flatShading: true } );
 					const material = new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } );
+
 					material.transparent = true;
 					material.opacity = 0.1; 
 					//const mesh = new THREE.LineSegments( geometry, material );
@@ -838,10 +855,32 @@ function onBeforeCompile( shader ) {
 					
 					////////////////////////
 
-					const texture_sprite = new THREE.TextureLoader().load( 'captures/'+element.name);
-					const material_sprite = new THREE.SpriteMaterial( { map: texture_sprite } );
-					material_sprite.onBeforeCompile = onBeforeCompile;
-					const sprite = new THREE.Sprite( material_sprite );
+					const texture_sprite = new THREE.TextureLoader().load( 'thumbnails/'+element.name);
+					//const material_sprite = new THREE.SpriteMaterial( { map: texture_sprite } );
+
+					let uniformsSprite = {
+				        minSel: {type: 'vec2', value: new THREE.Vector2(0,0)},
+				        maxSel: {type: 'vec2', value: new THREE.Vector2(0,0)},
+				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
+				        texture1: { type: "t", value: texture_sprite },
+				        opacity: {type: 'f', value: null },
+
+				    }
+					const material_sprite = new THREE.ShaderMaterial( { 
+						uniforms: uniformsSprite,
+					    fragmentShader: fragmentShaderSprite(),
+					    vertexShader: vertexShaderSprite(),
+					    blending: THREE.NormalBlending,
+		                depthTest: false,
+		                transparent: true
+						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
+					} );
+					var geometry_sprite = new THREE.PlaneGeometry(1,1);
+					const sprite = new THREE.Mesh(geometry_sprite, material_sprite);
+
+					
+
+
 					//m_scene.add( sprite );
 
 
@@ -860,7 +899,7 @@ function onBeforeCompile( shader ) {
 					}
 					m_camera_list.push(new_camera);
 					/*var loader2 = new THREE.TextureLoader();
-					var texture = loader2.load( "./captures/"+element.name, function ( tex ) {
+					var texture = loader2.load( "./thumbnails/"+element.name, function ( tex ) {
 					    // tex and texture are the same in this example, but that might not always be the case
 					    new_camera.width = tex.image.width
 					    new_camera.height = tex.image.height
@@ -1254,6 +1293,14 @@ function onBeforeCompile( shader ) {
 			{
 				m_camera_collections = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 0, 10);
 				m_scene_collections.add(m_camera_collections);
+
+				var light = new THREE.PointLight( 0xffffff, 1, 0 );
+
+// Specify the light's position
+light.position.set(1, 1, 10000);
+
+// Add the light to the scene
+//m_scene_collections.add(light)
 
 				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.01, 10 );
 				m_camera.position.set( 11*0.03,-20*0.03,2*0.03 );
