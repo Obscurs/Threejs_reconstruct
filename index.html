@@ -70,8 +70,7 @@
 			var m_need_to_update = true;
 			var m_current_capture_in_view_index = -1;
 			var m_capture_rays_need_recomputation = true;
-			var m_testVec1;
-			var m_testVec2;
+
 			var m_num_rays_precomputation = 10;	//rays x rays
 			var m_select_controls_enabled = false;
 			var m_dragging = false;
@@ -80,6 +79,8 @@
 			var m_selection_rectangle = {
 				startNDC: null,
 				endNDC: null,
+				startWorld: null,
+				endWorld: null,
 				selectionBox: null,
 				helper: null,
 			}
@@ -98,6 +99,10 @@
 				textures_loaded: false,
 				count_precomputation_iterations: 0,
 				capture_index_over_mouse: -1,
+			}
+			var m_debug = 
+			{
+				debug_mesh_lines: [],
 			}
 
 			/*var m_canvas = new fabric.Canvas('canvas');
@@ -170,8 +175,7 @@
 			const m_clock = new THREE.Clock();
 			var m_cameraHelper;
 			var m_manager = new THREE.LoadingManager();
-			m_testVec1 = new THREE.Vector3();
-			m_testVec2 = new THREE.Vector3();
+
 			var m_old_pos_cam =  new THREE.Vector3();
 			
 			init();
@@ -305,8 +309,6 @@
 				sprite.name = index_capture;
 				//sprite.material.opacity = opacity;
 				sprite.material.uniforms.opacity.value = opacity;
-				sprite.material.uniforms.minSel.value = new THREE.Vector2(0.5,0.5);
-				sprite.material.uniforms.maxSel.value = new THREE.Vector2(0.8,0.8);
 				if(!isShifting)
 				{
 					m_scene_collections.add(sprite);
@@ -659,7 +661,10 @@
 					
 					m_selection_rectangle.startNDC = mouseNDC
 					m_selection_rectangle.endNDC = mouseNDC
-					console.log("NDC down" + mouseNDC);
+					var auxNDC = new THREE.Vector2(mouseNDC.x, mouseNDC.y);
+
+					
+					//console.log("NDC down" + mouseNDC);
 					m_dragging = true;
 
 					m_selection_rectangle.selectionBox.startPoint.set(
@@ -707,6 +712,8 @@
 	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
 	                                    0.5 );   
 					m_selection_rectangle.endNDC = mouseNDC
+
+					
 					//console.log("NDC up" + mouseNDC);
 
 					m_selection_rectangle.selectionBox.endPoint.set(
@@ -1088,6 +1095,69 @@
 				
 
 			}
+			function getWorldIntersectFromNDCxy(camera, ndc_pos, models)
+			{
+				camera.updateProjectionMatrix();
+				var NDC_position = new THREE.Vector3(ndc_pos.x,ndc_pos.y,1);
+				var pointIntersect = new THREE.Vector3();
+				NDC_position.unproject(camera);
+
+				//m_camera_list[i].getWorldDirection( directionPhoto );
+				//var raycasterPhoto =  new THREE.Raycaster(camera.position, NDC_position,0, 10000); 
+
+				 var raycaster =  new THREE.Raycaster();  
+
+	           	raycaster.setFromCamera( ndc_pos, camera );
+
+				var intersectsPhoto = raycaster.intersectObjects( models );  
+
+
+
+
+				////////////////////////////////////// BEGIN
+				/*const material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+				const points = [];
+
+				points.push( camera.position );
+				points.push( NDC_position );
+				
+
+				const geometry = new THREE.BufferGeometry().setFromPoints( points );
+				const line = new THREE.Line( geometry, material );
+				m_scene.add( line );
+				m_debug.debug_mesh_lines.push(line)*/
+
+				//console.log(intersectsPhoto)
+				//console.log(ndc_pos)
+				//////////////////////////////////// END
+				if(intersectsPhoto.length > 0)
+				{
+					pointIntersect.copy(intersectsPhoto[0].point)
+					////////////////////////// BEGIN
+					/*const geometry2 = new THREE.SphereGeometry( 0.5, 32, 32 );
+					const material2 = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+					var sphere = new THREE.Mesh( geometry2, material2 );
+					sphere.position.set(pointIntersect.x,pointIntersect.y,pointIntersect.z);
+					sphere.name ="theball"
+					sphere.scale.set( 0.01,0.01,0.01);
+					m_scene.add( sphere );
+					//////////////////////////// END*/
+					return pointIntersect;
+				} 
+				else
+				{
+					return null;
+				}
+			}
+			function getNDCposFromWorld(camera, worldpos)
+			{
+				if(worldpos == null)
+					return null;
+				var projected = new THREE.Vector3();
+				projected.copy(worldpos)
+				projected.project(camera)
+				return projected;
+			}
 			function getScoreCam(index_cam, intersectsCamera, usingSelectionRectangle)
 			{
 				var distanceScore, orientationScore, raysScore;
@@ -1095,6 +1165,35 @@
 				if(usingSelectionRectangle)
 				{
 					raysScore = getScoreRays(index_cam, intersectsCamera,m_selection_rectangle.startNDC.x,m_selection_rectangle.endNDC.x,m_selection_rectangle.startNDC.y,m_selection_rectangle.endNDC.y);
+
+					var minNDCpoint = getNDCposFromWorld(m_camera_list[index_cam].camera, m_selection_rectangle.startWorld)
+					var maxNDCpoint = getNDCposFromWorld(m_camera_list[index_cam].camera, m_selection_rectangle.endWorld)
+					//console.log("minmax")
+					//console.log(minNDCpoint)
+					//console.log(maxNDCpoint)
+					if(minNDCpoint != null && maxNDCpoint !=null)
+					{
+						if(minNDCpoint.x >maxNDCpoint.x)
+						{
+							var aux = minNDCpoint.x;
+							minNDCpoint.x = maxNDCpoint.x;
+							maxNDCpoint.x = aux;
+						}
+						if(minNDCpoint.y >maxNDCpoint.y)
+						{
+							var aux = minNDCpoint.y;
+							minNDCpoint.y = maxNDCpoint.y;
+							maxNDCpoint.y = aux;
+						}
+						m_camera_list[index_cam].sprite.material.uniforms.minSel.value = new THREE.Vector2((minNDCpoint.x+1)/2,(minNDCpoint.y+1)/2);
+						m_camera_list[index_cam].sprite.material.uniforms.maxSel.value = new THREE.Vector2((maxNDCpoint.x+1)/2,(maxNDCpoint.y+1)/2);
+					}
+					else
+					{
+						m_camera_list[index_cam].sprite.material.uniforms.minSel.value = new THREE.Vector2(0.0,0.0);
+						m_camera_list[index_cam].sprite.material.uniforms.maxSel.value = new THREE.Vector2(0.0,0.0);
+					}
+					
 					return raysScore;
 				}
 				else
@@ -1105,6 +1204,9 @@
 						orientationScore = getScoreRotation(index_cam);
 					if(m_gui_options.projection)
 						raysScore = getScoreRays(index_cam, intersectsCamera,-1,1,-1,1);
+
+					m_camera_list[index_cam].sprite.material.uniforms.minSel.value = new THREE.Vector2(0.0,0.0);
+					m_camera_list[index_cam].sprite.material.uniforms.maxSel.value = new THREE.Vector2(0.0,0.0);
 					return distanceScore*m_gui_options.position + orientationScore*m_gui_options.orientation + raysScore*m_gui_options.projection;
 				}
 
@@ -1246,6 +1348,14 @@
 				var changed = false
 				m_current_candidates = []
 				var arrayLength = m_camera_list.length;
+
+				if(usingSelectionRectangle)
+				{
+					var minWorldPoint = getWorldIntersectFromNDCxy(m_camera,m_selection_rectangle.startNDC,m_scene_models);
+					var maxWorldPoint = getWorldIntersectFromNDCxy(m_camera,m_selection_rectangle.endNDC,m_scene_models);
+					m_selection_rectangle.startWorld = minWorldPoint;
+					m_selection_rectangle.endWorld = maxWorldPoint;
+				}
 				for (var i = 0; i < arrayLength; i++) {
 					
 				    //m_camera_list[i].material.opacity = 0.1; 
@@ -1305,7 +1415,7 @@ light.position.set(1, 1, 10000);
 				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.01, 10 );
 				m_camera.position.set( 11*0.03,-20*0.03,2*0.03 );
 				//camera.position.set( 3,0.15,3 );
-				
+				m_camera.name = "main_camera"
 				m_camera.up.set(0,0,1);
 
 				m_camera_capture = new THREE.PerspectiveCamera( 50.5, 4000 / 2950, 0.01, 10 );
@@ -1732,6 +1842,11 @@ light.position.set(1, 1, 10000);
 						for(var y = 0; y <= 1; y +=(1/(rays_y-1)))
 						{
 
+							var NDC_position = new THREE.Vector2(x*2-1,y*2-1); 
+							var point = getWorldIntersectFromNDCxy(m_camera_list[i].camera, NDC_position, m_scene_models);
+							if(point !=null)
+								m_camera_list[i].rays.push(point);
+							/*
 							var NDC_position = new THREE.Vector3(x*2-1,y*2-1,1);
 							var pointIntersect = new THREE.Vector3();
 							NDC_position.unproject(m_camera_list[i].camera);
@@ -1746,7 +1861,7 @@ light.position.set(1, 1, 10000);
 							{
 								pointIntersect.copy(intersectsPhoto[0].point)
 								m_camera_list[i].rays.push(pointIntersect)
-							}
+							}*/
 						}
 					}
 					var completation = Math.floor((i/m_camera_list.length)*90)
@@ -1768,10 +1883,11 @@ light.position.set(1, 1, 10000);
 				var rate_cam2 = 0;
 				for(var index_ray = 0; index_ray <cam1.rays.length; ++index_ray)
 				{
-					var projected = new THREE.Vector3();
+					var projected = getNDCposFromWorld(cam2.camera, cam1.rays[index_ray])
+					/*var projected = new THREE.Vector3();
 					projected.copy(cam1.rays[index_ray])
 					projected.project(cam2.camera)
-					//console.log(projected)
+					//console.log(projected)*/
 					if(projected.x > -1.0 && projected.x < 1.0 && projected.y > -1.0 && projected.y < 1.0)
 					{
 						//console.log("added " + index_cam)
