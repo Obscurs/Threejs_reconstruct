@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>three.js webgl - PLY</title>
+		<title>culture heritage viewer</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<link type="text/css" rel="stylesheet" href="main.css">
@@ -24,21 +24,18 @@
 			    margin-right: -50%;
 			    font-size:40px;
 			    transform: translate(-50%, -50%) }
+			
 		</style>
 
 	</head>
 	<body>
 				<!--script src="scripts/shaders.js"--></script>
 		<script src="modules/FileSaver.js"></script>
-		<div id="selection_menu" style="position: absolute; text-align: center; width: 100%;">
-			<!--<img id="captureImage" src="images/0001.jpg" style="visibility:hidden" alt="Image" height="200">-->
-			<!--<img id="captureImage5" src="thumbnails/0001.jpg" alt="Image" style="border: 5px solid #555;" height="50" align="top" onclick="selectCapture(5)"-->
-			<!--<img id="captureImage3" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="100" align="top" onclick="selectCapture(3)"-->
-			<!--<img id="captureImage1" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="150" align="top" onclick="selectCapture(1)"-->
-			<!--<img id="captureImage0" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="200" align="top" onclick="selectCapture(0)"-->
-			<!--<img id="captureImage2" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="150" align="top" onclick="selectCapture(2)"-->
-			<!--<img id="captureImage4" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="100" align="top" onclick="selectCapture(4)"-->
-			<!--<img id="captureImage6" src="captures/0001.jpg" alt="Image" style="border: 5px solid #555;" height="50" align="top" onclick="selectCapture(6)"-->
+		<div id="info">
+			3D view
+		</div>
+		<div id="info2">
+			2D view
 		</div>
 		<div class=container4 id="loadingTextContainer">
 		  <p id="loadingText">Loading: 0% 
@@ -47,7 +44,7 @@
 
 			let m_container, m_stats, m_gui;
 
-			let m_camera, m_camera_capture, m_scene, m_scene_collections, m_camera_collections, m_renderer, m_context;
+			let m_camera, m_camera_capture, m_camera_capture_orto, m_scene, m_scene_collections, m_camera_collections, m_renderer, m_context;
 			const AppStates =
 			{
 				THREE_JS_INIT: "init_state",
@@ -64,6 +61,7 @@
 			var m_current_candidates_collections = [];
 
 			var m_controls;
+			var m_controls_secondary;
 			var m_camera_mode = "ORBIT";
 			var m_timer_update = 0;
 			var m_cams_enabled = false;
@@ -99,12 +97,31 @@
 				textures_loaded: false,
 				count_precomputation_iterations: 0,
 				capture_index_over_mouse: -1,
+				transition_animation_step: 1.0,
+				views_swaped: false,
 			}
 			var m_debug = 
 			{
 				debug_mesh_lines: [],
 			}
 
+			const m_models_values = []
+			m_models_values["doma"] ={
+				path: "doma", 
+				texture_name: "doma-interior_texture16k.jpg",
+				mesh_name: "doma-interior_textured.ply",
+				pos_x_cam_start: 11*0.03,
+				pos_y_cam_start: -20*0.03,
+				pos_z_cam_start: 2*0.03,
+			}
+			m_models_values["pedret"] ={
+				path: "pedret", 
+				texture_name: "pedret-interior_meshed_tex.png",
+				mesh_name: "pedret-interior_meshed_simplified.ply",
+				pos_x_cam_start: 0.0681,
+				pos_y_cam_start: 0.0920,
+				pos_z_cam_start: 0.0327,
+			}
 			/*var m_canvas = new fabric.Canvas('canvas');
 
 			m_canvas.setHeight(0);
@@ -117,20 +134,23 @@
 				{
 					left: 0.0,
 					bottom: 0.0,
-					width: 0.5,
+					width: 1.0,
 					height: 1.0,
+					border_size: 2.0,
 				},
 				{
-					left: 0.5,
+					left: 0.7,
 					bottom: 0.0,
-					width: 0.5,
-					height: 0.5,
+					width: 0.3,
+					height: 0.3,
+					border_size: 2.0,
 				},
 				{
 					left: 0.0,
 					bottom: 0.0,
 					width: 1.0,
 					height: 1.0,
+					border_size: 2.0,
 				}
 			];
 			var m_gui_options =
@@ -143,11 +163,18 @@
 				max_num_collections: 7,
 				max_collection_size: 5,
 				similitude_treshold: 0.7,
+				discard_too_similar: true,
+				clustering_method: 'normal',
+				linkage_enabled: true,
 
 				red_area_enabled: false,
 				show_camera_enabled: false,
 				show_view_enabled: false,
+				show_photo_enabled: false,
 				auto_score_enabled: false,
+
+				current_model: "pedret",
+
 			}
 
 
@@ -169,6 +196,7 @@
 			import { TrackballControls } from './jsm/controls/CustomTrackballControls.js';
 			import { SelectionBox } from './jsm/interactive/SelectionBox.js';
 			import { SelectionHelper } from './jsm/interactive/SelectionHelper.js';
+			import { VRButton } from './jsm/webxr/VRButton.js';
 
 			//import { saveAs } from './modules/FileSaver.js';
 
@@ -188,6 +216,17 @@
 				// expressions
 
 				m_gui = new GUI();
+
+				const models = [ 'pedret', 'doma'];
+
+				const modelsFolder = m_gui.addFolder( 'Models' );
+
+				modelsFolder.add( m_gui_options, 'current_model' ).options( models ).onChange( function () {
+
+				} );
+
+				modelsFolder.open();
+
 				const scoreFolder = m_gui.addFolder( 'Score computation' );
 
 
@@ -203,18 +242,37 @@
 
 				viewFolder.add(m_gui_options, 'red_area_enabled').name( 'Show area' );
 				viewFolder.add(m_gui_options, 'show_camera_enabled').name( 'Show camera' );
-				viewFolder.add(m_gui_options, 'show_view_enabled').name( 'Show view' );
+				viewFolder.add(m_gui_options, 'show_photo_enabled').name( 'Show photo' );
+				viewFolder.add(m_gui_options, 'show_view_enabled').name( 'Show view' ).onChange(function ()
+					{
+						if(m_gui_options.show_view_enabled)
+						{
+							document.getElementById("info2").style.visibility = "visible";
+						}
+						else
+						{
+							document.getElementById("info2").style.visibility = "hidden";
+						}
+					});
 				viewFolder.add(m_gui_options, 'auto_score_enabled').name( 'Auto-detect' );
 				viewFolder.open();
 
+
 				const candidatesFolder = m_gui.addFolder( 'Candidate selection' );
 
+				const clustering_methods = [ 'normal', 'single_linkage'];
 
 				candidatesFolder.add(m_gui_options, 'max_num_collections', 0, 20, 1 ).name( 'Max num collection' );
 				candidatesFolder.add(m_gui_options, 'max_collection_size', 0, 20, 1 ).name( 'Max size collection' );
 				candidatesFolder.add(m_gui_options, 'similitude_treshold', 0, 1, 0.01 ).name( 'Similitude treshold' );
-
+				//candidatesFolder.add(m_gui_options, 'linkage_enabled').name( 'Linkage clustering' );
+				candidatesFolder.add( m_gui_options, 'clustering_method' ).options( clustering_methods )
 				candidatesFolder.open();
+
+
+
+
+				//const clusterMethodFolder = m_gui.addFolder( 'Cluster method' );
 
 			}
 			function moveToCapturePosition(index_capture)
@@ -228,6 +286,8 @@
 				m_controls.update()
 				
 				m_controls.target = new THREE.Vector3( captureCam.position.x, captureCam.position.y, captureCam.position.z );
+				m_controls_secondary.target = new THREE.Vector3( captureCam.position.x, captureCam.position.y, captureCam.position.z );
+				m_controls_secondary.update()
 				m_controls.update()
 			}
 			function changeCaptureInView(index_capture)
@@ -260,6 +320,27 @@
 				projMat.copy(m_camera_capture.projectionMatrix)
 				m_scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
 				m_scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
+
+
+				//m_controls_secondary.update()
+				
+				m_camera_capture_orto.up.copy(m_camera_capture.up)
+				//m_camera_capture_orto.position.copy(m_camera_capture.position)
+				m_camera_capture_orto.position.copy( m_camera_capture.position ).add( directionCapture.multiplyScalar( 0.09 ) );
+				m_camera_capture_orto.rotation.copy(m_camera_capture.rotation)
+				m_camera_capture_orto.name = m_camera_capture.name;
+				//m_camera_capture_orto.updateMatrixWorld();
+				m_camera_capture_orto.updateProjectionMatrix();
+
+				
+				
+
+				m_controls_secondary.update()
+				m_controls_secondary.target = new THREE.Vector3( m_camera_capture.position.x, m_camera_capture.position.y, m_camera_capture.position.z );
+				m_controls_secondary.update()
+
+				//m_controls_secondary.target = new THREE.Vector3( m_camera_capture.position.x, m_camera_capture.position.y, m_camera_capture.position.z );
+				//m_controls_secondary.update()
 			}
 			function selectCapture(index_capture, allow_jump = false)
 			{
@@ -402,29 +483,6 @@
 				}
 
 			}
-			function showCaptures(changed)
-			{
-				if(changed)
-				{
-					var arrayLength = m_camera_list.length;
-
-					for (var i = 0; i < 7; i++) {
-						var candidate = m_current_candidates[i]
-						if(candidate)
-						{
-						    var source = "thumbnails/"+m_camera_list[candidate.index].name
-
-							document.getElementById('captureImage'+i).src= source
-							document.getElementById("captureImage"+i).style.visibility = "visible";
-						}
-						
-
-					}	
-					//console.log(m_current_candidates)
-				}
-				
-
-			}
 
 
 			function onDocumentKeyDown(event) {
@@ -440,7 +498,7 @@
 				    }  else if (keyCode == 17) {
 				    	m_select_controls_enabled = true;
 				    	m_controls.enabled = false;
-
+				    	m_controls_secondary.enabled = false;
 				    	m_selection_rectangle.helper.element.hidden = false;
 				    	
 				    	/*m_canvas.setHeight(window.innerHeight);
@@ -573,11 +631,17 @@
 						selectCapture(captureIndex)
 					m_application_state.capture_index_over_mouse = captureIndex;
 					m_controls.enabled = false;
+					m_controls_secondary.enabled = false;
 				}
 				else
 				{
-					if(!m_select_controls_enabled)
+					if(!m_select_controls_enabled && !m_application_state.views_swaped)
+					{
 						m_controls.enabled = true;
+					}
+						
+					if(m_application_state.views_swaped)
+						m_controls_secondary.enabled = true;
 					m_application_state.capture_index_over_mouse = -1;
 				}
 					
@@ -653,7 +717,7 @@
 				return;
 				if(m_select_controls_enabled)
 				{
-					document.getElementById("selection_menu").style.display = "none";
+					//document.getElementById("selection_menu").style.display = "none";
 					GUI.toggleHide();
 					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
 				                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
@@ -674,7 +738,37 @@
 				}
 				else
 				{
+					if(m_gui_options.show_view_enabled)
+					{
+						var mouseWindwNorm = new THREE.Vector3( ( event.clientX / window.innerWidth ),   
+				                                    1-( event.clientY / window.innerHeight ),  
+				                                    0.5 );   
+						
+
+						console.log(mouseWindwNorm)
+						if(mouseWindwNorm.x >m_views[1].left && mouseWindwNorm.x < m_views[1].left +m_views[1].width && mouseWindwNorm.y >m_views[1].bottom && mouseWindwNorm.y <m_views[1].bottom+m_views[1].height)
+						{
+							m_application_state.views_swaped = !m_application_state.views_swaped;
+							if(m_application_state.views_swaped)
+							{
+								document.getElementById("info").innerHTML  = "2D view";
+								document.getElementById("info2").innerHTML  = "3D view";
+								m_controls_secondary.enabled = true;
+								m_controls.enabled = false;
+								console.log("SET TO FALSE NEN")
+							}
+							else
+							{
+								document.getElementById("info").innerHTML  = "3D view";
+								document.getElementById("info2").innerHTML  = "2D view";
+								m_controls_secondary.enabled = false;
+								m_controls.enabled = true;
+								console.log("SET TO TRU NEN")
+							}
+						}
+					}
 					
+
 				}
 			}
 
@@ -705,7 +799,7 @@
 					return;
 				if(m_select_controls_enabled)
 				{
-					document.getElementById("selection_menu").style.display = "block";
+					//document.getElementById("selection_menu").style.display = "block";
 					GUI.toggleHide();
 					m_dragging = false;
 					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
@@ -809,7 +903,7 @@
 				//https://github.com/colmap/colmap/issues/572
 				console.log("      Loading Camera "+element.name+" ...")
 				 const loader = new PLYLoader();
-				 loader.load( './models/ply/ascii/camera.ply', function ( geometry ) {
+				 loader.load( './assets/camera.ply', function ( geometry ) {
 
 				 	var m = new THREE.Matrix4();
 					m.set( element.m1, element.m2, element.m3, element.tx,
@@ -862,7 +956,7 @@
 					
 					////////////////////////
 
-					const texture_sprite = new THREE.TextureLoader().load( 'thumbnails/'+element.name);
+					const texture_sprite = new THREE.TextureLoader().load( 'models/'+m_models_values[m_gui_options.current_model].path+'/thumbnails/'+element.name);
 					//const material_sprite = new THREE.SpriteMaterial( { map: texture_sprite } );
 
 					let uniformsSprite = {
@@ -954,14 +1048,15 @@
 				console.log("INFO: Loading cameras...")
 				cameras.cameras.forEach(loadCamera);
 			}
-			
-			function loadDoma()
+			function loadPedret()
 			{
-				console.log("INFO: Loading Doma...")
+				console.log("INFO: Loading pedret...")
 				const loader = new PLYLoader();
 				const loaderTex = new THREE.TextureLoader(m_manager);
 
-				loader.load( './models/ply/ascii/doma-interior_textured.ply', function ( geometry ) {
+
+
+				loader.load( './models/'+m_models_values["pedret"].path+'/meshes/'+m_models_values["pedret"].mesh_name, function ( geometry ) {
 					geometry.computeVertexNormals();
 					let uniforms = {
 				        colorB: {type: 'vec3', value: new THREE.Color(0xACB6E5)},
@@ -971,7 +1066,58 @@
 				        projectionMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
 				        showRedArea: {type: 'bool', value: false},
 				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
-				        texture1: { type: "t", value: loaderTex.load('./models/textures/doma-interior_texture16k.jpg') }
+				        texture1: { type: "t", value: loaderTex.load('./models/'+m_models_values["pedret"].path+'/textures/'+m_models_values["pedret"].texture_name) }
+				    }
+					const material = new THREE.ShaderMaterial( { 
+						uniforms: uniforms,
+					    fragmentShader: fragmentShader(),
+					    vertexShader: vertexShader(),
+						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
+					} );
+					const mesh = new THREE.Mesh( geometry, material );
+					mesh.scale.multiplyScalar( 0.03 );
+					//mesh.rotation.x = - Math.PI / 2;
+					mesh.position.x = 0.0;
+					mesh.position.y = 0.0;
+					mesh.position.z = 0.0;
+					
+					 
+
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+
+					m_scene.add( mesh );
+					m_scene_models.push(mesh);
+
+					//TODO Check cams loaded
+					m_application_state.num_models_loaded +=1
+					console.log("INFO: Loading Doma: DONE")
+					var completation = Math.floor(((m_application_state.num_cameras_loaded+m_application_state.num_models_loaded*10)/(m_application_state.num_cameras_to_load+m_application_state.num_models_to_load*10))*80)
+					document.getElementById("loadingText").innerHTML = "Loading: "+completation.toString() +"%";
+
+					//precomputeRays()
+
+				} );
+			}
+			function loadDoma()
+			{
+				console.log("INFO: Loading Doma...")
+				const loader = new PLYLoader();
+				const loaderTex = new THREE.TextureLoader(m_manager);
+
+
+
+				loader.load( './models/'+m_models_values["doma"].path+'/meshes/'+m_models_values["doma"].mesh_name, function ( geometry ) {
+					geometry.computeVertexNormals();
+					let uniforms = {
+				        colorB: {type: 'vec3', value: new THREE.Color(0xACB6E5)},
+				        colorA: {type: 'vec3', value: new THREE.Color(0x74ebd5)},
+				        capturePos: {type: 'vec3', value: new THREE.Vector3(0,0,0)},
+				        viewMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
+				        projectionMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
+				        showRedArea: {type: 'bool', value: false},
+				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
+				        texture1: { type: "t", value: loaderTex.load('./models/'+m_models_values["doma"].path+'/textures/'+m_models_values["doma"].texture_name) }
 				    }
 					const material = new THREE.ShaderMaterial( { 
 						uniforms: uniforms,
@@ -1009,12 +1155,12 @@
 			function loadModels()
 			{
 				m_application_state.num_models_to_load = 1
-				loadDoma();
-
+				//loadDoma();
+				loadPedret();
 				m_scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
 
-				addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
-				addShadowedLight( 0.5, 1, - 1, 0xffaa00, 1 );
+				//addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
+				//addShadowedLight( 0.5, 1, - 1, 0xffaa00, 1 );
 
 
 			}
@@ -1282,7 +1428,106 @@
 				}
 				//m_application_state.
 			}
-			function updateCandidateCollections()
+			function singleLinkageClustering(num_clusters, num_elements_per_cluster)
+			{
+
+
+				m_current_candidates_collections = []
+				for (var i = 0; i < m_current_candidates.length; i++) {
+
+					var aux_collection_elem = {
+						score: 0,
+						elems: null,
+						distances: null,
+						animating: 0,
+						min: null,
+						max: null,
+					}
+					m_current_candidates_collections.push(aux_collection_elem);
+				}
+				for (var i = 0; i < m_current_candidates.length; i++) {
+					var pair_elem_score = {
+						elem: m_current_candidates[i].index,
+						similitude: m_current_candidates[i].score,
+					}
+					m_current_candidates_collections[m_current_candidates[i].index].elems = [pair_elem_score]
+					m_current_candidates_collections[m_current_candidates[i].index].distances = m_camera_list[m_current_candidates[i].index].similitudes.slice()
+				}
+				while(m_current_candidates_collections.length > num_clusters)
+				{
+					var mindist = 
+					{
+						c1: null,
+						c2: null,
+						dist: -1, //1 is the maximum distance allowed
+					}
+					for(var i = 0; i < m_current_candidates_collections.length; i++)
+					{
+						for(var j = i+1; j < m_current_candidates_collections[i].distances.length; j++)
+						{
+							if(m_current_candidates_collections[i].distances[j] > mindist.dist)
+							{
+								mindist.dist = m_current_candidates_collections[i].distances[j]
+								mindist.c1 = i
+								mindist.c2 = j
+								//console.log("updated ("+i+","+j+") "+m_camera_list[m_current_candidates_collections[mindist.c1].elems[0].elem].name+ " with "+m_camera_list[m_current_candidates_collections[mindist.c2].elems[0].elem].name+ " -> "+mindist.dist+ " <-> " +m_camera_list[m_current_candidates_collections[mindist.c1].elems[0].elem].similitudes[mindist.c2])
+							}
+							if(mindist.dist==1)
+								break;
+						}
+						if(mindist.dist==1)
+								break;
+					}
+					
+					if(mindist.c1 > mindist.c2)
+					{
+						var c_aux = mindist.c1
+						mindist.c1 = mindist.c2
+						mindist.c2 = c_aux
+					}
+
+					var newdistances = []
+					for(var i=0; i < m_current_candidates_collections.length; i++)
+					{
+						var val1 = m_current_candidates_collections[mindist.c1].distances[i]
+						var val2 = m_current_candidates_collections[mindist.c2].distances[i]
+						if(i != mindist.c1 && i != mindist.c2)
+							newdistances.push(Math.max(val1,val2))
+					}
+					newdistances.push(1)
+					var aux_collection_elem = {
+						score: 0,
+						elems: m_current_candidates_collections[mindist.c1].elems.concat(m_current_candidates_collections[mindist.c2].elems),
+						distances: newdistances.slice(),
+						animating: 0,
+						min: null,
+						max: null,
+					}
+					//console.log("joined "+m_camera_list[m_current_candidates_collections[mindist.c1].elems[0].elem].name+ " with "+m_camera_list[m_current_candidates_collections[mindist.c2].elems[0].elem].name)
+					m_current_candidates_collections.splice(mindist.c2,1)
+					m_current_candidates_collections.splice(mindist.c1,1)
+					for(var i = 0; i < m_current_candidates_collections.length; i++)
+					{
+						m_current_candidates_collections[i].distances.splice(mindist.c2,1)
+						m_current_candidates_collections[i].distances.splice(mindist.c1,1)
+						m_current_candidates_collections[i].distances.push(aux_collection_elem.distances[i])
+					}
+					m_current_candidates_collections.push(aux_collection_elem)
+				}
+				
+				for(var i = 0; i < m_current_candidates_collections.length; i++)
+				{
+					m_current_candidates_collections[i].elems.sort(compareSimilitudes)
+					var aux_array = []
+					for(var j = 0; j < Math.min(num_elements_per_cluster,m_current_candidates_collections[i].elems.length); j++)
+						aux_array.push(m_current_candidates_collections[i].elems[j].elem)
+					if(m_current_candidates_collections[i].elems.length >0)
+						m_current_candidates_collections[i].score = m_current_candidates_collections[i].elems[0].similitude
+					m_current_candidates_collections[i].elems = aux_array
+				}
+				m_current_candidates_collections.sort(compareCandidates)
+			}
+			function basicClustering(num_clusters, num_elements_per_cluster, treshold)
 			{
 				var aux_candidate_list = []
 				for (var i = 0; i < m_current_candidates.length; i++) {
@@ -1292,7 +1537,7 @@
 				m_current_candidates_collections = []
 				var current_collection_index = 0
 				for (var i = 0; i < m_current_candidates.length; i++) {
-					if(m_current_candidates[i].collection_index == -1 && m_current_candidates_collections.length < m_gui_options.max_num_collections)
+					if(m_current_candidates[i].collection_index == -1 && m_current_candidates_collections.length < num_clusters)
 					{
 						var aux_collection_elem = {
 							score: m_current_candidates[i].score,
@@ -1305,15 +1550,21 @@
 						m_current_candidates[i].collection_index=current_collection_index;
 						var reached_treshold = false;
 						var aux_index_capture = 0;
-						while(m_current_candidates_collections[current_collection_index].elems.length < m_gui_options.max_collection_size && !reached_treshold && aux_index_capture < m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered.length)
+						while(!reached_treshold && aux_index_capture < m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered.length)
 						{
-							if(m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].similitude > m_gui_options.similitude_treshold)
+							if(m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].similitude > treshold)
 							{
+
 								if(aux_candidate_list[m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].index].collection_index == -1)
 								{
+
 									aux_candidate_list[m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].index].collection_index = current_collection_index;
 
-									m_current_candidates_collections[current_collection_index].elems.push(m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].index)
+									if(m_current_candidates_collections[current_collection_index].elems.length < num_elements_per_cluster)
+									{
+										m_current_candidates_collections[current_collection_index].elems.push(m_camera_list[m_current_candidates[i].index].similitudes_indices_ordered[aux_index_capture].index)
+									}
+									
 								}
 							}
 							else
@@ -1327,6 +1578,28 @@
 					else if(m_current_candidates_collections.length >= m_gui_options.max_num_collections)
 						break;
 				}
+			}
+			function updateCandidateCollections()
+			{
+				if(m_gui_options.clustering_method == 'single_linkage')
+					singleLinkageClustering(m_gui_options.max_num_collections, m_gui_options.max_collection_size);
+				else
+					basicClustering(m_gui_options.max_num_collections, m_gui_options.max_collection_size, m_gui_options.similitude_treshold);
+				/*switch(m_gui_options.linkage_enabled)
+				{
+					case false:
+					{
+						singleLinkageClustering(m_gui_options.max_num_collections, m_gui_options.max_collection_size);
+						break;
+					}
+					
+					case true:
+					{
+						basicClustering(m_gui_options.max_num_collections, m_gui_options.max_collection_size, m_gui_options.similitude_treshold);
+						break;
+					}
+				}*/
+				
 
 			}
 			function normalizeScores()
@@ -1366,6 +1639,9 @@
 					    'collection_index': -1,
 					};
 					//console.log(m_camera_list[i].name+" "+i + " score: "+ scoreCam)
+					if(isNaN(elem.score) )
+						elem.score = 0;
+					
 					if(i >= m_current_candidates.length)
 					{
 						m_current_candidates.push(elem)
@@ -1374,6 +1650,9 @@
 				    {
 				    	m_current_candidates[i] = elem
 				    }
+	
+						
+					
 				}
 				m_current_candidates.sort(compareCandidates)
 				normalizeScores()
@@ -1401,16 +1680,13 @@
 			}
 			function initControls(mode)
 			{
+				m_camera_capture_orto = new THREE.OrthographicCamera( -0.03,0.03, 0.03, -0.03, 0.01, 1);
+
 				m_camera_collections = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 0, 10);
 				m_scene_collections.add(m_camera_collections);
 
-				var light = new THREE.PointLight( 0xffffff, 1, 0 );
 
-// Specify the light's position
-light.position.set(1, 1, 10000);
 
-// Add the light to the scene
-//m_scene_collections.add(light)
 
 				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.01, 10 );
 				m_camera.position.set( 11*0.03,-20*0.03,2*0.03 );
@@ -1419,12 +1695,14 @@ light.position.set(1, 1, 10000);
 				m_camera.up.set(0,0,1);
 
 				m_camera_capture = new THREE.PerspectiveCamera( 50.5, 4000 / 2950, 0.01, 10 );
+				m_camera_capture_orto.position.set( 11*0.03,-20*0.03,2*0.03 );
 				m_camera_capture.position.set( 11*0.03,-20*0.03,2*0.03 );
-				m_cameraHelper = new THREE.CameraHelper(m_camera_capture);
+				m_cameraHelper = new THREE.CameraHelper(m_camera_capture_orto);
 				m_scene.add(m_cameraHelper);
 				//camera.position.set( 3,0.15,3 );
 				
 				m_camera_capture.up.set(0,0,1);
+				m_camera_capture_orto.up.set(0,0,1);
 
 
 				if(mode == "FLY")
@@ -1448,6 +1726,17 @@ light.position.set(1, 1, 10000);
 					m_controls.maxAzimuthAngle = Infinity; // radians
 
 					m_controls.target.set(-1*0.03,-20*0.03,2*0.03)
+
+
+					m_controls_secondary = new OrbitControls( m_camera_capture_orto, m_renderer.domElement );
+					m_controls_secondary.minPolarAngle =  - Infinity; // radians
+					m_controls_secondary.maxPolarAngle = Infinity; // radians
+					m_controls_secondary.minDistance = 0;
+					m_controls_secondary.maxDistance = 3;
+					m_controls_secondary.minAzimuthAngle = - Infinity; // radians
+					m_controls_secondary.maxAzimuthAngle = Infinity; // radians
+					m_controls_secondary.target.set(-1*0.03,-20*0.03,2*0.03);
+					m_controls_secondary.enabled = false;
 
 				}
 				else if(mode == "TRACK")
@@ -1516,6 +1805,8 @@ light.position.set(1, 1, 10000);
 
 				m_stats = new Stats();
 				m_container.appendChild( m_stats.dom );
+				document.body.appendChild( VRButton.createButton( m_renderer ) );
+				m_renderer.xr.enabled = true;
 
 				initControls(m_camera_mode)
 				createGUI();
@@ -1546,7 +1837,7 @@ light.position.set(1, 1, 10000);
 				document.getElementById("captureImage0").onclick = function() {selectCapture(0);}*/
 
 				document.addEventListener("keyup", event => {
-				  if (/*event.isComposing || */event.keyCode === 17) {
+				  if (/*event.isComposing || */event.keyCode === 17 && !m_application_state.views_swaped) {
 				    m_select_controls_enabled = false;
 					m_dragging = false
 
@@ -1612,6 +1903,15 @@ light.position.set(1, 1, 10000);
 				m_camera_collections.bottom = window.innerHeight / - 2;
 				m_camera_collections.updateProjectionMatrix();
 				showCollections()
+
+
+				m_camera_capture_orto.aspect = window.innerWidth / window.innerHeight;
+				/*m_camera_capture_orto.left = window.innerWidth / - 2;
+				m_camera_capture_orto.right =window.innerWidth / 2;
+				m_camera_capture_orto.top = window.innerHeight / 2;
+				m_camera_capture_orto.bottom = window.innerHeight / - 2;
+				m_camera_capture_orto.updateProjectionMatrix();*/
+				m_camera_capture_orto.updateProjectionMatrix();
 				//m_captureShader.uniforms.resolution.value.set( window.innerWidth, window.innerWidth );
 				/*if(m_select_controls_enabled)
 				{
@@ -1649,7 +1949,11 @@ light.position.set(1, 1, 10000);
 							
 						
 						if(m_camera_mode != "FLY")
+						{
 							m_controls.update();
+							m_controls_secondary.update();
+						}
+							
 						m_stats.update();
 						if(m_timer_update > m_gui_options.timer_recalc)
 						{
@@ -1695,7 +1999,7 @@ light.position.set(1, 1, 10000);
 
 							m_application_state.state = AppStates.LOADING_PRECOMPUTED_DATA
 							var loader = new THREE.FileLoader();
-					        loader.load('capture_info/precomputedCameraData.txt', function ( data ) {
+					        loader.load('models/'+m_models_values[m_gui_options.current_model].path+'/capture_info/precomputedCameraData.txt', function ( data ) {
 							        // output the text to the console
 							        loadPrecomputedFile(data)
 							        m_application_state.precomputed_file_loaded = true
@@ -1733,7 +2037,73 @@ light.position.set(1, 1, 10000);
 
 
 			}
+			function renderMainView(view_index, draw_border)
+			{
+				const left = Math.floor( window.innerWidth * m_views[view_index].left );
+				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
+				const width = Math.floor( window.innerWidth * m_views[view_index].width );
+				const height = Math.floor( window.innerHeight * m_views[view_index].height );
 
+				m_renderer.setViewport( left, bottom, width, height );
+				m_renderer.setScissor( left, bottom, width, height );
+				m_renderer.setScissorTest( true );
+				
+
+				if(draw_border)
+				{
+					m_renderer.setClearColor ( new THREE.Color(0x000000), 1.0 )
+					m_renderer.clear();
+					m_renderer.setViewport( left+m_views[view_index].border_size, bottom+m_views[view_index].border_size, width-m_views[view_index].border_size*2, height-m_views[view_index].border_size*2 );
+					m_renderer.setScissor( left+m_views[view_index].border_size, bottom+m_views[view_index].border_size, width-m_views[view_index].border_size*2, height-m_views[view_index].border_size*2 );
+				}
+				m_camera.aspect = width / height;
+				m_camera.updateProjectionMatrix();
+				m_cameraHelper.visible = m_gui_options.show_camera_enabled;
+				m_renderer.render( m_scene, m_camera );
+			}
+			function renderSecondaryView(view_index, draw_border)
+			{
+				const left = Math.floor( window.innerWidth * m_views[view_index].left );
+				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
+				const width = Math.floor( window.innerWidth * m_views[view_index].width );
+				const height = Math.floor( window.innerHeight * m_views[view_index].height );
+
+				if(draw_border)
+				{
+					m_renderer.setViewport( left-0.1, bottom, width+0.1, height+0.1 );
+					m_renderer.setScissor( left-0.1, bottom, width+0.1, height+0.1 );
+					m_renderer.setScissorTest( true );
+				}
+				m_renderer.setViewport( left, bottom, width, height );
+				m_renderer.setScissor( left, bottom, width, height );
+				m_renderer.setScissorTest( true );
+				
+
+				if(draw_border)
+				{
+					m_renderer.setClearColor ( new THREE.Color(0x000000), 1.0 )
+					m_renderer.clear();
+					m_renderer.setViewport( left+m_views[view_index].border_size, bottom+m_views[view_index].border_size, width-m_views[view_index].border_size*2, height-m_views[view_index].border_size*2 );
+					m_renderer.setScissor( left+m_views[view_index].border_size, bottom+m_views[view_index].border_size, width-m_views[view_index].border_size*2, height-m_views[view_index].border_size*2 );
+				}
+				m_camera_capture_orto.aspect = width / height;
+				m_camera_capture_orto.updateProjectionMatrix();
+				m_cameraHelper.visible = false;
+
+				m_renderer.render( m_scene, m_camera_capture_orto );
+			}
+			function renderClusters(view_index)
+			{
+				m_renderer.clearDepth();
+				const left = Math.floor( window.innerWidth * m_views[view_index].left );
+				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
+				const width = Math.floor( window.innerWidth * m_views[view_index].width );
+				const height = Math.floor( window.innerHeight * m_views[view_index].height );
+
+				m_renderer.setViewport( left, bottom, width, height );
+				m_renderer.setScissor( left, bottom, width, height );
+				m_renderer.render( m_scene_collections, m_camera_collections );
+			}
 			function render() {
 				//if ( windowWidth != window.innerWidth || windowHeight != window.innerHeight ) {
 
@@ -1747,69 +2117,31 @@ light.position.set(1, 1, 10000);
 				m_renderer.clear();
 				if(m_gui_options.show_view_enabled && !m_select_controls_enabled)
 				{
-					//RENDER CAM 1
+					if(m_application_state.views_swaped)
 					{
-						const left = Math.floor( window.innerWidth * m_views[0].left );
-						const bottom = Math.floor( window.innerHeight * m_views[0].bottom );
-						const width = Math.floor( window.innerWidth * m_views[0].width );
-						const height = Math.floor( window.innerHeight * m_views[0].height );
-
-						m_renderer.setViewport( left, bottom, width, height );
-						m_renderer.setScissor( left, bottom, width, height );
-						m_renderer.setScissorTest( true );
-
-						m_camera.aspect = width / height;
-						m_camera.updateProjectionMatrix();
-						m_cameraHelper.visible = m_gui_options.show_camera_enabled;
-						m_renderer.render( m_scene, m_camera );
+						renderSecondaryView(0, false);
+						renderMainView(1, true);
 					}
-					//RENDER CAM 2
+					else
 					{
-						const left = Math.floor( window.innerWidth * m_views[1].left );
-						const bottom = Math.floor( window.innerHeight * m_views[1].bottom );
-						const width = Math.floor( window.innerWidth * m_views[1].width );
-						const height = Math.floor( window.innerHeight * m_views[1].height );
-
-						m_renderer.setViewport( left, bottom, width, height );
-						m_renderer.setScissor( left, bottom, width, height );
-						m_renderer.setScissorTest( true );
-
-						m_camera_capture.aspect = width / height;
-						m_camera_capture.updateProjectionMatrix();
-						m_cameraHelper.visible = false;
-
-
-
-
-						m_renderer.render( m_scene, m_camera_capture );
+						renderMainView(0, false);
+						renderSecondaryView(1, true);
 					}
 				}
 				else
 				{
-					const left = Math.floor( window.innerWidth * m_views[2].left );
-					const bottom = Math.floor( window.innerHeight * m_views[2].bottom );
-					const width = Math.floor( window.innerWidth * m_views[2].width );
-					const height = Math.floor( window.innerHeight * m_views[2].height );
-
-					m_renderer.setViewport( left, bottom, width, height );
-					m_renderer.setScissor( left, bottom, width, height );
-					m_renderer.setScissorTest( true );
-
-					m_camera.aspect = width / height;
-					m_camera.updateProjectionMatrix();
-					m_cameraHelper.visible = m_gui_options.show_camera_enabled;
-					m_renderer.render( m_scene, m_camera );
+					if(m_application_state.views_swaped)
+					{
+						renderSecondaryView(2, false);
+					}
+					else
+					{
+						renderMainView(2, false);
+					}
 				}
-				m_renderer.clearDepth();
-				const left = Math.floor( window.innerWidth * m_views[2].left );
-				const bottom = Math.floor( window.innerHeight * m_views[2].bottom );
-				const width = Math.floor( window.innerWidth * m_views[2].width );
-				const height = Math.floor( window.innerHeight * m_views[2].height );
 
-				m_renderer.setViewport( left, bottom, width, height );
-				m_renderer.setScissor( left, bottom, width, height );
 				if(!m_select_controls_enabled)
-					m_renderer.render( m_scene_collections, m_camera_collections );
+					renderClusters(2);
 				
 
 			}
@@ -2031,7 +2363,7 @@ light.position.set(1, 1, 10000);
 			        setDefaultColorsCameras();
 			    }
 			};
-			xmlhttp.open("GET", "capture_info/cameraInfo.json", true);
+			xmlhttp.open("GET", 'models/'+m_models_values[m_gui_options.current_model].path+"/capture_info/cameraInfo.json", true);
 			console.log("INFO: Capture info json loading...")
 			xmlhttp.send();
 
