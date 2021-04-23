@@ -65,14 +65,11 @@
 			var m_camera_mode = "ORBIT";
 			var m_timer_update = 0;
 			var m_cams_enabled = false;
-			var m_need_to_update = true;
 			var m_current_capture_in_view_index = -1;
 			var m_capture_rays_need_recomputation = true;
 
-			var m_num_rays_precomputation = 10;	//rays x rays
-			var m_select_controls_enabled = false;
+			const m_num_rays_precomputation = 10;	//rays x rays
 			var m_dragging = false;
-			var m_captureShader;
 			var m_current_sprites_in_scene = [];
 			var m_selection_rectangle = {
 				startNDC: null,
@@ -99,6 +96,8 @@
 				capture_index_over_mouse: -1,
 				transition_animation_step: 1.0,
 				views_swaped: false,
+				select_controls_enabled: false,
+				need_to_update_auto_detect: true,
 			}
 			var m_debug = 
 			{
@@ -173,7 +172,7 @@
 				show_photo_enabled: false,
 				auto_score_enabled: false,
 
-				current_model: "pedret",
+				current_model: "doma",
 
 			}
 
@@ -221,8 +220,8 @@
 
 				const modelsFolder = m_gui.addFolder( 'Models' );
 
-				modelsFolder.add( m_gui_options, 'current_model' ).options( models ).onChange( function () {
-
+				modelsFolder.add( m_gui_options, 'current_model' ).options( models ).name( 'Current model' ).onChange( function () {
+					startSceneForModel();
 				} );
 
 				modelsFolder.open();
@@ -266,7 +265,7 @@
 				candidatesFolder.add(m_gui_options, 'max_collection_size', 0, 20, 1 ).name( 'Max size collection' );
 				candidatesFolder.add(m_gui_options, 'similitude_treshold', 0, 1, 0.01 ).name( 'Similitude treshold' );
 				//candidatesFolder.add(m_gui_options, 'linkage_enabled').name( 'Linkage clustering' );
-				candidatesFolder.add( m_gui_options, 'clustering_method' ).options( clustering_methods )
+				candidatesFolder.add( m_gui_options, 'clustering_method' ).options( clustering_methods ).name( 'Cluster method' );
 				candidatesFolder.open();
 
 
@@ -356,18 +355,7 @@
 				m_current_capture_in_view_index = index_capture;
 				
 			}
-			function showCapture(indexCapture)
-			{
-				/*if(indexCapture != -1)
-				{
-					var source = "images/"+captureNames[indexCapture]
 
-					document.getElementById('captureImage').src= source
-					document.getElementById("captureImage").style.visibility = "visible";
-
-					console.log(source)
-				}*/
-			}
 
 
 			function showCollectionSprite(min_pos, max_pos, index_capture, order, sprites_to_remove = [], isShifting = false, opacity = 1)
@@ -491,12 +479,12 @@
 					var keyCode = event.which;
 				    if (keyCode == 82) { //R
 				        resetCamera();
-				    } else if (keyCode == 77) { //M
-				        changeMode();
-				    }  else if (keyCode == 67) { //C
-				        toggleEnableCams();
+				    /*} else if (keyCode == 77) { //M
+				        changeMode();*/
+				    /*}  else if (keyCode == 67) { //C
+				        toggleEnableCams();*/
 				    }  else if (keyCode == 17) {
-				    	m_select_controls_enabled = true;
+				    	m_application_state.select_controls_enabled = true;
 				    	m_controls.enabled = false;
 				    	m_controls_secondary.enabled = false;
 				    	m_selection_rectangle.helper.element.hidden = false;
@@ -627,7 +615,7 @@
 				if(captureIndex >= 0)
 				{
 					//console.log("mouse move, capture: "+ captureIndex)
-					if(m_application_state.capture_index_over_mouse != captureIndex && !m_select_controls_enabled)
+					if(m_application_state.capture_index_over_mouse != captureIndex && !m_application_state.select_controls_enabled)
 						selectCapture(captureIndex)
 					m_application_state.capture_index_over_mouse = captureIndex;
 					m_controls.enabled = false;
@@ -635,7 +623,7 @@
 				}
 				else
 				{
-					if(!m_select_controls_enabled && !m_application_state.views_swaped)
+					if(!m_application_state.select_controls_enabled && !m_application_state.views_swaped)
 					{
 						m_controls.enabled = true;
 					}
@@ -645,7 +633,7 @@
 					m_application_state.capture_index_over_mouse = -1;
 				}
 					
-				if(m_select_controls_enabled && m_dragging)
+				if(m_application_state.select_controls_enabled && m_dragging)
 				{
 					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
 				                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
@@ -715,7 +703,7 @@
 			{
 				if(!m_application_state.state == AppStates.READY_TO_GO)
 				return;
-				if(m_select_controls_enabled)
+				if(m_application_state.select_controls_enabled)
 				{
 					//document.getElementById("selection_menu").style.display = "none";
 					GUI.toggleHide();
@@ -797,7 +785,7 @@
 			function onDocumentPointerUp( event ) {   
 				if(!m_application_state.state == AppStates.READY_TO_GO)
 					return;
-				if(m_select_controls_enabled)
+				if(m_application_state.select_controls_enabled)
 				{
 					//document.getElementById("selection_menu").style.display = "block";
 					GUI.toggleHide();
@@ -1048,6 +1036,57 @@
 				console.log("INFO: Loading cameras...")
 				cameras.cameras.forEach(loadCamera);
 			}
+			function loadModel()
+			{
+				console.log("INFO: Loading "+m_gui_options.current_model+"...")
+				const loader = new PLYLoader();
+				const loaderTex = new THREE.TextureLoader(m_manager);
+
+
+
+				loader.load( './models/'+m_models_values[m_gui_options.current_model].path+'/meshes/'+m_models_values[m_gui_options.current_model].mesh_name, function ( geometry ) {
+					geometry.computeVertexNormals();
+					let uniforms = {
+				        colorB: {type: 'vec3', value: new THREE.Color(0xACB6E5)},
+				        colorA: {type: 'vec3', value: new THREE.Color(0x74ebd5)},
+				        capturePos: {type: 'vec3', value: new THREE.Vector3(0,0,0)},
+				        viewMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
+				        projectionMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
+				        showRedArea: {type: 'bool', value: false},
+				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
+				        texture1: { type: "t", value: loaderTex.load('./models/'+m_models_values[m_gui_options.current_model].path+'/textures/'+m_models_values[m_gui_options.current_model].texture_name) }
+				    }
+					const material = new THREE.ShaderMaterial( { 
+						uniforms: uniforms,
+					    fragmentShader: fragmentShader(),
+					    vertexShader: vertexShader(),
+						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
+					} );
+					const mesh = new THREE.Mesh( geometry, material );
+					mesh.scale.multiplyScalar( 0.03 );
+					//mesh.rotation.x = - Math.PI / 2;
+					mesh.position.x = 0.0;
+					mesh.position.y = 0.0;
+					mesh.position.z = 0.0;
+					
+					 
+
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+
+					m_scene.add( mesh );
+					m_scene_models.push(mesh);
+
+					//TODO Check cams loaded
+					m_application_state.num_models_loaded +=1
+					console.log("INFO: Loading Model: DONE")
+					var completation = Math.floor(((m_application_state.num_cameras_loaded+m_application_state.num_models_loaded*10)/(m_application_state.num_cameras_to_load+m_application_state.num_models_to_load*10))*80)
+					document.getElementById("loadingText").innerHTML = "Loading: "+completation.toString() +"%";
+
+					//precomputeRays()
+
+				} );
+			} 
 			function loadPedret()
 			{
 				console.log("INFO: Loading pedret...")
@@ -1156,8 +1195,9 @@
 			{
 				m_application_state.num_models_to_load = 1
 				//loadDoma();
-				loadPedret();
-				m_scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
+				loadModel();
+				//loadPedret();
+				//m_scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
 
 				//addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
 				//addShadowedLight( 0.5, 1, - 1, 0xffaa00, 1 );
@@ -1666,7 +1706,7 @@
 				console.log("INFO: Updating candidates: DONE")
 			}
 			
-			function changeMode()
+			/*function changeMode()
 			{
 				if(m_camera_mode == "FLY")
 					m_camera_mode = "ORBIT"
@@ -1677,7 +1717,7 @@
 				else
 					m_camera_mode = "FLY"
 				initControls(m_camera_mode)
-			}
+			}*/
 			function initControls(mode)
 			{
 				m_camera_capture_orto = new THREE.OrthographicCamera( -0.03,0.03, 0.03, -0.03, 0.01, 1);
@@ -1686,17 +1726,19 @@
 				m_scene_collections.add(m_camera_collections);
 
 
-
+				var start_x = m_models_values[m_gui_options.current_model].pos_x_cam_start
+				var start_y = m_models_values[m_gui_options.current_model].pos_y_cam_start
+				var start_z = m_models_values[m_gui_options.current_model].pos_z_cam_start
 
 				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.01, 10 );
-				m_camera.position.set( 11*0.03,-20*0.03,2*0.03 );
+				m_camera.position.set( start_x,start_y,start_z );
 				//camera.position.set( 3,0.15,3 );
 				m_camera.name = "main_camera"
 				m_camera.up.set(0,0,1);
 
 				m_camera_capture = new THREE.PerspectiveCamera( 50.5, 4000 / 2950, 0.01, 10 );
-				m_camera_capture_orto.position.set( 11*0.03,-20*0.03,2*0.03 );
-				m_camera_capture.position.set( 11*0.03,-20*0.03,2*0.03 );
+				m_camera_capture_orto.position.set( start_x,start_y,start_z );
+				m_camera_capture.position.set( start_x,start_y,start_z );
 				m_cameraHelper = new THREE.CameraHelper(m_camera_capture_orto);
 				m_scene.add(m_cameraHelper);
 				//camera.position.set( 3,0.15,3 );
@@ -1725,7 +1767,7 @@
 					m_controls.minAzimuthAngle = - Infinity; // radians
 					m_controls.maxAzimuthAngle = Infinity; // radians
 
-					m_controls.target.set(-1*0.03,-20*0.03,2*0.03)
+					m_controls.target.set(-1*0.03,start_y,2*0.03)
 
 
 					m_controls_secondary = new OrbitControls( m_camera_capture_orto, m_renderer.domElement );
@@ -1735,7 +1777,7 @@
 					m_controls_secondary.maxDistance = 3;
 					m_controls_secondary.minAzimuthAngle = - Infinity; // radians
 					m_controls_secondary.maxAzimuthAngle = Infinity; // radians
-					m_controls_secondary.target.set(-1*0.03,-20*0.03,2*0.03);
+					m_controls_secondary.target.set(-1*0.03,start_y,2*0.03);
 					m_controls_secondary.enabled = false;
 
 				}
@@ -1754,6 +1796,78 @@
 					console.log("ERROR, mode "+mode+ " not found");
 				}
 			}
+
+			function clearSceneData()
+			{
+				//APL STATE
+				m_application_state.state = AppStates.THREE_JS_INIT;
+				m_application_state.num_cameras_loaded = 0;
+				m_application_state.num_models_loaded = 0;
+				m_application_state.three_js_inited = false;
+				m_application_state.num_cameras_to_load = 0;
+				m_application_state.num_models_to_load = 0;
+				m_application_state.precomputed_file_loaded = false;
+				m_application_state.precomputation_done = false;
+				m_application_state.textures_loaded = false;
+				m_application_state.count_precomputation_iterations = 0;
+				m_application_state.capture_index_over_mouse = -1;
+				m_application_state.transition_animation_step = 1.0;
+				m_application_state.views_swaped = false;
+				m_application_state.select_controls_enabled = false;
+				m_application_state.need_to_update_auto_detect = false;
+
+				m_min_pos = null;
+				m_max_pos = null;
+
+
+				m_camera_list = [];
+				m_camera_mesh_list = [];
+				m_scene_models = [];
+				m_current_candidates = [];
+				m_current_candidates_collections = [];
+
+				m_timer_update = 0;
+				m_cams_enabled = false;
+				m_current_capture_in_view_index = -1;
+				m_capture_rays_need_recomputation = true;
+
+				m_dragging = false;
+				m_current_sprites_in_scene = [];
+
+				while(m_scene.children.length > 0){ 
+				    m_scene.remove(m_scene.children[0]); 
+				}
+				while(m_scene_collections.children.length > 0){ 
+				    m_scene_collections.remove(m_scene_collections.children[0]); 
+				}
+
+			}
+			function startSceneForModel()
+			{
+
+				clearSceneData()
+				document.getElementById("loadingTextContainer").style.visibility = "visible";
+				var xmlhttp = new XMLHttpRequest();
+				xmlhttp.onreadystatechange = function() {
+				    if (this.readyState == 4 && this.status == 200) {
+				        var myObj = JSON.parse(this.responseText);
+				        console.log("INFO: Capture info json loading... DONE")
+				        loadCameras(myObj)
+				        setDefaultColorsCameras();
+				    }
+				};
+				xmlhttp.open("GET", 'models/'+m_models_values[m_gui_options.current_model].path+"/capture_info/cameraInfo.json", true);
+				console.log("INFO: Capture info json loading...")
+				xmlhttp.send();
+
+				loadModels();
+				initControls(m_camera_mode)
+
+				
+
+				m_application_state.three_js_inited = true
+				animate();
+			}
 			function init() {
 
 				
@@ -1764,26 +1878,12 @@
 				//const context = canvas.getContext( '2d' );
 				document.body.appendChild( m_container );
 
-
-
-
-				//camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 10000 );
-				//camera.position.set( 1000, 50, 1500 );
-
-				//cameraTarget = new THREE.Vector3( 0, - 0.1, 0 );
-
 				m_scene = new THREE.Scene();
 				m_scene.background = new THREE.Color( 0x72645b );
 				m_scene.fog = new THREE.Fog( 0x72645b, 2, 15 );
 
 				m_scene_collections = new THREE.Scene();
 				m_scene_collections.background = null;
-
-
-
-
-				loadModels();
-
 
 
 				// m_renderer
@@ -1808,37 +1908,22 @@
 				document.body.appendChild( VRButton.createButton( m_renderer ) );
 				m_renderer.xr.enabled = true;
 
-				initControls(m_camera_mode)
 				createGUI();
-				
-
-
-
-
-				window.addEventListener( 'resize', onWindowResize );
-				
-				animate();
 
 				m_selection_rectangle.selectionBox = new SelectionBox( m_camera, m_scene );
 				m_selection_rectangle.helper = new SelectionHelper( m_selection_rectangle.selectionBox, m_renderer, 'selectBox' );
 				m_selection_rectangle.helper.element.hidden = true;
+
+				window.addEventListener( 'resize', onWindowResize );
+				
 				document.addEventListener( 'mousewheel', onDocumentMouseWheel );
 				document.addEventListener( 'pointerup', onDocumentPointerUp );
 				document.addEventListener('pointermove', onDocumentPointerMove)
 				document.addEventListener( 'pointerdown', onDocumentPointerDown );
 				document.addEventListener("keydown", onDocumentKeyDown, false);
-				m_container.appendChild( m_renderer.domElement );
-				/*document.getElementById("captureImage6").onclick = function() {selectCapture(6);}
-				document.getElementById("captureImage5").onclick = function() {selectCapture(5);}
-				document.getElementById("captureImage4").onclick = function() {selectCapture(4);}
-				document.getElementById("captureImage3").onclick = function() {selectCapture(3);}
-				document.getElementById("captureImage2").onclick = function() {selectCapture(2);}
-				document.getElementById("captureImage1").onclick = function() {selectCapture(1);}
-				document.getElementById("captureImage0").onclick = function() {selectCapture(0);}*/
-
 				document.addEventListener("keyup", event => {
 				  if (/*event.isComposing || */event.keyCode === 17 && !m_application_state.views_swaped) {
-				    m_select_controls_enabled = false;
+				    m_application_state.select_controls_enabled = false;
 					m_dragging = false
 
 				    m_controls.enabled = true;
@@ -1858,8 +1943,8 @@
 					m_application_state.textures_loaded = true
 				}
 
+				startSceneForModel();
 				
-				m_application_state.three_js_inited = true
 			}
 
 			function addShadowedLight( x, y, z, color, intensity ) {
@@ -1913,7 +1998,7 @@
 				m_camera_capture_orto.updateProjectionMatrix();*/
 				m_camera_capture_orto.updateProjectionMatrix();
 				//m_captureShader.uniforms.resolution.value.set( window.innerWidth, window.innerWidth );
-				/*if(m_select_controls_enabled)
+				/*if(m_application_state.select_controls_enabled)
 				{
 					m_canvas.setHeight(window.innerHeight);
 				    m_canvas.setWidth(window.innerWidth);
@@ -1937,14 +2022,14 @@
 					case AppStates.READY_TO_GO:
 					{
 						updateCollectionsAnims(delta)
-						if(m_need_to_update)
+						if(m_application_state.need_to_update_auto_detect)
 							m_timer_update += delta
 
 						if(m_old_pos_cam.distanceTo(m_camera.position) > 0.0001)
 						{
 							//console.log("changed!! " + m_old_pos_cam.x + " " +m_camera.position.x)
 							m_timer_update = 0;
-							m_need_to_update = true;
+							m_application_state.need_to_update_auto_detect = true;
 						}
 							
 						
@@ -1958,7 +2043,7 @@
 						if(m_timer_update > m_gui_options.timer_recalc)
 						{
 							//console.log("update")
-							m_need_to_update = false
+							m_application_state.need_to_update_auto_detect = false
 							m_timer_update = 0
 							if(m_gui_options.auto_score_enabled)
 								updateCandidates(false);
@@ -2115,7 +2200,7 @@
 				//}
 				m_cameraHelper.update();
 				m_renderer.clear();
-				if(m_gui_options.show_view_enabled && !m_select_controls_enabled)
+				if(m_gui_options.show_view_enabled && !m_application_state.select_controls_enabled)
 				{
 					if(m_application_state.views_swaped)
 					{
@@ -2140,7 +2225,7 @@
 					}
 				}
 
-				if(!m_select_controls_enabled)
+				if(!m_application_state.select_controls_enabled)
 					renderClusters(2);
 				
 
@@ -2354,18 +2439,7 @@
 				console.log("INFO: Saving Precomputed File: DONE")
 			}
 
-			var xmlhttp = new XMLHttpRequest();
-			xmlhttp.onreadystatechange = function() {
-			    if (this.readyState == 4 && this.status == 200) {
-			        var myObj = JSON.parse(this.responseText);
-			        console.log("INFO: Capture info json loading... DONE")
-			        loadCameras(myObj)
-			        setDefaultColorsCameras();
-			    }
-			};
-			xmlhttp.open("GET", 'models/'+m_models_values[m_gui_options.current_model].path+"/capture_info/cameraInfo.json", true);
-			console.log("INFO: Capture info json loading...")
-			xmlhttp.send();
+			
 
 		</script>
 	</body>
