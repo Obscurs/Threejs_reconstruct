@@ -40,11 +40,153 @@
 		<div class=container4 id="loadingTextContainer">
 		  <p id="loadingText">Loading: 0% 
 		</div>
+
+		<script id="vertexShaderSprite" type="x-shader/x-fragment">
+			varying vec2 vUv;
+
+		    void main() {
+		    	vUv = uv;
+		      gl_Position =   projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0);
+
+		    }
+		</script>
+
+		<script id="fragmentShaderSprite" type="x-shader/x-fragment">
+			uniform vec2 minSel; 
+			uniform vec2 maxSel; 
+			uniform sampler2D texture1;
+			uniform float opacity;
+
+			varying vec2 vUv;
+			float borderSel = 0.015;
+			void main() {
+
+				if(vUv.x > 0.98 || vUv.x < 0.02 || vUv.y > 0.98 || vUv.y < 0.02)
+				{
+					gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+				}
+				else
+				{
+					vec4 color;
+					if(minSel != maxSel && (
+						(vUv.x > minSel.x && vUv.x < minSel.x+borderSel && vUv.y > minSel.y && vUv.y < maxSel.y+borderSel) ||
+						(vUv.y > minSel.y && vUv.y < minSel.y+borderSel && vUv.x > minSel.x && vUv.x < maxSel.x+borderSel) ||
+						(vUv.x > maxSel.x && vUv.x < maxSel.x+borderSel && vUv.y > minSel.y && vUv.y < maxSel.y+borderSel) ||
+						(vUv.y > maxSel.y && vUv.y < maxSel.y+borderSel && vUv.x > minSel.x && vUv.x < maxSel.x+borderSel)
+						))
+					{
+						color = vec4(1.0,0.0,0.0,1.0);
+					}
+					else
+					{
+						color = texture2D(texture1, vUv); 
+						
+					}
+					color.a = opacity;
+					gl_FragColor = color;
+					
+				}
+			}
+		</script>
+		<script id="vertexShaderScene" type="x-shader/x-fragment">
+			varying vec2 vUv; 
+		    varying vec3 capturePos;
+		    varying vec4 modelViewPosition; 
+		    varying vec3 vecNormal;
+		    uniform mat4 viewMatrixCapture;
+		    uniform mat4 projectionMatrixCapture;
+
+		    void main() {
+		    	vUv = uv;
+		    	vec4 auxCapture = projectionMatrixCapture * viewMatrixCapture * modelMatrix* vec4(position,1.0);
+		    	capturePos = vec3(auxCapture.x/auxCapture.w,auxCapture.y/auxCapture.w,auxCapture.z/auxCapture.w);
+		    	//capturePos =   (projectionMatrixCapture *  modelViewMatrix * vec4(position,1.0)).xyz;
+		      //vUv = position; 
+		      //vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
+		      //vecNormal = (modelViewMatrix * vec4(normal, 0.0)).xyz; //????????
+		      //gl_Position = projectionMatrix * modelViewPosition; 
+		      gl_Position =   projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0);
+		      
+		      //gl_Position = capturePos;
+		    }
+		</script>
+		<script id="fragmentShaderScreen" type="x-shader/x-fragment">
+
+			varying vec2 vUv;
+			uniform sampler2D tDiffuse;
+
+			void main() {
+
+				gl_FragColor = texture2D( tDiffuse, vUv );
+
+			}
+
+		</script>
+		<script id="fragmentShaderCaptureImage" type="x-shader/x-fragment">
+			uniform sampler2D texture1;
+			uniform bool showTexture;
+
+			varying vec2 vUv;
+			varying vec3 capturePos;
+			void main() {
+			  //gl_FragColor = vec4(mix(colorA, colorB, vUv.z), 1.0);
+			  //if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > 0.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
+			  if(showTexture && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0)
+			  {
+			  		vec2 texCoords = vec2((capturePos.x+1.0f)/2.0f,(capturePos.y+1.0f)/2.0f);
+			  		gl_FragColor = texture2D(texture1, texCoords);
+			  }
+			  else 
+			  {
+			  	discard;
+					//gl_FragColor = texture2D(texture1, vUv); 
+					//discard;
+			  }
+
+			}
+		</script>
+		<script id="fragmentShader" type="x-shader/x-fragment">
+			uniform sampler2D texture1;
+			uniform sampler2D texture2;
+			uniform bool showRedArea;
+			uniform bool projectCapture;
+			varying vec2 vUv;
+			varying vec3 capturePos;
+			void main() {
+			  //gl_FragColor = vec4(mix(colorA, colorB, vUv.z), 1.0);
+			  //if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > 0.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
+			  if(showRedArea && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
+			  {
+
+			  	if(capturePos.x < -0.95 || capturePos.x > 0.95 || capturePos.y < -0.95 || capturePos.y > 0.95)
+			  		gl_FragColor = vec4(mix(vec3(1.0,0.0,0.0), texture2D(texture1, vUv).xyz, 0.6), 1.0);
+			  	else
+			  		gl_FragColor = vec4(mix(vec3(1.0,0.0,0.0), texture2D(texture1, vUv).xyz, 0.8), 1.0);
+			  }
+			  else 
+			  {
+			  	if(projectCapture && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
+			  	{
+			  		vec2 texCoords = vec2((capturePos.x+1.0f)/2.0f,(capturePos.y+1.0f)/2.0f);
+			  		gl_FragColor = texture2D(texture2, texCoords);
+			  	}
+			  	else
+			  	{
+			  		gl_FragColor = texture2D(texture1, vUv); 
+			  	}
+					
+					//discard;
+			  }
+
+			  
+			   
+			}
+		</script>
 		<script>
 
 			let m_container, m_stats, m_gui;
 
-			let m_camera, m_camera_capture, m_camera_capture_orto, m_render_target, m_scene, m_scene_collections, m_camera_collections, m_renderer, m_context;
+			let m_camera, m_camera_capture, m_camera_capture_orto, m_scene, m_scene_collections, m_scene_capture, m_camera_collections, m_renderer, m_context;
 			const AppStates =
 			{
 				THREE_JS_INIT: "init_state",
@@ -61,7 +203,7 @@
 			var m_current_candidates_collections = [];
 
 			var m_controls;
-			//var m_controls_secondary;
+			var m_controls_secondary;
 			var m_camera_mode = "ORBIT";
 			var m_timer_update = 0;
 			var m_cams_enabled = false;
@@ -83,6 +225,7 @@
 			var m_min_pos = null;
 			var m_max_pos = null;
 			var m_plane_image_secondary = null;
+			var m_plane_render_target = null;
 			var m_render_target_secondary = null;
 			var m_application_state = 
 			{
@@ -320,7 +463,7 @@
 				var viewMat = new THREE.Matrix4();
 				var projMat = new THREE.Matrix4();
 
-				var texture, material, plane;
+				var texture, material, plane, plane_rt;
 
 				texture = THREE.ImageUtils.loadTexture( "models/"+m_models_values[m_gui_options.current_model].path+"/captures/"+m_camera_list[index_capture].name );
 
@@ -334,24 +477,24 @@
 				var frustumHeightWorld_photo = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_list[index_capture].camera.fov * 0.5 ));
 				var frustumHeightWorld_view = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_capture.fov * 0.5 ));
 				var scaleFact = frustumHeightWorld_view/frustumHeightWorld_photo;
-				//m_camera_capture.render_target_height = m_camera_list[index_capture].height*scaleFact
-				//m_camera_capture.render_target_width = m_camera_capture.render_target_height * m_camera_capture.aspect
+				m_camera_capture.render_target_height = m_camera_list[index_capture].height*scaleFact
+				m_camera_capture.render_target_width = m_camera_capture.render_target_height * m_camera_capture.aspect
 
-				//m_render_target_secondary = new THREE.WebGLRenderTarget(m_camera_capture.render_target_width, m_camera_capture.render_target_height);
+				m_render_target_secondary = new THREE.WebGLRenderTarget(m_camera_capture.render_target_width, m_camera_capture.render_target_height);
 				
 
 				//TODO: do this init once
 				let uniforms = {
-				        viewMatrixCapture: {type: 'mat4', value: viewMat},
-				        projectionMatrixCapture: {type: 'mat4', value: projMat},
+					  viewMatrixCapture: {type: 'mat4', value: viewMat},
+					  projectionMatrixCapture: {type: 'mat4', value: projMat},
 				        showTexture: {type: 'bool', value: true},
 				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
 				        texture1: { type: "t", value: texture }
 				    }
 				const material_plane = new THREE.ShaderMaterial( { 
 						uniforms: uniforms,
-					    fragmentShader: fragmentShaderCaptureImage(),
-					    vertexShader: vertexShader(),
+					    fragmentShader: document.getElementById('fragmentShaderCaptureImage').textContent,
+					    vertexShader: document.getElementById('vertexShaderScene').textContent,
 					    blending: THREE.NormalBlending,
 		                depthTest: false,
 		                transparent: true
@@ -360,14 +503,42 @@
 
 				
 				plane = new THREE.Mesh(new THREE.PlaneGeometry(1.0001, 1.0001), material_plane);
+				plane.name ="plane_photo"
 				plane.translateZ( -(m_camera_capture.near+0.0001) );
 				if(m_plane_image_secondary != null)
 				{
-					m_scene.remove(m_plane_image_secondary)
+					var existing = m_scene.getObjectByName("plane_photo");
+					if(existing)
+						m_scene.remove( existing );
 				}
 				plane.applyMatrix(m_camera_capture.matrix)
 				m_plane_image_secondary = plane;
 				m_scene.add(m_plane_image_secondary)
+
+
+
+				
+				const material_plane_rt = new THREE.ShaderMaterial( { 
+						uniforms: {tDiffuse: {value: m_render_target_secondary.texture}},
+					    fragmentShader: document.getElementById('fragmentShaderScreen').textContent,
+					    vertexShader: document.getElementById('vertexShaderSprite').textContent,
+					    depthWrite: false
+						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
+					} );
+
+				plane_rt = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material_plane_rt);
+				plane_rt.name ="plane_rt"
+				plane_rt.position.z = -1
+				m_plane_render_target = plane_rt
+
+				if(m_plane_render_target != null)
+				{
+					var existing = m_scene_capture.getObjectByName("plane_rt");
+					if(existing)
+						m_scene_capture.remove( existing );
+					//m_scene_capture.remove(m_plane_render_target)
+				}
+				m_scene_capture.add(m_plane_render_target)
 				//m_render_target = new THREE.WebGLRenderTarget(m_camera_list[index_capture].width*2, m_camera_list[index_capture].height*2);
 				//m_controls_secondary.update()
 				/*
@@ -534,7 +705,7 @@
 				    }  else if (keyCode == 17) {
 				    	m_application_state.select_controls_enabled = true;
 				    	m_controls.enabled = false;
-				    	//m_controls_secondary.enabled = false;
+				    	m_controls_secondary.enabled = false;
 				    	m_selection_rectangle.helper.element.hidden = false;
 				    	
 				    	/*m_canvas.setHeight(window.innerHeight);
@@ -543,147 +714,8 @@
 				}
 			};
 
-			function vertexShaderSprite() {
-			  return `
-			    varying vec2 vUv;
 
-			    void main() {
-			    	vUv = uv;
-			      gl_Position =   projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0);
-
-			    }
-			  `
-			}
-			function fragmentShaderSprite() {
-			  return `
-			      uniform vec2 minSel; 
-			      uniform vec2 maxSel; 
-			      uniform sampler2D texture1;
-			      uniform float opacity;
-
-			      varying vec2 vUv;
-			      float borderSel = 0.015;
-			      void main() {
-
-			      	if(vUv.x > 0.98 || vUv.x < 0.02 || vUv.y > 0.98 || vUv.y < 0.02)
-			      	{
-			      		gl_FragColor = vec4(0.0,0.0,0.0,1.0);
-			      	}
-			      	else
-			      	{
-			      		vec4 color;
-			      		if(minSel != maxSel && (
-			      			(vUv.x > minSel.x && vUv.x < minSel.x+borderSel && vUv.y > minSel.y && vUv.y < maxSel.y+borderSel) ||
-			      			(vUv.y > minSel.y && vUv.y < minSel.y+borderSel && vUv.x > minSel.x && vUv.x < maxSel.x+borderSel) ||
-			      			(vUv.x > maxSel.x && vUv.x < maxSel.x+borderSel && vUv.y > minSel.y && vUv.y < maxSel.y+borderSel) ||
-			      			(vUv.y > maxSel.y && vUv.y < maxSel.y+borderSel && vUv.x > minSel.x && vUv.x < maxSel.x+borderSel)
-			      			))
-			      		{
-			      			color = vec4(1.0,0.0,0.0,1.0);
-			      		}
-			      		else
-			      		{
-			      			color = texture2D(texture1, vUv); 
-				      		
-			      		}
-			      		color.a = opacity;
-				      	gl_FragColor = color;
-			      		
-			      	}
-			      }
-			  `
-			}
-
-			function vertexShader() {
-			  return `
-			    varying vec2 vUv; 
-			    varying vec3 capturePos;
-			    varying vec4 modelViewPosition; 
-			    varying vec3 vecNormal;
-			    uniform mat4 viewMatrixCapture;
-			    uniform mat4 projectionMatrixCapture;
-
-			    void main() {
-			    	vUv = uv;
-			    	vec4 auxCapture = projectionMatrixCapture * viewMatrixCapture * modelMatrix* vec4(position,1.0);
-			    	capturePos = vec3(auxCapture.x/auxCapture.w,auxCapture.y/auxCapture.w,auxCapture.z/auxCapture.w);
-			    	//capturePos =   (projectionMatrixCapture *  modelViewMatrix * vec4(position,1.0)).xyz;
-			      //vUv = position; 
-			      //vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
-			      //vecNormal = (modelViewMatrix * vec4(normal, 0.0)).xyz; //????????
-			      //gl_Position = projectionMatrix * modelViewPosition; 
-			      gl_Position =   projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0);
-			      
-			      //gl_Position = capturePos;
-			    }
-			  `
-			}
-			function fragmentShaderCaptureImage(){
-				return `
-			      uniform sampler2D texture1;
-			      uniform bool showTexture;
-
-			      varying vec2 vUv;
-			      varying vec3 capturePos;
-			      void main() {
-			        //gl_FragColor = vec4(mix(colorA, colorB, vUv.z), 1.0);
-			        //if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > 0.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
-			        if(showTexture && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0)
-			        {
-			        		vec2 texCoords = vec2((capturePos.x+1.0f)/2.0f,(capturePos.y+1.0f)/2.0f);
-			        		gl_FragColor = texture2D(texture1, texCoords);
-			        }
-			        else 
-			        {
-			        	discard;
-						//gl_FragColor = texture2D(texture1, vUv); 
-						//discard;
-			        }
-
-			      }
-			  `
-			}
-			function fragmentShader() {
-			  return `
-			      uniform sampler2D texture1;
-			      uniform sampler2D texture2;
-			      uniform bool showRedArea;
-			      uniform bool projectCapture;
-			      varying vec2 vUv;
-			      varying vec3 capturePos;
-			      void main() {
-			        //gl_FragColor = vec4(mix(colorA, colorB, vUv.z), 1.0);
-			        //if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > 0.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
-			        if(showRedArea && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
-			        {
-
-			        	if(capturePos.x < -0.95 || capturePos.x > 0.95 || capturePos.y < -0.95 || capturePos.y > 0.95)
-			        		gl_FragColor = vec4(mix(vec3(1.0,0.0,0.0), texture2D(texture1, vUv).xyz, 0.6), 1.0);
-			        	else
-			        		gl_FragColor = vec4(mix(vec3(1.0,0.0,0.0), texture2D(texture1, vUv).xyz, 0.8), 1.0);
-			        }
-			        else 
-			        {
-			        	if(projectCapture && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
-			        	{
-			        		vec2 texCoords = vec2((capturePos.x+1.0f)/2.0f,(capturePos.y+1.0f)/2.0f);
-			        		gl_FragColor = texture2D(texture2, texCoords);
-			        	}
-			        	else
-			        	{
-			        		gl_FragColor = texture2D(texture1, vUv); 
-			        	}
-						
-						//discard;
-			        }
-
-			        
-			         
-			      }
-			  `
-			}
 			
-
 
 
 			function onDocumentPointerMove(event)
@@ -698,7 +730,7 @@
 						selectCapture(captureIndex)
 					m_application_state.capture_index_over_mouse = captureIndex;
 					m_controls.enabled = false;
-					//m_controls_secondary.enabled = false;
+					m_controls_secondary.enabled = false;
 				}
 				else
 				{
@@ -707,8 +739,8 @@
 						m_controls.enabled = true;
 					}
 						
-					/*if(m_application_state.views_swaped)
-						m_controls_secondary.enabled = true;*/
+					if(m_application_state.views_swaped)
+						m_controls_secondary.enabled = true;
 					m_application_state.capture_index_over_mouse = -1;
 				}
 					
@@ -820,7 +852,7 @@
 							{
 								document.getElementById("info").innerHTML  = "2D view";
 								document.getElementById("info2").innerHTML  = "3D view";
-								//m_controls_secondary.enabled = true;
+								m_controls_secondary.enabled = true;
 								m_controls.enabled = false;
 								console.log("SET TO FALSE NEN")
 							}
@@ -828,7 +860,7 @@
 							{
 								document.getElementById("info").innerHTML  = "3D view";
 								document.getElementById("info2").innerHTML  = "2D view";
-								//m_controls_secondary.enabled = false;
+								m_controls_secondary.enabled = false;
 								m_controls.enabled = true;
 								console.log("SET TO TRU NEN")
 							}
@@ -1036,8 +1068,8 @@
 				    }
 					const material_sprite = new THREE.ShaderMaterial( { 
 						uniforms: uniformsSprite,
-					    fragmentShader: fragmentShaderSprite(),
-					    vertexShader: vertexShaderSprite(),
+					    fragmentShader: document.getElementById('fragmentShaderSprite').textContent,
+					    vertexShader: document.getElementById('vertexShaderSprite').textContent,
 					    blending: THREE.NormalBlending,
 		                depthTest: false,
 		                transparent: true
@@ -1136,8 +1168,8 @@
 				    }
 					const material = new THREE.ShaderMaterial( { 
 						uniforms: uniforms,
-					    fragmentShader: fragmentShader(),
-					    vertexShader: vertexShader(),
+					    fragmentShader: document.getElementById('fragmentShader').textContent,
+					    vertexShader: document.getElementById('vertexShaderScene').textContent,
 						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
 					} );
 					const mesh = new THREE.Mesh( geometry, material );
@@ -1693,10 +1725,12 @@
 			}*/
 			function initControls(mode)
 			{
-				m_camera_capture_orto = new THREE.OrthographicCamera( -0.03,0.03, 0.03, -0.03, 0.01, 1);
+				m_camera_capture_orto = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 0, 10);
+
+				//m_scene_capture.add(m_camera_capture_orto);
 
 				m_camera_collections = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 0, 10);
-				m_scene_collections.add(m_camera_collections);
+				//m_scene_collections.add(m_camera_collections);
 
 
 				var start_x = m_models_values[m_gui_options.current_model].pos_x_cam_start
@@ -1716,7 +1750,6 @@
 				//camera.position.set( 3,0.15,3 );
 				
 				m_camera_capture.up.set(0,0,1);
-				m_camera_capture_orto.up.set(0,0,1);
 
 
 				if(mode == "FLY")
@@ -1741,7 +1774,7 @@
 
 					m_controls.target.set(-1*0.03,start_y,2*0.03)
 
-					/*
+					
 					m_controls_secondary = new OrbitControls( m_camera_capture_orto, m_renderer.domElement );
 					m_controls_secondary.minPolarAngle =  - Infinity; // radians
 					m_controls_secondary.maxPolarAngle = Infinity; // radians
@@ -1749,8 +1782,7 @@
 					m_controls_secondary.maxDistance = 3;
 					m_controls_secondary.minAzimuthAngle = - Infinity; // radians
 					m_controls_secondary.maxAzimuthAngle = Infinity; // radians
-					m_controls_secondary.target.set(-1*0.03,start_y,2*0.03);
-					m_controls_secondary.enabled = false;*/
+					m_controls_secondary.enabled = false;
 
 				}
 				else if(mode == "TRACK")
@@ -1817,7 +1849,10 @@
 				while(m_scene_collections.children.length > 0){ 
 				    m_scene_collections.remove(m_scene_collections.children[0]); 
 				}
-
+				while(m_scene_capture.children.length > 0){ 
+				    m_scene_capture.remove(m_scene_capture.children[0]); 
+				}
+				
 			}
 			function startSceneForModel()
 			{
@@ -1862,6 +1897,8 @@
 				m_scene_collections = new THREE.Scene();
 				m_scene_collections.background = null;
 
+				m_scene_capture = new THREE.Scene();
+				m_scene.background = new THREE.Color( 0x72645b );
 
 				// m_renderer
 				var canvas = document.getElementById("canvas");
@@ -1959,6 +1996,7 @@
 
 
 
+
 				m_camera_collections.left = window.innerWidth / - 2;
 				m_camera_collections.right =window.innerWidth / 2;
 				m_camera_collections.top = window.innerHeight / 2;
@@ -1973,7 +2011,7 @@
 				m_camera_capture_orto.top = window.innerHeight / 2;
 				m_camera_capture_orto.bottom = window.innerHeight / - 2;
 				m_camera_capture_orto.updateProjectionMatrix();*/
-				m_camera_capture_orto.updateProjectionMatrix();
+				//m_camera_capture_orto.updateProjectionMatrix();
 
 				//m_camera_capture.updateProjectionMatrix();
 				//m_captureShader.uniforms.resolution.value.set( window.innerWidth, window.innerWidth );
@@ -2015,7 +2053,7 @@
 						if(m_camera_mode != "FLY")
 						{
 							m_controls.update();
-							//m_controls_secondary.update();
+							m_controls_secondary.update();
 						}
 							
 						m_stats.update();
@@ -2129,13 +2167,43 @@
 			}
 			function renderSecondaryCamera(view_index, draw_border)
 			{
-
-				if(m_plane_image_secondary != null)
-					m_plane_image_secondary.material.uniforms.showTexture.value = m_gui_options.show_photo_enabled;
+				m_cameraHelper.visible = false;
 				const left = Math.floor( window.innerWidth * m_views[view_index].left );
 				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
 				const width = Math.floor( window.innerWidth * m_views[view_index].width );
 				const height = Math.floor( window.innerHeight * m_views[view_index].height );
+
+				
+
+				if(m_plane_image_secondary != null)
+				{
+					m_plane_image_secondary.material.uniforms.showTexture.value = m_gui_options.show_photo_enabled;
+
+					var frustumHeight = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_capture.fov * 0.5 ));
+					var frustumWidth = frustumHeight * m_camera_capture.aspect;
+					m_plane_image_secondary.scale.x = frustumWidth;
+					m_plane_image_secondary.scale.y = frustumHeight;
+
+					var old_rt = m_renderer.getRenderTarget()
+					m_renderer.setRenderTarget(m_render_target_secondary)
+					//m_camera_capture.aspect = width / height;
+					m_camera_capture.updateProjectionMatrix();
+					m_renderer.render( m_scene, m_camera_capture );
+					m_renderer.setRenderTarget(null)
+
+					m_camera_capture_orto.left = width / - 2;
+					m_camera_capture_orto.right =width / 2;
+					m_camera_capture_orto.top = height / 2;
+					m_camera_capture_orto.bottom = height / - 2;
+					m_camera_capture_orto.updateProjectionMatrix();
+
+					m_plane_render_target.scale.x = height*m_camera_capture.aspect
+					m_plane_render_target.scale.y = height
+
+
+					//m_camera_capture_orto.aspect = width / height;
+					//m_camera_capture_orto.updateProjectionMatrix();
+				}
 
 				if(draw_border)
 				{
@@ -2155,16 +2223,14 @@
 					m_renderer.setViewport( left+m_views[view_index].border_size, bottom+m_views[view_index].border_size, width-m_views[view_index].border_size*2, height-m_views[view_index].border_size*2 );
 					m_renderer.setScissor( left+m_views[view_index].border_size, bottom+m_views[view_index].border_size, width-m_views[view_index].border_size*2, height-m_views[view_index].border_size*2 );
 				}
-				m_camera_capture.aspect = width / height;
-				m_camera_capture.updateProjectionMatrix();
-				m_cameraHelper.visible = false;
+				if(m_plane_image_secondary != null)
+				{
+					m_renderer.render( m_scene_capture, m_camera_capture_orto );
+				}
 
-				var frustumHeight = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_capture.fov * 0.5 ));
-				var frustumWidth = frustumHeight * m_camera_capture.aspect;
-				m_plane_image_secondary.scale.x = frustumWidth;
-				m_plane_image_secondary.scale.y = frustumHeight;
+				
 
-				m_renderer.render( m_scene, m_camera_capture );
+				
 			}
 			function renderClusters(view_index)
 			{
