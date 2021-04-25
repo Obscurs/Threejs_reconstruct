@@ -284,10 +284,10 @@
 					border_size: 2.0,
 				},
 				{
-					left: 0.7,
+					left: 0.0,
 					bottom: 0.0,
-					width: 0.3,
-					height: 0.3,
+					width: 0.0,
+					height: 0.0,
 					border_size: 2.0,
 				},
 				{
@@ -463,16 +463,42 @@
 				var viewMat = new THREE.Matrix4();
 				var projMat = new THREE.Matrix4();
 
-				var texture, material, plane, plane_rt;
+				var texture_low, material, plane, plane_rt;
 
-				texture = THREE.ImageUtils.loadTexture( "models/"+m_models_values[m_gui_options.current_model].path+"/captures/"+m_camera_list[index_capture].name );
+				texture_low = THREE.ImageUtils.loadTexture( "models/"+m_models_values[m_gui_options.current_model].path+"/thumbnails/"+m_camera_list[index_capture].name );
 
 				viewMat.copy(m_camera_capture.matrixWorldInverse);
 				projMat.copy(m_camera_capture.projectionMatrix)
 				m_scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
 				m_scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
-				m_scene_models[0].material.uniforms.texture2.value = texture;
+				m_scene_models[0].material.uniforms.texture2.value = texture_low;
 				m_camera_capture.fov = m_camera_list[index_capture].camera.fov+30
+
+
+				const loader = new THREE.TextureLoader();
+				var tex_name = m_camera_list[index_capture].name
+				loader.load(
+					// resource URL
+					"models/"+m_models_values[m_gui_options.current_model].path+"/captures/"+m_camera_list[index_capture].name,
+
+					// onLoad callback
+					function ( texture_high ) {
+						// in this example we create the material when the texture is loaded
+						if(m_camera_capture.name == tex_name)
+						{
+							//console.log(m_camera_capture.name + " "+tex_name)
+							if(m_scene_models.length >0)
+								m_scene_models[0].material.uniforms.texture2.value = texture_high;
+							if(m_plane_image_secondary != null)
+								m_plane_image_secondary.material.uniforms.texture1.value = texture_high;
+						}
+						
+					},
+					// onError callback
+					function ( err ) {
+						console.error( 'Error trying to load texture (high res) for capture.' );
+					}
+				);
 
 				var frustumHeightWorld_photo = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_list[index_capture].camera.fov * 0.5 ));
 				var frustumHeightWorld_view = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_capture.fov * 0.5 ));
@@ -480,8 +506,8 @@
 				m_camera_capture.render_target_height = m_camera_list[index_capture].height*scaleFact
 				m_camera_capture.render_target_width = m_camera_capture.render_target_height * m_camera_capture.aspect
 
-				m_render_target_secondary = new THREE.WebGLRenderTarget(m_camera_capture.render_target_width, m_camera_capture.render_target_height);
-				
+				//m_render_target_secondary = new THREE.WebGLRenderTarget(m_camera_capture.render_target_width, m_camera_capture.render_target_height);
+				m_render_target_secondary.setSize(m_camera_capture.render_target_width, m_camera_capture.render_target_height)
 
 				//TODO: do this init once
 				let uniforms = {
@@ -489,7 +515,7 @@
 					  projectionMatrixCapture: {type: 'mat4', value: projMat},
 				        showTexture: {type: 'bool', value: true},
 				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
-				        texture1: { type: "t", value: texture }
+				        texture1: { type: "t", value: texture_low }
 				    }
 				const material_plane = new THREE.ShaderMaterial( { 
 						uniforms: uniforms,
@@ -539,26 +565,9 @@
 					//m_scene_capture.remove(m_plane_render_target)
 				}
 				m_scene_capture.add(m_plane_render_target)
-				//m_render_target = new THREE.WebGLRenderTarget(m_camera_list[index_capture].width*2, m_camera_list[index_capture].height*2);
-				//m_controls_secondary.update()
-				/*
-				m_camera_capture_orto.up.copy(m_camera_capture.up)
-				//m_camera_capture_orto.position.copy(m_camera_capture.position)
-				m_camera_capture_orto.position.copy( m_camera_capture.position ).add( directionCapture.multiplyScalar( 0.09 ) );
-				m_camera_capture_orto.rotation.copy(m_camera_capture.rotation)
-				m_camera_capture_orto.name = m_camera_capture.name;
-				//m_camera_capture_orto.updateMatrixWorld();
-				m_camera_capture_orto.updateProjectionMatrix();*/
 
-				
-				
+				m_controls_secondary.reset();
 
-				/*m_controls_secondary.update()
-				m_controls_secondary.target = new THREE.Vector3( m_camera_capture.position.x, m_camera_capture.position.y, m_camera_capture.position.z );
-				m_controls_secondary.update()*/
-
-				//m_controls_secondary.target = new THREE.Vector3( m_camera_capture.position.x, m_camera_capture.position.y, m_camera_capture.position.z );
-				//m_controls_secondary.update()
 			}
 			function selectCapture(index_capture, allow_jump = false)
 			{
@@ -569,6 +578,7 @@
 				}
 				else
 				{
+					if(index_capture !=m_current_capture_in_view_index)
 					changeCaptureInView(index_capture)
 				}
 				m_current_capture_in_view_index = index_capture;
@@ -853,6 +863,7 @@
 								document.getElementById("info").innerHTML  = "2D view";
 								document.getElementById("info2").innerHTML  = "3D view";
 								m_controls_secondary.enabled = true;
+								m_controls_secondary.update()
 								m_controls.enabled = false;
 								console.log("SET TO FALSE NEN")
 							}
@@ -1702,7 +1713,7 @@
 				m_current_candidates.sort(compareCandidates)
 				normalizeScores()
 				updateCandidateCollections()
-				if(m_current_capture_in_view_index == -1)
+				if(m_current_capture_in_view_index == -1 && m_current_capture_in_view_index != m_current_candidates[0].index)
 				{
 					changeCaptureInView(m_current_candidates[0].index)
 				}
@@ -1827,7 +1838,6 @@
 
 				m_has_any_secondary_capture = false;
 				m_plane_image_secondary = null;
-				m_render_target_secondary = null;
 
 				m_camera_list = [];
 				m_camera_mesh_list = [];
@@ -1910,8 +1920,11 @@
 				m_renderer.shadowMap.enabled = true;
 				m_renderer.autoClear = false; 
 
+				m_render_target_secondary = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
 
-				
+				m_views[1].height = 0.3
+				m_views[1].width = (m_views[1].height*(window.innerWidth / window.innerHeight))*(1/(window.innerWidth / window.innerHeight))
+				m_views[1].left = 1.0-m_views[1].width
 
 				m_container.appendChild( m_renderer.domElement );
 
@@ -1996,6 +2009,16 @@
 
 
 
+				m_views[1].height = 0.3
+				m_views[1].width = (m_views[1].height*(window.innerWidth / window.innerHeight))*(1/(window.innerWidth / window.innerHeight))
+				m_views[1].left = 1.0-m_views[1].width
+
+
+				m_camera_capture_orto.left = window.innerWidth / - 2;
+				m_camera_capture_orto.right =window.innerWidth / 2;
+				m_camera_capture_orto.top = window.innerHeight / 2;
+				m_camera_capture_orto.bottom = window.innerHeight / - 2;
+				m_camera_capture_orto.updateProjectionMatrix();
 
 				m_camera_collections.left = window.innerWidth / - 2;
 				m_camera_collections.right =window.innerWidth / 2;
@@ -2191,14 +2214,8 @@
 					m_renderer.render( m_scene, m_camera_capture );
 					m_renderer.setRenderTarget(null)
 
-					m_camera_capture_orto.left = width / - 2;
-					m_camera_capture_orto.right =width / 2;
-					m_camera_capture_orto.top = height / 2;
-					m_camera_capture_orto.bottom = height / - 2;
-					m_camera_capture_orto.updateProjectionMatrix();
-
-					m_plane_render_target.scale.x = height*m_camera_capture.aspect
-					m_plane_render_target.scale.y = height
+					m_plane_render_target.scale.x = window.innerHeight*m_camera_capture.aspect
+					m_plane_render_target.scale.y = window.innerHeight
 
 
 					//m_camera_capture_orto.aspect = width / height;
