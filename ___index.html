@@ -6,8 +6,30 @@
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<link type="text/css" rel="stylesheet" href="main.css">
 
+		<style>
+			.selectBox {
+				border: 1px solid #55aaff;
+				background-color: rgba(75, 160, 255, 0.3);
+				position: fixed;
+			}
+			div.container4 {
+			    height: 100vh;
+			    width: 100%;
+			    position: absolute }
+			div.container4 p {
+			    margin: 0;
+			    position: absolute;
+			    top: 50%;
+			    left: 50%;
+			    margin-right: -50%;
+			    font-size:40px;
+			    transform: translate(-50%, -50%) }
+			
+		</style>
+
 	</head>
 	<body>
+				<!--script src="scripts/shaders.js"--></script>
 		<script src="modules/FileSaver.js"></script>
 		<div id="info">
 			3D view
@@ -19,14 +41,16 @@
 		  <p id="loadingText">Loading: 0% 
 		</div>
 
-		<script id="vertexShaderSprite" type="x-shader/x-fragment" >
+		<script id="vertexShaderSprite" type="x-shader/x-fragment">
 			varying vec2 vUv;
 
 		    void main() {
 		    	vUv = uv;
 		      gl_Position =   projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0);
 
-		    }</script>
+		    }
+		</script>
+
 		<script id="fragmentShaderSprite" type="x-shader/x-fragment">
 			uniform vec2 minSel; 
 			uniform vec2 maxSel; 
@@ -62,7 +86,8 @@
 					gl_FragColor = color;
 					
 				}
-			}</script>
+			}
+		</script>
 		<script id="vertexShaderScene" type="x-shader/x-fragment">
 			varying vec2 vUv; 
 		    varying vec3 capturePos;
@@ -83,7 +108,8 @@
 		      gl_Position =   projectionMatrix * viewMatrix * modelMatrix * vec4(position,1.0);
 		      
 		      //gl_Position = capturePos;
-		    }</script>
+		    }
+		</script>
 		<script id="fragmentShaderScreen" type="x-shader/x-fragment">
 
 			varying vec2 vUv;
@@ -93,7 +119,9 @@
 
 				gl_FragColor = texture2D( tDiffuse, vUv );
 
-			}</script>
+			}
+
+		</script>
 		<script id="fragmentShaderCaptureImage" type="x-shader/x-fragment">
 			uniform sampler2D texture1;
 			uniform bool showTexture;
@@ -115,7 +143,8 @@
 					//discard;
 			  }
 
-			}</script>
+			}
+		</script>
 		<script id="fragmentShader" type="x-shader/x-fragment">
 			uniform sampler2D texture1;
 			uniform sampler2D texture2;
@@ -151,9 +180,165 @@
 
 			  
 			   
-			}</script>
-		<script src="scripts/globals.js"></script>
+			}
+		</script>
+		<script>
 
+			let m_container, m_stats, m_gui;
+
+			let m_camera, m_camera_capture, m_camera_capture_orto, m_scene, m_scene_collections, m_scene_capture, m_camera_collections, m_renderer, m_context;
+			let controller1, controller2;
+			let controllerGrip1, controllerGrip2;
+			const AppStates =
+			{
+				THREE_JS_INIT: "init_state",
+				LOADING_MESHES: "loading_meshes_state",
+				LOADING_TEXTURES: "loading_textures_state",
+				LOADING_PRECOMPUTED_DATA: "loading_precomputed_state",
+				READY_TO_GO: "ready_state",
+
+			}
+			var m_camera_list = [];
+			var m_camera_mesh_list = [];
+			var m_scene_models = [];
+			var m_current_candidates = [];
+			var m_current_candidates_collections = [];
+
+			var m_controls;
+			var m_controls_secondary;
+			var m_camera_mode = "ORBIT";
+			var m_timer_update = 0;
+			var m_cams_enabled = false;
+			var m_current_capture_in_view_index = -1;
+			var m_capture_rays_need_recomputation = true;
+
+			const m_num_rays_precomputation = 10;	//rays x rays
+			var m_dragging = false;
+			var m_current_sprites_in_scene = [];
+			var m_selection_rectangle = {
+				startNDC: null,
+				endNDC: null,
+				startWorld: null,
+				endWorld: null,
+				selectionBox: null,
+				helper: null,
+			}
+			var m_has_any_secondary_capture = false;
+			var m_min_pos = null;
+			var m_max_pos = null;
+			var m_plane_image_secondary = null;
+			var m_plane_render_target = null;
+			var m_render_target_secondary = null;
+			var m_application_state = 
+			{
+				state: AppStates.THREE_JS_INIT,
+				num_cameras_loaded: 0,
+				num_models_loaded: 0,
+				three_js_inited: false,
+				num_cameras_to_load: 0,
+				num_models_to_load: 0,
+				precomputed_file_loaded: false,
+				precomputation_done: false,
+				textures_loaded: false,
+				count_precomputation_iterations: 0,
+				capture_index_over_mouse: -1,
+				transition_animation_step: 1.0,
+				views_swaped: false,
+				select_controls_enabled: false,
+				need_to_update_auto_detect: true,
+			}
+			var m_debug = 
+			{
+				debug_mesh_lines: [],
+			}
+
+			const m_models_values = []
+			m_models_values["doma"] ={
+				path: "doma", 
+				texture_name: "doma-interior_texture16k.jpg",
+				mesh_name: "doma-interior_textured.ply",
+				pos_x_cam_start: 11*0.03,
+				pos_y_cam_start: -20*0.03,
+				pos_z_cam_start: 2*0.03,
+			}
+			m_models_values["pedret"] ={
+				path: "pedret", 
+				texture_name: "pedret-interior_meshed_tex.png",
+				mesh_name: "pedret-interior_meshed_simplified.ply",
+				pos_x_cam_start: 0.0681,
+				pos_y_cam_start: 0.0920,
+				pos_z_cam_start: 0.0327,
+			}
+			m_models_values["solsona"] ={
+				path: "solsona", 
+				texture_name: "solsona_meshed_tex.jpg",
+				mesh_name: "solsona_meshed_simplified.ply",
+				pos_x_cam_start: 0.329,
+				pos_y_cam_start: -0.545,
+				pos_z_cam_start: 0.0307,
+			}
+			/*var m_canvas = new fabric.Canvas('canvas');
+
+			m_canvas.setHeight(0);
+			m_canvas.setWidth(0);
+			m_canvas.renderAll();
+			m_canvas.renderAll.bind(m_canvas)();
+			m_canvas.backgroundColor = null;*/
+
+			const m_views = [
+				{
+					left: 0.0,
+					bottom: 0.0,
+					width: 1.0,
+					height: 1.0,
+					border_size: 2.0,
+				},
+				{
+					left: 0.0,
+					bottom: 0.0,
+					width: 0.0,
+					height: 0.0,
+					border_size: 2.0,
+				},
+				{
+					left: 0.0,
+					bottom: 0.0,
+					width: 1.0,
+					height: 1.0,
+					border_size: 2.0,
+				}
+			];
+			var m_gui_options =
+			{
+				projection: 0,
+				orientation: 5,
+				position: 1,
+				timer_recalc: 1,
+
+				max_num_collections: 7,
+				max_collection_size: 5,
+				similitude_treshold: 0.7,
+				discard_too_similar: true,
+				clustering_method: 'normal',
+				linkage_enabled: true,
+
+				red_area_enabled: false,
+				show_camera_enabled: false,
+				show_view_enabled: false,
+				show_photo_enabled: false,
+				project_capture_enabled: false,
+				auto_score_enabled: false,
+
+				current_model: "pedret",
+
+			}
+
+
+
+
+
+
+		</script>
 		<script type="module">
 
 			import * as THREE from '../build/three.module.js';
@@ -169,16 +354,15 @@
 			import { SelectionHelper } from './jsm/interactive/SelectionHelper.js';
 			import { VRButton } from './jsm/webxr/VRButton.js';
 			import { XRControllerModelFactory } from './jsm/webxr/XRControllerModelFactory.js';
-			import { DataLoader } from './scripts/DataLoader.js';
-			import { compareSimilitudes, compareCandidates, compareCanditateIndices} from './scripts/compareFuncs.js';
-			import { getWorldIntersectFromNDCxy, getNDCposFromWorld} from './scripts/utils.js';
+
 			//import { saveAs } from './modules/FileSaver.js';
 
 			const m_clock = new THREE.Clock();
+			var m_cameraHelper;
 			var m_manager = new THREE.LoadingManager();
 
 			var m_old_pos_cam =  new THREE.Vector3();
-
+			var m_vr_mode = false;
 			init();
 
 			
@@ -530,56 +714,6 @@
 			}
 
 
-			
-			function getCaptureUnderMouse(event)
-			{
-	            var mouse3D = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
-	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
-	                                    0.5 );     
-	            var raycaster =  new THREE.Raycaster();                                        
-	           raycaster.setFromCamera( mouse3D, m_camera_collections );
-	            var intersects = raycaster.intersectObjects( m_current_sprites_in_scene );
-				//console.log(intersects)
-				//setDefaultColorsCameras();
-
-	            if ( intersects.length > 0 ) 
-	            {
-	            	var curr_index = intersects[ 0 ].object.name
-	            	var curr_depth = intersects[ 0 ].object.renderOrder
-	            	for(var i=0; i <intersects.length; i++)
-	            	{
-	            		if(intersects[ i ].object.renderOrder > curr_depth)
-	            		{
-	            			curr_depth = intersects[ i ].object.renderOrder;
-	            			curr_index = intersects[ i ].object.name;
-	            		}
-	            	}
-	            	return curr_index
-	            }
-	            else
-	            	return -1
-			}
-			function getCollectionIndexUnderMouse(event)
-			{
-				if(m_application_state.capture_index_over_mouse != -1)
-				{
-					var index_collection = -1
-					for(var i=0; i<m_current_candidates_collections.length; i++)
-					{
-						for(var j=0; j < m_current_candidates_collections[i].elems.length; j++)
-						{
-							if(m_current_candidates_collections[i].elems[j] == m_application_state.capture_index_over_mouse)
-							{
-								index_collection = i;
-								break;
-							}
-						}
-						
-					}
-					return index_collection;
-				}
-				return -1;
-			}
 			function onDocumentKeyDown(event) {
 				if(m_application_state.state == AppStates.READY_TO_GO)
 				{
@@ -652,6 +786,55 @@
 
 				}
 			}
+			function getCaptureUnderMouse(event)
+			{
+	            var mouse3D = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
+	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
+	                                    0.5 );     
+	            var raycaster =  new THREE.Raycaster();                                        
+	           raycaster.setFromCamera( mouse3D, m_camera_collections );
+	            var intersects = raycaster.intersectObjects( m_current_sprites_in_scene );
+				//console.log(intersects)
+				setDefaultColorsCameras();
+
+	            if ( intersects.length > 0 ) 
+	            {
+	            	var curr_index = intersects[ 0 ].object.name
+	            	var curr_depth = intersects[ 0 ].object.renderOrder
+	            	for(var i=0; i <intersects.length; i++)
+	            	{
+	            		if(intersects[ i ].object.renderOrder > curr_depth)
+	            		{
+	            			curr_depth = intersects[ i ].object.renderOrder;
+	            			curr_index = intersects[ i ].object.name;
+	            		}
+	            	}
+	            	return curr_index
+	            }
+	            else
+	            	return -1
+			}
+			function getCollectionIndexUnderMouse(event)
+			{
+				if(m_application_state.capture_index_over_mouse != -1)
+				{
+					var index_collection = -1
+					for(var i=0; i<m_current_candidates_collections.length; i++)
+					{
+						for(var j=0; j < m_current_candidates_collections[i].elems.length; j++)
+						{
+							if(m_current_candidates_collections[i].elems[j] == m_application_state.capture_index_over_mouse)
+							{
+								index_collection = i;
+								break;
+							}
+						}
+						
+					}
+					return index_collection;
+				}
+				return -1;
+			}
 			function onDocumentPointerDown(event)
 			{
 				if(!m_application_state.state == AppStates.READY_TO_GO)
@@ -716,7 +899,13 @@
 
 			function onDocumentMouseWheel(event)
 			{
+				//console.log("here we go again")
+				/*var captureIndex = getCaptureUnderMouse(event);
+				if(captureIndex >= 0)
+					console.log(captureIndex)*/
+
 				var collection = getCollectionIndexUnderMouse(event)
+				//console.log(collection)
 				if(collection >=0 && m_current_candidates_collections[collection].elems.length > 1)
 				{
 					if(event.wheelDelta > 0)
@@ -735,12 +924,16 @@
 					return;
 				if(m_application_state.select_controls_enabled)
 				{
+					//document.getElementById("selection_menu").style.display = "block";
 					GUI.toggleHide();
 					m_dragging = false;
 					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
 	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
 	                                    0.5 );   
 					m_selection_rectangle.endNDC = mouseNDC
+
+					
+					//console.log("NDC up" + mouseNDC);
 
 					m_selection_rectangle.selectionBox.endPoint.set(
 					( event.clientX / window.innerWidth ) * 2 - 1,
@@ -755,6 +948,66 @@
 					if(captureIndex >= 0)
 						selectCapture(captureIndex, true)
 				}
+				return;
+				//console.log("pointer up")
+				
+				if(!m_cams_enabled || !m_application_state.state == AppStates.READY_TO_GO)
+					return;
+				if(m_camera_mode == "FLY")
+					return;
+				//console.log(m_camera_mode)
+	            event.preventDefault();
+	            var mouse3D = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
+	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
+	                                    0.5 );     
+	            var raycaster =  new THREE.Raycaster();                                        
+	           raycaster.setFromCamera( mouse3D, m_camera );
+	            var intersects = raycaster.intersectObjects( m_camera_mesh_list );
+				//console.log(intersects)
+				setDefaultColorsCameras();
+	            if ( intersects.length > 0 ) {
+	            	var photoIndex = -1;
+	            	for (var i = 0; i < m_camera_list.length; i++) {
+					    if(intersects[ 0 ].object.id == m_camera_list[i].mesh.id)
+					    	photoIndex = i;
+					}
+					//console.log(photoIndex);
+					//console.log(m_camera_list)
+					//console.log(captureNames)
+					//m_controls.coupleCenters = false;
+					//showCapture(photoIndex);
+	                intersects[ 0 ].object.material.color.setHex( 0x0000ff );
+	                intersects[ 0 ].object.material.opacity = 0.3; 
+	                var direction = new THREE.Vector3();
+					intersects[ 0 ].object.getWorldDirection( direction );
+					//m_controls.enabled = false;
+					//m_camera.position.copy( intersects[ 0 ].object.position )
+					m_camera.position.copy( intersects[ 0 ].object.position ).add( direction.multiplyScalar( 0.09 ) );
+					
+					//m_camera.quaternion.copy( intersects[ 0 ].object.quaternion );
+
+					var v1 = new THREE.Vector3(); // create once and reuse it
+
+					v1.copy( intersects[ 0 ].object.up ).applyQuaternion( intersects[ 0 ].object.quaternion );
+					m_camera.up.set(v1.x, v1.y, v1.z); 
+					//m_camera.lookAt(intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z)
+					m_controls.update()
+					//m_controls.update()
+					//m_controls.coupleCenters = true;
+					
+					m_controls.target = new THREE.Vector3( intersects[ 0 ].object.position.x, intersects[ 0 ].object.position.y, intersects[ 0 ].object.position.z );
+					//m_controls.target.copy(v1.x, v1.y, v1.z)
+					//m_controls.target.add( direction.multiplyScalar( 0.5 ) );
+					m_controls.update()
+					
+
+	            }
+	            else
+	            {
+	            	//document.getElementById("captureImage").style.visibility = "hidden";
+	            	//console.log(m_camera)
+	            	//console.log(controls)
+	            }
 	        }
 
 
@@ -799,8 +1052,7 @@
 					mesh.applyMatrix4(new THREE.Matrix4().makeScale(0.03, 0.03, 0.03))
 					mesh.castShadow = false;
 					mesh.receiveShadow = false;
-					mesh.material.opacity = 0.0; 
-					//m_scene.add( mesh );
+					m_scene.add( mesh );
 
 
 
@@ -883,7 +1135,7 @@
 					} );*/
 
 					m_camera_mesh_list.push(mesh);
-					//setDefaultColorsCameras()
+					setDefaultColorsCameras()
 					m_application_state.num_cameras_loaded +=1
 
 					var completation = Math.floor(((m_application_state.num_cameras_loaded+m_application_state.num_models_loaded*10)/(m_application_state.num_cameras_to_load+m_application_state.num_models_to_load*10))*80)
@@ -921,15 +1173,15 @@
 				console.log("INFO: Loading cameras...")
 				cameras.cameras.forEach(loadCamera);
 			}
-			function loadModel(model)
+			function loadModel()
 			{
-				console.log("INFO: Loading "+model.path+"...")
+				console.log("INFO: Loading "+m_gui_options.current_model+"...")
 				const loader = new PLYLoader();
 				const loaderTex = new THREE.TextureLoader(m_manager);
 
 
 
-				loader.load( './models/'+model.path+'/meshes/'+model.mesh_name, function ( geometry ) {
+				loader.load( './models/'+m_models_values[m_gui_options.current_model].path+'/meshes/'+m_models_values[m_gui_options.current_model].mesh_name, function ( geometry ) {
 					geometry.computeVertexNormals();
 					let uniforms = {
 				        viewMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
@@ -937,7 +1189,7 @@
 				        showRedArea: {type: 'bool', value: false},
 				        projectCapture: {type: 'bool', value: false},
 				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
-				        texture1: { type: "t", value: loaderTex.load('./models/'+model.path+'/textures/'+m_models_values[m_gui_options.current_model].texture_name) },
+				        texture1: { type: "t", value: loaderTex.load('./models/'+m_models_values[m_gui_options.current_model].path+'/textures/'+m_models_values[m_gui_options.current_model].texture_name) },
 				        texture2: { type: "t", value: null },
 				    }
 					const material = new THREE.ShaderMaterial( { 
@@ -947,7 +1199,7 @@
 						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
 					} );
 					const mesh = new THREE.Mesh( geometry, material );
-					mesh.scale.multiplyScalar( 0.03 );
+					mesh.scale.multiplyScalar( 1 );
 					//mesh.rotation.x = - Math.PI / 2;
 					mesh.position.x = 0.0;
 					mesh.position.y = 0.0;
@@ -975,11 +1227,8 @@
 			function loadModels()
 			{
 				m_application_state.num_models_to_load = 1
-				loadModel(m_models_values[m_gui_options.current_model]);
+				loadModel();
 				//m_scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
-
-				//addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
-				//addShadowedLight( 0.5, 1, - 1, 0xffaa00, 1 );
 
 
 			}
@@ -1060,8 +1309,69 @@
 				
 
 			}
-			
-			
+			function getWorldIntersectFromNDCxy(camera, ndc_pos, models)
+			{
+				camera.updateProjectionMatrix();
+				var NDC_position = new THREE.Vector3(ndc_pos.x,ndc_pos.y,1);
+				var pointIntersect = new THREE.Vector3();
+				NDC_position.unproject(camera);
+
+				//m_camera_list[i].getWorldDirection( directionPhoto );
+				//var raycasterPhoto =  new THREE.Raycaster(camera.position, NDC_position,0, 10000); 
+
+				 var raycaster =  new THREE.Raycaster();  
+
+	           	raycaster.setFromCamera( ndc_pos, camera );
+
+				var intersectsPhoto = raycaster.intersectObjects( models );  
+
+
+
+
+				////////////////////////////////////// BEGIN
+				/*const material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+				const points = [];
+
+				points.push( camera.position );
+				points.push( NDC_position );
+				
+
+				const geometry = new THREE.BufferGeometry().setFromPoints( points );
+				const line = new THREE.Line( geometry, material );
+				m_scene.add( line );
+				m_debug.debug_mesh_lines.push(line)*/
+
+				//console.log(intersectsPhoto)
+				//console.log(ndc_pos)
+				//////////////////////////////////// END
+				if(intersectsPhoto.length > 0)
+				{
+					pointIntersect.copy(intersectsPhoto[0].point)
+					////////////////////////// BEGIN
+					/*const geometry2 = new THREE.SphereGeometry( 0.5, 32, 32 );
+					const material2 = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+					var sphere = new THREE.Mesh( geometry2, material2 );
+					sphere.position.set(pointIntersect.x,pointIntersect.y,pointIntersect.z);
+					sphere.name ="theball"
+					sphere.scale.set( 0.01,0.01,0.01);
+					m_scene.add( sphere );
+					//////////////////////////// END*/
+					return pointIntersect;
+				} 
+				else
+				{
+					return null;
+				}
+			}
+			function getNDCposFromWorld(camera, worldpos)
+			{
+				if(worldpos == null)
+					return null;
+				var projected = new THREE.Vector3();
+				projected.copy(worldpos)
+				projected.project(camera)
+				return projected;
+			}
 			function getScoreCam(index_cam, intersectsCamera, usingSelectionRectangle)
 			{
 				var distanceScore, orientationScore, raysScore;
@@ -1116,7 +1426,33 @@
 
 				
 			}
-			
+			function compareCanditateIndices( a, b ) {
+			  if ( a.index < b.index ){
+			    return -1;
+			  }
+			  if ( a.index > b.index ){
+			    return 1;
+			  }
+			  return 0;
+			}
+			function compareCandidates( a, b ) {
+			  if ( a.score > b.score ){
+			    return -1;
+			  }
+			  if ( a.score < b.score ){
+			    return 1;
+			  }
+			  return 0;
+			}
+			function compareSimilitudes( a, b ) {
+			  if ( a.similitude > b.similitude ){
+			    return -1;
+			  }
+			  if ( a.similitude < b.similitude ){
+			    return 1;
+			  }
+			  return 0;
+			}
 
 			function shiftCollectionSprites(collection,index, direction)
 			{
@@ -1412,7 +1748,7 @@
 			}*/
 			function initControls(mode)
 			{
-
+				
 
 				m_camera_capture_orto = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 0, 10);
 
@@ -1556,7 +1892,7 @@
 				        var myObj = JSON.parse(this.responseText);
 				        console.log("INFO: Capture info json loading... DONE")
 				        loadCameras(myObj)
-				        //setDefaultColorsCameras();
+				        setDefaultColorsCameras();
 				    }
 				};
 				xmlhttp.open("GET", 'models/'+m_models_values[m_gui_options.current_model].path+"/capture_info/cameraInfo.json", true);
@@ -1601,7 +1937,8 @@
 				m_renderer.shadowMap.enabled = true;
 				m_renderer.autoClear = false; 
 				m_renderer.xr.enabled = true;
-				m_renderer.xr.setReferenceSpaceType( 'local' );
+				m_renderer.xr.setReferenceSpaceType( 'bounded-floor' );
+				m_renderer.xr.setFramebufferScaleFactor(1)
 				m_renderer.setAnimationLoop( loop );
 				m_render_target_secondary = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
 
@@ -1618,7 +1955,6 @@
 				document.body.appendChild( VRButton.createButton( m_renderer ) );
 				
 
-				createGUI();
 
 				m_selection_rectangle.selectionBox = new SelectionBox( m_camera, m_scene );
 				m_selection_rectangle.helper = new SelectionHelper( m_selection_rectangle.selectionBox, m_renderer, 'selectBox' );
@@ -1626,23 +1962,7 @@
 
 				window.addEventListener( 'resize', onWindowResize );
 				
-				document.addEventListener( 'mousewheel', onDocumentMouseWheel );
-				document.addEventListener( 'pointerup', onDocumentPointerUp );
-				document.addEventListener('pointermove', onDocumentPointerMove)
-				document.addEventListener( 'pointerdown', onDocumentPointerDown );
-				document.addEventListener("keydown", onDocumentKeyDown, false);
-				document.addEventListener("keyup", event => {
-				  if (/*event.isComposing || */event.keyCode === 17 && !m_application_state.views_swaped) {
-				    m_application_state.select_controls_enabled = false;
-					m_dragging = false
 
-				    m_controls.enabled = true;
-
-				    m_selection_rectangle.helper.element.hidden = true;
-					/*m_canvas.setHeight(0);
-					m_canvas.setWidth(0);*/
-				  }
-				});
 
 				m_manager.onLoad = function()
 				{
@@ -1657,30 +1977,7 @@
 				
 			}
 
-			function addShadowedLight( x, y, z, color, intensity ) {
-
-				const directionalLight = new THREE.DirectionalLight( color, intensity );
-				directionalLight.position.set( x, y, z );
-				m_scene.add( directionalLight );
-
-				directionalLight.castShadow = true;
-
-				const d = 1;
-				directionalLight.shadow.camera.left = - d;
-				directionalLight.shadow.camera.right = d;
-				directionalLight.shadow.camera.top = d;
-				directionalLight.shadow.camera.bottom = - d;
-
-				directionalLight.shadow.camera.near = 1;
-				directionalLight.shadow.camera.far = 4;
-
-				directionalLight.shadow.mapSize.width = 1024;
-				directionalLight.shadow.mapSize.height = 1024;
-
-				directionalLight.shadow.bias = - 0.001;
-
-			}
-
+		
 
 
 			function onWindowResize() {
@@ -1691,73 +1988,24 @@
 				m_renderer.setSize( window.innerWidth, window.innerHeight );
 
 
-
-				m_views[1].height = 0.3
-				m_views[1].width = (m_views[1].height*(window.innerWidth / window.innerHeight))*(1/(window.innerWidth / window.innerHeight))
-				m_views[1].left = 1.0-m_views[1].width
-
-
-				m_camera_capture_orto.left = window.innerWidth / - 2;
-				m_camera_capture_orto.right =window.innerWidth / 2;
-				m_camera_capture_orto.top = window.innerHeight / 2;
-				m_camera_capture_orto.bottom = window.innerHeight / - 2;
-				m_camera_capture_orto.updateProjectionMatrix();
-
-				m_camera_collections.left = window.innerWidth / - 2;
-				m_camera_collections.right =window.innerWidth / 2;
-				m_camera_collections.top = window.innerHeight / 2;
-				m_camera_collections.bottom = window.innerHeight / - 2;
-				m_camera_collections.updateProjectionMatrix();
-				showCollections()
-
 			}
 			function update()
 			{
 				const timer = Date.now() * 0.0005;
 				const delta = m_clock.getDelta();
-				requestAnimationFrame( animate );
 
 				switch(m_application_state.state)
 				{
 					case AppStates.READY_TO_GO:
 					{
-						updateCollectionsAnims(delta)
-						if(m_application_state.need_to_update_auto_detect)
-							m_timer_update += delta
-
-						if(m_old_pos_cam.distanceTo(m_camera.position) > 0.0001)
-						{
-							//console.log("changed!! " + m_old_pos_cam.x + " " +m_camera.position.x)
-							m_timer_update = 0;
-							m_application_state.need_to_update_auto_detect = true;
-						}
-							
 						
-						if(m_camera_mode != "FLY")
-						{
 							if(m_controls)
 								m_controls.update();
 							if(m_controls_secondary)
 								m_controls_secondary.update();
-						}
-							
-						m_stats.update();
-						if(m_timer_update > m_gui_options.timer_recalc)
-						{
-							//console.log("update")
-							m_application_state.need_to_update_auto_detect = false
-							m_timer_update = 0
-							if(m_gui_options.auto_score_enabled)
-								updateCandidates(false);
-						}
-						if(m_camera_mode == "FLY")
-						{
-							m_controls.movementSpeed = 0.33 * 1;
-							m_controls.update( delta );
-						}
+						
 						m_old_pos_cam.copy(m_camera.position);
 
-						m_scene_models[0].material.uniforms.showRedArea.value = m_gui_options.red_area_enabled;
 						break
 					}
 
@@ -1788,7 +2036,7 @@
 							var loader = new THREE.FileLoader();
 					        loader.load('models/'+m_models_values[m_gui_options.current_model].path+'/capture_info/precomputedCameraData.txt', function ( data ) {
 							        // output the text to the console
-							        m_capture_rays_need_recomputation = DataLoader.loadPrecomputedFile(data, m_camera_list)
+							        loadPrecomputedFile(data)
 							        m_application_state.precomputed_file_loaded = true
 									document.getElementById("loadingText").innerHTML = "Loading: 90%";
 							});
@@ -1838,9 +2086,9 @@
 				const width = Math.floor( window.innerWidth * m_views[view_index].width );
 				const height = Math.floor( window.innerHeight * m_views[view_index].height );
 
-				m_renderer.setViewport( left, bottom, width, height );
+				/*m_renderer.setViewport( left, bottom, width, height );
 				m_renderer.setScissor( left, bottom, width, height );
-				m_renderer.setScissorTest( true );
+				m_renderer.setScissorTest( true );*/
 				
 
 				if(draw_border)
@@ -1855,139 +2103,74 @@
 				m_cameraHelper.visible = m_gui_options.show_camera_enabled;
 				m_renderer.render( m_scene, m_camera );
 			}
-			function renderSecondaryCamera(view_index, draw_border)
-			{
-				m_cameraHelper.visible = false;
-				const left = Math.floor( window.innerWidth * m_views[view_index].left );
-				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
-				const width = Math.floor( window.innerWidth * m_views[view_index].width );
-				const height = Math.floor( window.innerHeight * m_views[view_index].height );
 
-				
-
-				if(m_plane_image_secondary != null)
-				{
-					m_plane_image_secondary.material.uniforms.showTexture.value = m_gui_options.show_photo_enabled;
-
-					var frustumHeight = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_capture.fov * 0.5 ));
-					var frustumWidth = frustumHeight * m_camera_capture.aspect;
-					m_plane_image_secondary.scale.x = frustumWidth;
-					m_plane_image_secondary.scale.y = frustumHeight;
-
-					var old_rt = m_renderer.getRenderTarget()
-					m_renderer.setRenderTarget(m_render_target_secondary)
-					//m_camera_capture.aspect = width / height;
-					m_camera_capture.updateProjectionMatrix();
-					m_renderer.render( m_scene, m_camera_capture );
-					m_renderer.setRenderTarget(null)
-
-					m_plane_render_target.scale.x = window.innerHeight*m_camera_capture.aspect
-					m_plane_render_target.scale.y = window.innerHeight
-
-
-					//m_camera_capture_orto.aspect = width / height;
-					//m_camera_capture_orto.updateProjectionMatrix();
-				}
-
-				if(draw_border)
-				{
-					m_renderer.setViewport( left-0.1, bottom, width+0.1, height+0.1 );
-					m_renderer.setScissor( left-0.1, bottom, width+0.1, height+0.1 );
-					m_renderer.setScissorTest( true );
-				}
-				m_renderer.setViewport( left, bottom, width, height );
-				m_renderer.setScissor( left, bottom, width, height );
-				m_renderer.setScissorTest( true );
-				
-
-				if(draw_border)
-				{
-					m_renderer.setClearColor ( new THREE.Color(0x000000), 1.0 )
-					m_renderer.clear();
-					m_renderer.setViewport( left+m_views[view_index].border_size, bottom+m_views[view_index].border_size, width-m_views[view_index].border_size*2, height-m_views[view_index].border_size*2 );
-					m_renderer.setScissor( left+m_views[view_index].border_size, bottom+m_views[view_index].border_size, width-m_views[view_index].border_size*2, height-m_views[view_index].border_size*2 );
-				}
-				if(m_plane_image_secondary != null)
-				{
-					m_renderer.render( m_scene_capture, m_camera_capture_orto );
-				}
-
-				
-
-				
-			}
-			function renderClusters(view_index)
-			{
-				m_renderer.clearDepth();
-				const left = Math.floor( window.innerWidth * m_views[view_index].left );
-				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
-				const width = Math.floor( window.innerWidth * m_views[view_index].width );
-				const height = Math.floor( window.innerHeight * m_views[view_index].height );
-
-				m_renderer.setViewport( left, bottom, width, height );
-				m_renderer.setScissor( left, bottom, width, height );
-				m_renderer.render( m_scene_collections, m_camera_collections );
-			}
 			function render() {
-				//if ( windowWidth != window.innerWidth || windowHeight != window.innerHeight ) {
 
-				//	windowWidth = window.innerWidth;
-				//	windowHeight = window.innerHeight;
 
-				//m_renderer.setSize( window.innerWidth, window.innerHeight );
-
-				//}
-				m_cameraHelper.update();
-				m_renderer.clear();
-				if(m_scene_models.length >0)
-					m_scene_models[0].material.uniforms.projectCapture.value = m_gui_options.project_capture_enabled && m_plane_image_secondary != null;
-				if(m_gui_options.show_view_enabled && !m_application_state.select_controls_enabled)
-				{
-					if(m_application_state.views_swaped)
-					{
-						renderSecondaryCamera(0, false);
-						renderMainCamera(1, true);
-					}
-					else
-					{
-						renderMainCamera(0, false);
-						renderSecondaryCamera(1, true);
-					}
-				}
-				else
-				{
-					if(m_application_state.views_swaped)
-					{
-						renderSecondaryCamera(2, false);
-					}
-					else
-					{
-						renderMainCamera(2, false);
-					}
-				}
-
-				if(!m_application_state.select_controls_enabled)
-					renderClusters(2);
-				
+				renderMainCamera(2, false);
 
 			}
 			function precomputeCaptureInfo(rays_x, rays_y, iteration)
 			{
 				
 
-				DataLoader.precomputeRays(camera_list, rays_x, rays_y, iteration);
+				precomputeRays(rays_x, rays_y, iteration);
 				m_application_state.count_precomputation_iterations = m_application_state.count_precomputation_iterations +1
 				if(m_application_state.count_precomputation_iterations == m_camera_list.length)
 				{
 					m_capture_rays_need_recomputation = false
-					DataLoader.precomputeCaptureSimilitude(camera_list);
-					DataLoader.savePrecomputedFile(camera_list)
+					precomputeCaptureSimilitude();
+					savePrecomputedFile()
 					m_application_state.precomputation_done = true
 					m_application_state.count_precomputation_iterations = 0
 				}
 				
+				
 			}
-			
+			function precomputeRays(rays_x, rays_y, i)
+			{
+				console.log("INFO: precomputing rays...")
+				//for (var i = 0; i < m_camera_list.length; i++) 
+				{
+					m_camera_list[i].camera.updateProjectionMatrix()
+					m_camera_list[i].rays = []
+					for(var x = 0; x <= 1; x +=(1/(rays_x-1)))
+					{
+						for(var y = 0; y <= 1; y +=(1/(rays_y-1)))
+						{
+
+							var NDC_position = new THREE.Vector2(x*2-1,y*2-1); 
+							var point = getWorldIntersectFromNDCxy(m_camera_list[i].camera, NDC_position, m_scene_models);
+							if(point !=null)
+								m_camera_list[i].rays.push(point);
+							/*
+							var NDC_position = new THREE.Vector3(x*2-1,y*2-1,1);
+							var pointIntersect = new THREE.Vector3();
+							NDC_position.unproject(m_camera_list[i].camera);
+							var test_ray = new THREE.Vector3();
+
+							//m_camera_list[i].getWorldDirection( directionPhoto );
+							var raycasterPhoto =  new THREE.Raycaster(m_camera_list[i].mesh.position, NDC_position); 
+
+							var intersectsPhoto = raycasterPhoto.intersectObjects( m_scene_models );  
+							//console.log(intersectsPhoto)
+							if(intersectsPhoto.length > 0)
+							{
+								pointIntersect.copy(intersectsPhoto[0].point)
+								m_camera_list[i].rays.push(pointIntersect)
+							}*/
+						}
+					}
+					var completation = Math.floor((i/m_camera_list.length)*90)
+
+					document.getElementById("loadingText").innerHTML = "Precomputing rays: "+completation.toString() +"%";
+
+					console.log("      finished precomputing capture positions for cam: "+i+" , rays found: "+m_camera_list[i].rays.length)
+				}
+				
+				console.log("INFO: finished precomputing rays")
+				
+			}
 			function computeSimilitudeForCams(cam1, cam2)
 			{
 				
@@ -2030,6 +2213,114 @@
 
 				return (rate_cam1+rate_cam2)/2
 			}
+			function computeSimilitudesIndicesOrdered()
+			{
+				for(var index_cam=0; index_cam < m_camera_list.length; ++index_cam)
+				{	
+					m_camera_list[index_cam].similitudes_indices_ordered = []
+					for(var index_cam2=0; index_cam2 < m_camera_list[index_cam].similitudes.length; ++index_cam2)
+					{
+						var curr_sim = 
+						{
+							index: index_cam2,
+							similitude: m_camera_list[index_cam].similitudes[index_cam2]
+						}
+						m_camera_list[index_cam].similitudes_indices_ordered.push(curr_sim)
+					}
+					m_camera_list[index_cam].similitudes_indices_ordered.sort(compareSimilitudes)
+				}
+			}
+			function precomputeCaptureSimilitude()
+			{
+				console.log("INFO: Precomputing Similitudes....")
+				for(var index_cam=0; index_cam < m_camera_list.length; ++index_cam)
+				{	
+					m_camera_list[index_cam].similitudes = []
+					for(var index_cam2=0; index_cam2 < m_camera_list.length; ++index_cam2)
+					{
+						m_camera_list[index_cam].similitudes.push(computeSimilitudeForCams(m_camera_list[index_cam],m_camera_list[index_cam2]))
+					}
+					//var completation = Math.floor((index_cam/m_camera_list.length)*50+50)
+
+					//document.getElementById("loadingText").innerHTML = "Precomputed rays not found, precomputing again: "+completation.toString() +"%";
+				}
+				computeSimilitudesIndicesOrdered()
+				console.log("INFO: Precomputing Similitudes: DONE")
+			}
+
+			function loadPrecomputedFile(data)
+			{
+				console.log("INFO: Loading Precomputed File...")
+				var data_cameras = data.split('\n');
+				if(data_cameras.length != m_camera_list.length)
+				{
+					m_capture_rays_need_recomputation = true
+					console.log("INFO: Precomputed File outdated, need to recompute")
+					return
+				}
+				else
+				{
+					for(var index_cam=0; index_cam < data_cameras.length; ++index_cam)
+					{
+						m_camera_list[index_cam].rays = []
+						var data_camera = data_cameras[index_cam].split(' ')
+						while(data_camera[0] == "")
+							data_camera.shift()
+						var num_rays = data_camera[0]
+
+						for(var ray = 0; ray < num_rays; ++ray)
+						{
+							var x = data_camera[ray*3+1]
+							var y = data_camera[ray*3+1+1]
+							var z = data_camera[ray*3+1+2]
+							var position_ray = new THREE.Vector3(x,y,z);
+							m_camera_list[index_cam].rays.push(position_ray);
+						}
+						m_camera_list[index_cam].similitudes = []
+						for(var simil_cam_index = 0; simil_cam_index <m_camera_list.length; ++simil_cam_index)
+						{
+							var simil = data_camera[num_rays*3+1+simil_cam_index]
+							m_camera_list[index_cam].similitudes.push(simil)
+						}
+					}
+					m_capture_rays_need_recomputation = false
+					computeSimilitudesIndicesOrdered()
+				}
+				console.log("INFO: Loading Precomputed File: DONE")
+
+				
+				
+					
+			}
+			function savePrecomputedFile()
+			{
+				console.log("INFO: Saving Precomputed File...")
+            	var parts = []
+				for(var index_cam=0; index_cam < m_camera_list.length; ++index_cam)
+				{	
+
+					parts.push(m_camera_list[index_cam].rays.length);
+
+					for(var index_ray=0; index_ray < m_camera_list[index_cam].rays.length; ++index_ray)
+					{
+						var raypos = m_camera_list[index_cam].rays[index_ray]
+						parts.push(" " + raypos.x + " " + raypos.y + " " + raypos.z);
+					}
+					for(var index_sim=0; index_sim < m_camera_list[index_cam].similitudes.length; ++index_sim)
+					{
+						var sim = m_camera_list[index_cam].similitudes[index_sim]
+						parts.push(" " + sim);
+					}
+					if(index_cam < m_camera_list.length -1)
+						parts.push("\n");
+				}
+				var blob = new Blob(parts);
+				saveAs(blob, 'precomputedCameraData.txt')
+				console.log("INFO: Saving Precomputed File: DONE")
+			}
+
+			
+
 		</script>
 	</body>
 </html>
