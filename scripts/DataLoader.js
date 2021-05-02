@@ -1,7 +1,49 @@
-import { Vector3 } from '../../build/three.module.js';
+import { Vector3, Vector2 } from '../../build/three.module.js';
 import { compareSimilitudes } from './compareFuncs.js';
-import { getWorldIntersectFromNDCxy } from './utils.js';
+import { getWorldIntersectFromNDCxy, getNDCposFromWorld } from './utils.js';
 class DataLoader {
+	static computeSimilitudeForCams(cam1, cam2)
+	{
+		
+		var count_inside_rays_cam1 = 0
+		var count_inside_rays_cam2 = 0
+		var rate_cam1 = 0;
+		var rate_cam2 = 0;
+		for(var index_ray = 0; index_ray <cam1.rays.length; ++index_ray)
+		{
+			var projected = getNDCposFromWorld(cam2.camera, cam1.rays[index_ray])
+			/*var projected = new THREE.Vector3();
+			projected.copy(cam1.rays[index_ray])
+			projected.project(cam2.camera)
+			//console.log(projected)*/
+			if(projected.x > -1.0 && projected.x < 1.0 && projected.y > -1.0 && projected.y < 1.0)
+			{
+				//console.log("added " + index_cam)
+				count_inside_rays_cam1 = count_inside_rays_cam1 +1
+			}
+				
+		}
+		if(cam1.rays.length > 0)
+			rate_cam1 = count_inside_rays_cam1/cam1.rays.length;
+
+		for(var index_ray = 0; index_ray <cam2.rays.length; ++index_ray)
+		{
+			var projected = new Vector3();
+			projected.copy(cam2.rays[index_ray])
+			projected.project(cam1.camera)
+			//console.log(projected)
+			if(projected.x > -1.0 && projected.x < 1.0 && projected.y > -1.0 && projected.y < 1.0)
+			{
+				//console.log("added " + index_cam)
+				count_inside_rays_cam2 = count_inside_rays_cam2 +1
+			}
+				
+		}
+		if(cam2.rays.length > 0)
+			rate_cam2 = count_inside_rays_cam2/cam2.rays.length;
+
+		return (rate_cam1+rate_cam2)/2
+	}
 	static computeSimilitudesIndicesOrdered(camera_list)
 	{
 		for(var index_cam=0; index_cam < camera_list.length; ++index_cam)
@@ -27,7 +69,7 @@ class DataLoader {
 			camera_list[index_cam].similitudes = []
 			for(var index_cam2=0; index_cam2 < camera_list.length; ++index_cam2)
 			{
-				camera_list[index_cam].similitudes.push(computeSimilitudeForCams(camera_list[index_cam],camera_list[index_cam2]))
+				camera_list[index_cam].similitudes.push(this.computeSimilitudeForCams(camera_list[index_cam],camera_list[index_cam2]))
 			}
 			//var completation = Math.floor((index_cam/camera_list.length)*50+50)
 
@@ -116,7 +158,7 @@ class DataLoader {
 		{
 			for(var y = 0; y <= 1; y +=(1/(rays_y-1)))
 			{
-				var NDC_position = new THREE.Vector2(x*2-1,y*2-1); 
+				var NDC_position = new Vector2(x*2-1,y*2-1); 
 				var point = getWorldIntersectFromNDCxy(camera_list[i].camera, NDC_position, m_scene_models);
 				if(point !=null)
 					camera_list[i].rays.push(point);

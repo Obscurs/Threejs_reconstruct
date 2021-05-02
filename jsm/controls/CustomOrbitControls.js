@@ -150,7 +150,6 @@ var OrbitControls = function ( object, domElement ) {
 		var twoPI = 2 * Math.PI;
 
 		return function update() {
-
 			var position = scope.object.position;
 
 			offset.copy( position ).sub( scope.target );
@@ -209,15 +208,16 @@ var OrbitControls = function ( object, domElement ) {
 
 			spherical.makeSafe();
 
-
+			
 			if(scale < 1)
 			{
-				if(spherical.radius < 0.1)
+				console.log(scale)
+				if(spherical.radius < scope.minDistance + 1)
 				{
 					var direction = new Vector3();
 					scope.object.getWorldDirection( direction );
-					scope.object.position.add(direction.multiplyScalar( scale*0.05 ))
-					scope.target.add( direction.multiplyScalar( scale*0.05 ));
+					scope.object.position.add(direction.multiplyScalar( scale*0.5 ))
+					scope.target.add( direction.multiplyScalar( scale*0.5 ));
 					scope.object.lookAt( scope.target );
 				}
 				else
@@ -504,7 +504,7 @@ var OrbitControls = function ( object, domElement ) {
 
 			
 		if ( scope.object.isPerspectiveCamera ) {
-
+			console.log(dollyScale + " "+scale)
 			scale *= dollyScale;
 
 		} else if ( scope.object.isOrthographicCamera ) {

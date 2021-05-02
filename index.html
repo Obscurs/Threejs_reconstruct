@@ -243,12 +243,9 @@
 				candidatesFolder.add( m_gui_options, 'clustering_method' ).options( clustering_methods ).name( 'Cluster method' );
 				candidatesFolder.open();
 
-
-
-
-				//const clusterMethodFolder = m_gui.addFolder( 'Cluster method' );
-
 			}
+
+
 			function moveToCapturePosition(index_capture)
 			{
 				var captureCam = m_camera_list[index_capture].mesh
@@ -265,6 +262,8 @@
 				//m_controls_secondary.update()
 				m_controls.update()
 			}
+
+
 			function changeCaptureInView(index_capture)
 			{
 				m_has_any_secondary_capture = true
@@ -417,7 +416,6 @@
 
 			function showCollectionSprite(min_pos, max_pos, index_capture, order, sprites_to_remove = [], isShifting = false, opacity = 1)
 			{
-
 				var scale1 = (max_pos.x -min_pos.x)/m_camera_list[index_capture].width;
 				var scale2 = (max_pos.y -min_pos.y)/m_camera_list[index_capture].height;
 				var scale = Math.min(scale1, scale2);
@@ -448,14 +446,9 @@
 					if (index > -1) {
 					  sprites_to_remove.splice(index, 1);
 					}
-				}
-
-
-				
-					
-
-				
+				}	
 			}
+
 			function showCollection(min_pos, max_pos, index_collection, sprites_to_remove = [], isShifting = false, offsetAnim = 0)
 			{
 				var animOffset = 0;
@@ -796,11 +789,11 @@
 					const mesh = new THREE.Mesh( geometry, material );
 
 					mesh.applyMatrix4(m);
-					mesh.applyMatrix4(new THREE.Matrix4().makeScale(0.03, 0.03, 0.03))
+					//mesh.applyMatrix4(new THREE.Matrix4().makeScale(0.03, 0.03, 0.03))
 					mesh.castShadow = false;
 					mesh.receiveShadow = false;
 					mesh.material.opacity = 0.0; 
-					//m_scene.add( mesh );
+					m_scene.add( mesh );
 
 
 
@@ -809,7 +802,7 @@
 
 
 					//console.log("FOVS: "+fov_y + " "+fov_x)
-					var capture_camera = new THREE.PerspectiveCamera( fov_y*(180/Math.PI), element.width / element.height, 0.01, 10 );
+					var capture_camera = new THREE.PerspectiveCamera( fov_y*(180/Math.PI), element.width / element.height, 0.1, 100 );
 
 
 					capture_camera.position.set( mesh.position.x,mesh.position.y,mesh.position.z );
@@ -947,7 +940,7 @@
 						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
 					} );
 					const mesh = new THREE.Mesh( geometry, material );
-					mesh.scale.multiplyScalar( 0.03 );
+					//mesh.scale.multiplyScalar( 0.03 );
 					//mesh.rotation.x = - Math.PI / 2;
 					mesh.position.x = 0.0;
 					mesh.position.y = 0.0;
@@ -1426,14 +1419,14 @@
 				var start_y = m_models_values[m_gui_options.current_model].pos_y_cam_start
 				var start_z = m_models_values[m_gui_options.current_model].pos_z_cam_start
 
-				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.01, 10 );
+				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 100 );
 				m_camera.position.set( start_x,start_y,start_z );
 				//camera.position.set( 3,0.15,3 );
 				m_camera.name = "main_camera"
 				m_camera.up.set(0,0,1);
 				m_camera.layers.enable( 1 );
 
-				m_camera_capture = new THREE.PerspectiveCamera( 50.5, 4000 / 2950, 0.01, 10 );
+				m_camera_capture = new THREE.PerspectiveCamera( 50.5, 4000 / 2950, 0.1, 100 );
 				m_camera_capture.position.set( start_x,start_y,start_z );
 				m_cameraHelper = new THREE.CameraHelper(m_camera_capture);
 				m_scene.add(m_cameraHelper);
@@ -1458,8 +1451,8 @@
 						m_controls = new OrbitControls( m_camera, m_renderer.domElement );
 						m_controls.minPolarAngle =  - Infinity; // radians
 						m_controls.maxPolarAngle = Infinity; // radians
-						m_controls.minDistance = 0;
-						m_controls.maxDistance = 3;
+						m_controls.minDistance = 1;
+						m_controls.maxDistance = 30;
 						m_controls.minAzimuthAngle = - Infinity; // radians
 						m_controls.maxAzimuthAngle = Infinity; // radians
 
@@ -1975,61 +1968,20 @@
 			{
 				
 
-				DataLoader.precomputeRays(camera_list, rays_x, rays_y, iteration);
+				DataLoader.precomputeRays(m_camera_list, rays_x, rays_y, iteration);
 				m_application_state.count_precomputation_iterations = m_application_state.count_precomputation_iterations +1
 				if(m_application_state.count_precomputation_iterations == m_camera_list.length)
 				{
 					m_capture_rays_need_recomputation = false
-					DataLoader.precomputeCaptureSimilitude(camera_list);
-					DataLoader.savePrecomputedFile(camera_list)
+					DataLoader.precomputeCaptureSimilitude(m_camera_list);
+					DataLoader.savePrecomputedFile(m_camera_list)
 					m_application_state.precomputation_done = true
 					m_application_state.count_precomputation_iterations = 0
 				}
 				
 			}
 			
-			function computeSimilitudeForCams(cam1, cam2)
-			{
-				
-				var count_inside_rays_cam1 = 0
-				var count_inside_rays_cam2 = 0
-				var rate_cam1 = 0;
-				var rate_cam2 = 0;
-				for(var index_ray = 0; index_ray <cam1.rays.length; ++index_ray)
-				{
-					var projected = getNDCposFromWorld(cam2.camera, cam1.rays[index_ray])
-					/*var projected = new THREE.Vector3();
-					projected.copy(cam1.rays[index_ray])
-					projected.project(cam2.camera)
-					//console.log(projected)*/
-					if(projected.x > -1.0 && projected.x < 1.0 && projected.y > -1.0 && projected.y < 1.0)
-					{
-						//console.log("added " + index_cam)
-						count_inside_rays_cam1 = count_inside_rays_cam1 +1
-					}
-						
-				}
-				if(cam1.rays.length > 0)
-					rate_cam1 = count_inside_rays_cam1/cam1.rays.length;
-
-				for(var index_ray = 0; index_ray <cam2.rays.length; ++index_ray)
-				{
-					var projected = new THREE.Vector3();
-					projected.copy(cam2.rays[index_ray])
-					projected.project(cam1.camera)
-					//console.log(projected)
-					if(projected.x > -1.0 && projected.x < 1.0 && projected.y > -1.0 && projected.y < 1.0)
-					{
-						//console.log("added " + index_cam)
-						count_inside_rays_cam2 = count_inside_rays_cam2 +1
-					}
-						
-				}
-				if(cam2.rays.length > 0)
-					rate_cam2 = count_inside_rays_cam2/cam2.rays.length;
-
-				return (rate_cam1+rate_cam2)/2
-			}
+			
 		</script>
 	</body>
 </html>
