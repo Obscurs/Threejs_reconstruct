@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="en">
 	<head>
 		<title>culture heritage viewer</title>
@@ -8,7 +8,8 @@
 
 	</head>
 	<body>
-		<script src="modules/FileSaver.js"></script>
+
+ <script src="modules/FileSaver.js"></script>
 		<div id="info">
 			3D view
 		</div>
@@ -783,12 +784,20 @@
 					const material = new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } );
 
 					material.transparent = true;
-					material.opacity = 0.1; 
+					material.opacity = 0.3; 
 					//const mesh = new THREE.LineSegments( geometry, material );
 					//const mesh = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } ) );
 					const mesh = new THREE.Mesh( geometry, material );
+					var m2 = new THREE.Matrix4();
 
-					mesh.applyMatrix4(m);
+					m2.makeRotationX(THREE.Math.degToRad(-90))
+					m2.multiply(m)
+					mesh.applyMatrix4(m2);
+					//mesh.rotateX(THREE.Math.degToRad(90));
+					const myAxis = new THREE.Vector3(0, 1, 0);
+
+					// rotate the mesh 45 on this axis
+					//mesh.rotateOnWorldAxis(myAxis, THREE.Math.degToRad(90));
 					//mesh.applyMatrix4(new THREE.Matrix4().makeScale(0.03, 0.03, 0.03))
 					mesh.castShadow = false;
 					mesh.receiveShadow = false;
@@ -940,11 +949,15 @@
 						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
 					} );
 					const mesh = new THREE.Mesh( geometry, material );
+
+					var m2 = new THREE.Matrix4();
+					m2.makeRotationX(THREE.Math.degToRad(-90))
+
+					mesh.applyMatrix4(m2);
 					//mesh.scale.multiplyScalar( 0.03 );
 					//mesh.rotation.x = - Math.PI / 2;
-					mesh.position.x = 0.0;
-					mesh.position.y = 0.0;
-					mesh.position.z = 0.0;
+
+
 					
 					 
 
@@ -1423,7 +1436,7 @@
 				m_camera.position.set( start_x,start_y,start_z );
 				//camera.position.set( 3,0.15,3 );
 				m_camera.name = "main_camera"
-				m_camera.up.set(0,0,1);
+				//m_camera.up.set(0,0,1);
 				m_camera.layers.enable( 1 );
 
 				m_camera_capture = new THREE.PerspectiveCamera( 50.5, 4000 / 2950, 0.1, 100 );
@@ -1432,7 +1445,7 @@
 				m_scene.add(m_cameraHelper);
 				//camera.position.set( 3,0.15,3 );
 				
-				m_camera_capture.up.set(0,0,1);
+				//m_camera_capture.up.set(0,0,1);
 
 				if(!m_vr_mode)
 				{
@@ -1504,7 +1517,7 @@
 				m_application_state.views_swaped = false;
 				m_application_state.select_controls_enabled = false;
 				m_application_state.need_to_update_auto_detect = false;
-
+				m_application_state.inVR = false;
 				
 
 				m_min_pos = null;
@@ -1608,7 +1621,7 @@
 
 				m_stats = new Stats();
 				m_container.appendChild( m_stats.dom );
-				document.body.appendChild( VRButton.createButton( m_renderer ) );
+				document.body.appendChild( VRButton.createButton( m_renderer, m_application_state ) );
 				
 
 				createGUI();
@@ -1824,17 +1837,32 @@
 			}
 			function renderMainCamera(view_index, draw_border)
 			{
+
 				if(m_plane_image_secondary != null)
 					m_plane_image_secondary.material.uniforms.showTexture.value = m_gui_options.show_photo_enabled && m_gui_options.show_view_enabled && m_gui_options.show_camera_enabled;
+				
 				const left = Math.floor( window.innerWidth * m_views[view_index].left );
 				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
 				const width = Math.floor( window.innerWidth * m_views[view_index].width );
 				const height = Math.floor( window.innerHeight * m_views[view_index].height );
 
-				m_renderer.setViewport( left, bottom, width, height );
-				m_renderer.setScissor( left, bottom, width, height );
-				m_renderer.setScissorTest( true );
-				
+				if(!m_renderer.xr.isPresenting)
+				{
+					m_renderer.setViewport( left, bottom, width, height );
+					m_renderer.setScissor( left, bottom, width, height );
+					m_renderer.setScissorTest( true );
+
+
+				} else
+				{
+					m_renderer.setScissorTest( false );
+					/*m_renderer.xr.getCamera(m_camera).up.set(0,0,1);
+					m_renderer.xr.getCamera(m_camera).cameras[0].up.set(0,0,1); 
+					m_renderer.xr.getCamera(m_camera).cameras[1].up.set(0,0,1); */
+					//m_camera.up.set(0,0,1);
+
+
+				}
 
 				if(draw_border)
 				{
@@ -1850,6 +1878,8 @@
 			}
 			function renderSecondaryCamera(view_index, draw_border)
 			{
+				if(m_renderer.xr.isPresenting)
+					return;
 				m_cameraHelper.visible = false;
 				const left = Math.floor( window.innerWidth * m_views[view_index].left );
 				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
@@ -1911,6 +1941,8 @@
 			}
 			function renderClusters(view_index)
 			{
+				if(m_renderer.xr.isPresenting)
+					return;
 				m_renderer.clearDepth();
 				const left = Math.floor( window.innerWidth * m_views[view_index].left );
 				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
@@ -1983,5 +2015,7 @@
 			
 			
 		</script>
+
+		
 	</body>
 </html>

@@ -1,12 +1,12 @@
 class VRButton {
 
-	static createButton( renderer, options ) {
+	static createButton( renderer, app_state ) {
 
-		if ( options ) {
+		/*if ( options ) {
 
 			console.error( 'THREE.VRButton: The "options" parameter has been removed. Please set the reference space type via renderer.xr.setReferenceSpaceType() instead.' );
 
-		}
+		}*/
 
 		const button = document.createElement( 'button' );
 
@@ -15,10 +15,10 @@ class VRButton {
 			let currentSession = null;
 
 			async function onSessionStarted( session ) {
-
 				session.addEventListener( 'end', onSessionEnded );
 
 				await renderer.xr.setSession( session );
+				renderer.inVR = true;
 				button.textContent = 'EXIT VR';
 
 				currentSession = session;
@@ -26,9 +26,8 @@ class VRButton {
 			}
 
 			function onSessionEnded( /*event*/ ) {
-
 				currentSession.removeEventListener( 'end', onSessionEnded );
-
+				renderer.inVR = false;
 				button.textContent = 'ENTER VR';
 
 				currentSession = null;
@@ -60,7 +59,6 @@ class VRButton {
 			button.onclick = function () {
 
 				if ( currentSession === null ) {
-
 					// WebXR's requestReferenceSpace only works if the corresponding feature
 					// was requested at session creation time. For simplicity, just ask for
 					// the interesting ones as optional features, but be aware that the
@@ -74,6 +72,7 @@ class VRButton {
 				} else {
 
 					currentSession.end();
+					button.inVR = false;
 
 				}
 

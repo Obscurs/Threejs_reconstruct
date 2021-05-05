@@ -211,7 +211,6 @@ var OrbitControls = function ( object, domElement ) {
 			
 			if(scale < 1)
 			{
-				console.log(scale)
 				if(spherical.radius < scope.minDistance + 1)
 				{
 					var direction = new Vector3();
@@ -504,7 +503,6 @@ var OrbitControls = function ( object, domElement ) {
 
 			
 		if ( scope.object.isPerspectiveCamera ) {
-			console.log(dollyScale + " "+scale)
 			scale *= dollyScale;
 
 		} else if ( scope.object.isOrthographicCamera ) {

@@ -15,6 +15,7 @@ var m_camera_mesh_list = [];
 var m_scene_models = [];
 var m_current_candidates = [];
 var m_current_candidates_collections = [];
+var m_group;
 
 var m_controls;
 var m_controls_secondary;
@@ -59,6 +60,7 @@ var m_application_state =
 	views_swaped: false,
 	select_controls_enabled: false,
 	need_to_update_auto_detect: true,
+	inVR: false,
 }
 var m_debug = 
 {
@@ -70,25 +72,25 @@ m_models_values["doma"] ={
 	path: "doma", 
 	texture_name: "doma-interior_texture16k.jpg",
 	mesh_name: "doma-interior_textured.ply",
-	pos_x_cam_start: 11*0.03,
-	pos_y_cam_start: -20*0.03,
-	pos_z_cam_start: 2*0.03,
+	pos_x_cam_start: 11.62,
+	pos_y_cam_start: -0.137,
+	pos_z_cam_start: 17.99,
 }
 m_models_values["pedret"] ={
 	path: "pedret", 
 	texture_name: "pedret-interior_meshed_tex.png",
 	mesh_name: "pedret-interior_meshed_simplified.ply",
-	pos_x_cam_start: 0.0681,
-	pos_y_cam_start: 0.0920,
-	pos_z_cam_start: 0.0327,
+	pos_x_cam_start: 2.27,
+	pos_y_cam_start: 0.58,
+	pos_z_cam_start: -4.89,
 }
 m_models_values["solsona"] ={
 	path: "solsona", 
 	texture_name: "solsona_meshed_tex.jpg",
 	mesh_name: "solsona_meshed_simplified.ply",
-	pos_x_cam_start: 0.329,
-	pos_y_cam_start: -0.545,
-	pos_z_cam_start: 0.0307,
+	pos_x_cam_start: 8.29,
+	pos_y_cam_start: 0.73,
+	pos_z_cam_start: 16.72,
 }
 
 
