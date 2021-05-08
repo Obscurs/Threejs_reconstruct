@@ -1,6 +1,8 @@
 let m_container, m_stats, m_gui;
-let m_camera, m_camera_capture, m_camera_capture_orto, m_scene, m_scene_collections, m_scene_capture, m_camera_collections, m_renderer, m_context;
-
+let m_camera, m_camera_capture, m_camera_capture_orto, m_scene, m_scene_collections, m_scene_capture, m_camera_collections, m_renderer, m_context, m_vr_panels_group;
+let m_controller1, m_controller2;
+let m_controllerGrip1, m_controllerGrip2;
+let m_camera_group;
 const AppStates =
 {
 	THREE_JS_INIT: "init_state",
@@ -68,30 +70,7 @@ var m_debug =
 }
 
 const m_models_values = []
-m_models_values["doma"] ={
-	path: "doma", 
-	texture_name: "doma-interior_texture16k.jpg",
-	mesh_name: "doma-interior_textured.ply",
-	pos_x_cam_start: 11.62,
-	pos_y_cam_start: -0.137,
-	pos_z_cam_start: 17.99,
-}
-m_models_values["pedret"] ={
-	path: "pedret", 
-	texture_name: "pedret-interior_meshed_tex.png",
-	mesh_name: "pedret-interior_meshed_simplified.ply",
-	pos_x_cam_start: 2.27,
-	pos_y_cam_start: 0.58,
-	pos_z_cam_start: -4.89,
-}
-m_models_values["solsona"] ={
-	path: "solsona", 
-	texture_name: "solsona_meshed_tex.jpg",
-	mesh_name: "solsona_meshed_simplified.ply",
-	pos_x_cam_start: 8.29,
-	pos_y_cam_start: 0.73,
-	pos_z_cam_start: 16.72,
-}
+
 
 
 const m_views = [
@@ -117,27 +96,21 @@ const m_views = [
 		border_size: 2.0,
 	}
 ];
-var m_gui_options =
+
+var m_vr_move_utils = 
 {
-	projection: 0,
-	orientation: 5,
-	position: 1,
-	timer_recalc: 1,
-
-	max_num_collections: 7,
-	max_collection_size: 5,
-	similitude_treshold: 0.7,
-	discard_too_similar: true,
-	clustering_method: 'normal',
-	linkage_enabled: true,
-
-	red_area_enabled: false,
-	show_camera_enabled: false,
-	show_view_enabled: false,
-	show_photo_enabled: false,
-	project_capture_enabled: false,
-	auto_score_enabled: false,
-
-	current_model: "pedret",
-
+	g: null,
+	tempVec: null,
+	tempVec1: null,
+	tempVecP: null,
+	tempVecV: null,
+	guidingController: null,
+	guidelight: null,
+	guideline: null,
+	lineGeometryVertices: null,
+	lineSegments: null,
+	guidesprite: null,
+	vrguiEnabled: null,
+	vrgui: null,
+	lastFrameInVR: false,
 }

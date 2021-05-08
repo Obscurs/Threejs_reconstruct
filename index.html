@@ -160,7 +160,7 @@
 			import * as THREE from '../build/three.module.js';
 
 			import Stats from './jsm/libs/stats.module.js';
-			import { GUI } from './jsm/libs/dat.gui.module.js';
+			
 			import { PLYLoader } from './jsm/loaders/PLYLoader.js';
 
 			import { OrbitControls } from './jsm/controls/CustomOrbitControls.js';
@@ -172,7 +172,13 @@
 			import { XRControllerModelFactory } from './jsm/webxr/XRControllerModelFactory.js';
 			import { DataLoader } from './scripts/DataLoader.js';
 			import { compareSimilitudes, compareCandidates, compareCanditateIndices} from './scripts/compareFuncs.js';
-			import { getWorldIntersectFromNDCxy, getNDCposFromWorld} from './scripts/utils.js';
+			import { getWorldIntersectFromNDCxy, getNDCposFromWorld, positionAtT} from './scripts/utils.js';
+
+			import { ModelInfo} from './scripts/ModelInfo.js';
+			import { CameraInfo} from './scripts/CameraInfo.js';
+			import { GUI } from './../jsm/libs/dat.gui.module.js';
+			//import { Application} from './scripts/Application.js';
+			import { Gui} from './scripts/Gui.js';
 			//import { saveAs } from './modules/FileSaver.js';
 
 			const m_clock = new THREE.Clock();
@@ -183,69 +189,6 @@
 			init();
 
 			
-
-
-			function createGUI()
-			{
-				// expressions
-
-				m_gui = new GUI();
-
-				const models = [ 'pedret', 'doma','solsona'];
-
-				const modelsFolder = m_gui.addFolder( 'Models' );
-
-				modelsFolder.add( m_gui_options, 'current_model' ).options( models ).name( 'Current model' ).onChange( function () {
-					startSceneForModel();
-				} );
-
-				modelsFolder.open();
-
-				const scoreFolder = m_gui.addFolder( 'Score computation' );
-
-
-				scoreFolder.add(m_gui_options, 'projection', 0, 10, 0.1 ).name( 'Projection' );
-				scoreFolder.add(m_gui_options, 'position', 0, 10, 0.1 ).name( 'Position' );
-				scoreFolder.add(m_gui_options, 'orientation', 0, 10, 0.1 ).name( 'Orientation' );
-				scoreFolder.add(m_gui_options, 'timer_recalc', 0, 10, 0.1 ).name( 'Recalc timer' );
-
-				scoreFolder.open();
-
-				const viewFolder = m_gui.addFolder( 'Display options' );
-
-
-				viewFolder.add(m_gui_options, 'red_area_enabled').name( 'Show area' );
-				viewFolder.add(m_gui_options, 'show_camera_enabled').name( 'Show camera' );
-				viewFolder.add(m_gui_options, 'show_photo_enabled').name( 'Show photo' );
-				viewFolder.add(m_gui_options, 'project_capture_enabled').name( 'Show projection' );
-				viewFolder.add(m_gui_options, 'show_view_enabled').name( 'Show view' ).onChange(function ()
-					{
-						if(m_gui_options.show_view_enabled)
-						{
-							document.getElementById("info2").style.visibility = "visible";
-						}
-						else
-						{
-							document.getElementById("info2").style.visibility = "hidden";
-						}
-					});
-				viewFolder.add(m_gui_options, 'auto_score_enabled').name( 'Auto-detect' );
-				viewFolder.open();
-
-
-				const candidatesFolder = m_gui.addFolder( 'Candidate selection' );
-
-				const clustering_methods = [ 'normal', 'single_linkage'];
-
-				candidatesFolder.add(m_gui_options, 'max_num_collections', 0, 20, 1 ).name( 'Max num collection' );
-				candidatesFolder.add(m_gui_options, 'max_collection_size', 0, 20, 1 ).name( 'Max size collection' );
-				candidatesFolder.add(m_gui_options, 'similitude_treshold', 0, 1, 0.01 ).name( 'Similitude treshold' );
-				//candidatesFolder.add(m_gui_options, 'linkage_enabled').name( 'Linkage clustering' );
-				candidatesFolder.add( m_gui_options, 'clustering_method' ).options( clustering_methods ).name( 'Cluster method' );
-				candidatesFolder.open();
-
-			}
-
 
 			function moveToCapturePosition(index_capture)
 			{
@@ -293,7 +236,7 @@
 
 				var texture_low, material, plane, plane_rt;
 
-				texture_low = THREE.ImageUtils.loadTexture( "models/"+m_models_values[m_gui_options.current_model].path+"/thumbnails/"+m_camera_list[index_capture].name );
+				texture_low = THREE.ImageUtils.loadTexture( "models/"+m_models_values[m_gui.gui_options.current_model].path+"/thumbnails/"+m_camera_list[index_capture].name );
 
 				viewMat.copy(m_camera_capture.matrixWorldInverse);
 				projMat.copy(m_camera_capture.projectionMatrix)
@@ -307,7 +250,7 @@
 				var tex_name = m_camera_list[index_capture].name
 				loader.load(
 					// resource URL
-					"models/"+m_models_values[m_gui_options.current_model].path+"/captures/"+m_camera_list[index_capture].name,
+					"models/"+m_models_values[m_gui.gui_options.current_model].path+"/captures/"+m_camera_list[index_capture].name,
 
 					// onLoad callback
 					function ( texture_high ) {
@@ -579,7 +522,7 @@
 				{
 					var keyCode = event.which;
 				    if (keyCode == 82) { //R
-				        resetCamera();
+				        resetCamera("ORBIT");
 				    /*} else if (keyCode == 77) { //M
 				        changeMode();*/
 				    /*}  else if (keyCode == 67) { //C
@@ -673,7 +616,7 @@
 				}
 				else
 				{
-					if(m_gui_options.show_view_enabled)
+					if(m_gui.gui_options.show_view_enabled)
 					{
 						var mouseWindwNorm = new THREE.Vector3( ( event.clientX / window.innerWidth ),   
 				                                    1-( event.clientY / window.innerHeight ),  
@@ -785,8 +728,8 @@
 
 					material.transparent = true;
 					material.opacity = 0.3; 
-					//const mesh = new THREE.LineSegments( geometry, material );
-					//const mesh = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } ) );
+					//const mesh = new THREE.m_vr_move_utils.LineSegments( geometry, material );
+					//const mesh = new THREE.m_vr_move_utils.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } ) );
 					const mesh = new THREE.Mesh( geometry, material );
 					var m2 = new THREE.Matrix4();
 
@@ -831,7 +774,7 @@
 					
 					////////////////////////
 
-					const texture_sprite = new THREE.TextureLoader().load( 'models/'+m_models_values[m_gui_options.current_model].path+'/thumbnails/'+element.name);
+					const texture_sprite = new THREE.TextureLoader().load( 'models/'+m_models_values[m_gui.gui_options.current_model].path+'/thumbnails/'+element.name);
 					//const material_sprite = new THREE.SpriteMaterial( { map: texture_sprite } );
 
 					let uniformsSprite = {
@@ -860,19 +803,17 @@
 					//m_scene.add( sprite );
 
 
-					var new_camera = {
-						name: element.name,
-						width: element.width,
-						height: element.height,
-						matrix: m,
-						focal: element.f,
-						mesh: mesh,
-						sprite: sprite,
-						camera: capture_camera,
-						similitudes: [],
-						similitudes_indices_ordered: [],
-						rays: [],
-					}
+					var new_camera = new CameraInfo(
+						element.name,
+						element.width,
+						element.height,
+						m,
+						element.f,
+						mesh,
+						sprite,
+						capture_camera
+					);
+					
 					m_camera_list.push(new_camera);
 					/*var loader2 = new THREE.TextureLoader();
 					var texture = loader2.load( "./thumbnails/"+element.name, function ( tex ) {
@@ -939,7 +880,7 @@
 				        showRedArea: {type: 'bool', value: false},
 				        projectCapture: {type: 'bool', value: false},
 				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
-				        texture1: { type: "t", value: loaderTex.load('./models/'+model.path+'/textures/'+m_models_values[m_gui_options.current_model].texture_name) },
+				        texture1: { type: "t", value: loaderTex.load('./models/'+model.path+'/textures/'+m_models_values[m_gui.gui_options.current_model].texture_name) },
 				        texture2: { type: "t", value: null },
 				    }
 					const material = new THREE.ShaderMaterial( { 
@@ -980,8 +921,16 @@
 			
 			function loadModels()
 			{
-				m_application_state.num_models_to_load = 1
-				loadModel(m_models_values[m_gui_options.current_model]);
+				m_application_state.num_models_to_load = 2
+				loadModel(m_models_values[m_gui.gui_options.current_model]);
+
+				const loader = new PLYLoader();
+				 loader.load( './assets/arrow.ply', function ( geometry ) {
+					const material = new THREE.MeshBasicMaterial( { color: 0xffffff} );
+					m_vr_move_utils.guidesprite = new THREE.Mesh( geometry, material );
+					console.log(m_vr_move_utils.guidesprite)
+					m_application_state.num_models_loaded +=1
+				})
 				//m_scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
 
 				//addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
@@ -989,10 +938,7 @@
 
 
 			}
-			function resetCamera()
-			{
-				initControls(m_camera_mode)
-			}
+
 			function toggleEnableCams()
 			{
 				m_cams_enabled = !m_cams_enabled;
@@ -1108,16 +1054,16 @@
 				}
 				else
 				{
-					if(m_gui_options.position)
+					if(m_gui.gui_options.position)
 						distanceScore = getScorePosition(index_cam);
-					if(m_gui_options.orientation)
+					if(m_gui.gui_options.orientation)
 						orientationScore = getScoreRotation(index_cam);
-					if(m_gui_options.projection)
+					if(m_gui.gui_options.projection)
 						raysScore = getScoreRays(index_cam, intersectsCamera,-1,1,-1,1);
 
 					m_camera_list[index_cam].sprite.material.uniforms.minSel.value = new THREE.Vector2(0.0,0.0);
 					m_camera_list[index_cam].sprite.material.uniforms.maxSel.value = new THREE.Vector2(0.0,0.0);
-					return distanceScore*m_gui_options.position + orientationScore*m_gui_options.orientation + raysScore*m_gui_options.projection;
+					return distanceScore*m_gui.gui_options.position + orientationScore*m_gui.gui_options.orientation + raysScore*m_gui.gui_options.projection;
 				}
 
 				
@@ -1313,30 +1259,17 @@
 						}
 						current_collection_index = current_collection_index +1
 					}
-					else if(m_current_candidates_collections.length >= m_gui_options.max_num_collections)
+					else if(m_current_candidates_collections.length >= m_gui.gui_options.max_num_collections)
 						break;
 				}
 			}
 			function updateCandidateCollections()
 			{
-				if(m_gui_options.clustering_method == 'single_linkage')
-					singleLinkageClustering(m_gui_options.max_num_collections, m_gui_options.max_collection_size);
+				if(m_gui.gui_options.clustering_method == 'single_linkage')
+					singleLinkageClustering(m_gui.gui_options.max_num_collections, m_gui.gui_options.max_collection_size);
 				else
-					basicClustering(m_gui_options.max_num_collections, m_gui_options.max_collection_size, m_gui_options.similitude_treshold);
-				/*switch(m_gui_options.linkage_enabled)
-				{
-					case false:
-					{
-						singleLinkageClustering(m_gui_options.max_num_collections, m_gui_options.max_collection_size);
-						break;
-					}
-					
-					case true:
-					{
-						basicClustering(m_gui_options.max_num_collections, m_gui_options.max_collection_size, m_gui_options.similitude_treshold);
-						break;
-					}
-				}*/
+					basicClustering(m_gui.gui_options.max_num_collections, m_gui.gui_options.max_collection_size, m_gui.gui_options.similitude_treshold);
+				
 				
 
 			}
@@ -1416,10 +1349,19 @@
 					m_camera_mode = "FLY"
 				initControls(m_camera_mode)
 			}*/
-			function initControls(mode)
+
+			function resetCamera(mode)
 			{
+				if(m_camera)
+				{
+					m_camera_group.remove(m_camera)
+				}
+				if(m_cameraHelper)
+				{
+					m_scene.remove(m_cameraHelper)
+				}
 
-
+				console.log("RESET CAMERA")
 				m_camera_capture_orto = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 0, 10);
 
 				//m_scene_capture.add(m_camera_capture_orto);
@@ -1428,75 +1370,64 @@
 				//m_scene_collections.add(m_camera_collections);
 
 
-				var start_x = m_models_values[m_gui_options.current_model].pos_x_cam_start
-				var start_y = m_models_values[m_gui_options.current_model].pos_y_cam_start
-				var start_z = m_models_values[m_gui_options.current_model].pos_z_cam_start
+				var start_x = m_models_values[m_gui.gui_options.current_model].pos_x_cam_start
+				var start_y = m_models_values[m_gui.gui_options.current_model].pos_y_cam_start
+				var start_z = m_models_values[m_gui.gui_options.current_model].pos_z_cam_start
 
 				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 100 );
+				
 				m_camera.position.set( start_x,start_y,start_z );
 				//camera.position.set( 3,0.15,3 );
 				m_camera.name = "main_camera"
 				//m_camera.up.set(0,0,1);
-				m_camera.layers.enable( 1 );
+				//m_camera.layers.enable( 1 );
+				
+				
 
 				m_camera_capture = new THREE.PerspectiveCamera( 50.5, 4000 / 2950, 0.1, 100 );
 				m_camera_capture.position.set( start_x,start_y,start_z );
 				m_cameraHelper = new THREE.CameraHelper(m_camera_capture);
-				m_scene.add(m_cameraHelper);
+				
 				//camera.position.set( 3,0.15,3 );
 				
 				//m_camera_capture.up.set(0,0,1);
 
-				if(!m_vr_mode)
+
+
+				if(mode == "ORBIT")
 				{
-					if(mode == "FLY")
-					{
-						m_controls = new FlyControls( m_camera, m_renderer.domElement );
-						m_controls.movementSpeed = 10;
-						m_controls.domElement = m_renderer.domElement;
-						m_controls.rollSpeed = Math.PI / 12;
-						m_controls.autoForward = false;
-						m_controls.dragToLook = false;
-					}
-					else if(mode == "ORBIT")
-					{
 
-						m_controls = new OrbitControls( m_camera, m_renderer.domElement );
-						m_controls.minPolarAngle =  - Infinity; // radians
-						m_controls.maxPolarAngle = Infinity; // radians
-						m_controls.minDistance = 1;
-						m_controls.maxDistance = 30;
-						m_controls.minAzimuthAngle = - Infinity; // radians
-						m_controls.maxAzimuthAngle = Infinity; // radians
+					m_controls = new OrbitControls( m_camera, m_renderer.domElement );
+					m_controls.minPolarAngle =  - Infinity; // radians
+					m_controls.maxPolarAngle = Infinity; // radians
+					m_controls.minDistance = 1;
+					m_controls.maxDistance = 30;
+					m_controls.minAzimuthAngle = - Infinity; // radians
+					m_controls.maxAzimuthAngle = Infinity; // radians
 
-						m_controls.target.set(-1*0.03,start_y,2*0.03)
+					m_controls.target.set(-1*0.03,start_y,2*0.03)
 
-						
-						m_controls_secondary = new OrbitControls( m_camera_capture_orto, m_renderer.domElement );
-						m_controls_secondary.minPolarAngle =  - Infinity; // radians
-						m_controls_secondary.maxPolarAngle = Infinity; // radians
-						m_controls_secondary.minDistance = 0;
-						m_controls_secondary.maxDistance = 3;
-						m_controls_secondary.minAzimuthAngle = - Infinity; // radians
-						m_controls_secondary.maxAzimuthAngle = Infinity; // radians
-						m_controls_secondary.enabled = false;
+					
+					m_controls_secondary = new OrbitControls( m_camera_capture_orto, m_renderer.domElement );
+					m_controls_secondary.minPolarAngle =  - Infinity; // radians
+					m_controls_secondary.maxPolarAngle = Infinity; // radians
+					m_controls_secondary.minDistance = 0;
+					m_controls_secondary.maxDistance = 3;
+					m_controls_secondary.minAzimuthAngle = - Infinity; // radians
+					m_controls_secondary.maxAzimuthAngle = Infinity; // radians
+					m_controls_secondary.enabled = false;
 
-					}
-					else if(mode == "TRACK")
-					{
-						m_controls = new TrackballControls( m_camera, m_renderer.domElement );
-						m_controls.rotateSpeed = 1.0;
-						m_controls.zoomSpeed = 0.6;
-						m_controls.panSpeed = 0.2;
-
-						m_controls.keys = [ 65, 83, 68 ];
-						m_controls.target.set(-1*0.03,-20*0.03,2*0.03)
-					}
-					else
-					{
-						console.log("ERROR, mode "+mode+ " not found");
-					}
 				}
+				m_camera_group.position.set(0,0,0)
+
+				m_camera_group.add(m_camera)
+				m_scene.add(m_cameraHelper);
+				//m_scene.add(m_camera_group);
+			}
+			function initControls(mode)
+			{
+				resetCamera(mode)
+				m_scene.add(m_camera_group);
 			}
 
 			function clearSceneData()
@@ -1549,12 +1480,24 @@
 				while(m_scene_capture.children.length > 0){ 
 				    m_scene_capture.remove(m_scene_capture.children[0]); 
 				}
+				if(m_vr_panels_group)
+				{
+					while(m_vr_panels_group.children.length > 0){ 
+					    m_vr_panels_group.remove(m_vr_panels_group.children[0]); 
+					}
+				}
+				
 				
 			}
 			function startSceneForModel()
 			{
 
 				clearSceneData()
+				m_vr_panels_group = new THREE.Group();
+				m_camera_group = new THREE.Group()
+				m_camera_group.add(m_vr_panels_group)
+				//m_scene.add(m_vr_panels_group)
+				initVR();
 				document.getElementById("loadingTextContainer").style.visibility = "visible";
 				var xmlhttp = new XMLHttpRequest();
 				xmlhttp.onreadystatechange = function() {
@@ -1565,21 +1508,195 @@
 				        //setDefaultColorsCameras();
 				    }
 				};
-				xmlhttp.open("GET", 'models/'+m_models_values[m_gui_options.current_model].path+"/capture_info/cameraInfo.json", true);
+				xmlhttp.open("GET", 'models/'+m_models_values[m_gui.gui_options.current_model].path+"/capture_info/cameraInfo.json", true);
 				console.log("INFO: Capture info json loading...")
 				xmlhttp.send();
 
 				loadModels();
 				initControls(m_camera_mode)
-
+				m_gui.initInteractiveGroup(m_renderer, m_camera, m_scene, m_vr_panels_group, m_vr_move_utils)
 				
 
 				m_application_state.three_js_inited = true
 				animate();
 			}
+			function buildController( data ) {
+
+				let geometry, material;
+
+				switch ( data.targetRayMode ) {
+
+					case 'tracked-pointer':
+
+						geometry = new THREE.BufferGeometry();
+						geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
+						geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( [ 0.5, 0.5, 0.5, 0, 0, 0 ], 3 ) );
+
+						material = new THREE.LineBasicMaterial( { vertexColors: true, blending: THREE.AdditiveBlending } );
+
+						return new THREE.Line( geometry, material );
+
+					case 'gaze':
+
+						geometry = new THREE.RingGeometry( 0.02, 0.04, 32 ).translate( 0, 0, - 1 );
+						material = new THREE.MeshBasicMaterial( { opacity: 0.5, transparent: true } );
+						return new THREE.Mesh( geometry, material );
+
+				}
+
+			}
+			function getFloorFromPos(position)
+			{
+				var auxPos = new THREE.Vector3(position.x,100 ,position.z)
+				var auxUp = new THREE.Vector3(0,-1,0)
+				var raycasterFloor =  new THREE.Raycaster(auxPos, auxUp);    
+				var intersectsFloor = raycasterFloor.intersectObjects( m_scene_models );  
+				if(intersectsFloor.length > 0)
+				{
+					return intersectsFloor[0].point.y
+				}
+				else
+				{
+					return m_models_values[m_gui.gui_options.current_model].vr_y
+				}
+			}
+			function moveVRCam(offset)
+			{
+				m_camera_group.position.add(offset)
+			}
+			function initVR()
+			{
+				function onSelectStartLeft() {
+					if(m_vr_move_utils.guidingController != null)
+						return
+					m_vr_move_utils.vrguiEnabled = true
+					m_gui.enableVRgui()
+				}
+				function onSelectEndLeft() {
+					if(m_vr_move_utils.vrguiEnabled)
+						m_gui.disableVRgui()
+					m_vr_move_utils.vrguiEnabled = false
+				}
+				function onSelectStartRight() {
+					if(m_vr_move_utils.vrguiEnabled)
+						return
+				    m_vr_move_utils.guidingController = this;
+				    m_vr_move_utils.guidelight.intensity = 1;
+				    this.add(m_vr_move_utils.guideline);
+				    m_scene.add(m_vr_move_utils.guidesprite);
+				}
+
+				function onSelectEndRight() {
+				    if (m_vr_move_utils.guidingController === this) {
+
+				        // first work out vector from feet to cursor
+
+				        // feet position
+				        const feetPos = m_renderer.xr.getCamera(m_camera).getWorldPosition(m_vr_move_utils.tempVec);
+				        feetPos.y = m_camera_group.position.y;
+
+				        // cursor position
+				        const p = m_vr_move_utils.guidingController.getWorldPosition(m_vr_move_utils.tempVecP);
+				        const v = m_vr_move_utils.guidingController.getWorldDirection(m_vr_move_utils.tempVecV);
+				        v.multiplyScalar(6);
+				        var offsety =  -m_camera_group.position.y;
+				        const t = (-v.y+offsety  + Math.sqrt((v.y+offsety)**2 - 2*(p.y+offsety)*m_vr_move_utils.g.y))/m_vr_move_utils.g.y;
+				        var cursorPos = positionAtT(m_vr_move_utils.tempVec1,t,p,v,m_vr_move_utils.g);
+				        //cursorPos.y = m_camera_group.position.y+1
+				        cursorPos.y = getFloorFromPos(cursorPos)
+				        // Offset
+				        const offset = cursorPos.addScaledVector(feetPos ,-1);
+
+				        // Do the locomotion
+				        //locomotion(offset);
+				        moveVRCam(offset)
+				        // clean up
+				        m_vr_move_utils.guidingController = null;
+				        m_vr_move_utils.guidelight.intensity = 0;
+				        this.remove(m_vr_move_utils.guideline);
+				        m_scene.remove(m_vr_move_utils.guidesprite);
+				    }
+				}
+				m_controller1 = m_renderer.xr.getController( 0 );
+				m_controller1.addEventListener( 'selectstart', onSelectStartRight );
+				m_controller1.addEventListener( 'selectend', onSelectEndRight );
+				m_controller1.addEventListener( 'connected', function ( event ) {
+					this.add( buildController( event.data ) );
+
+				} );
+				m_controller1.addEventListener( 'disconnected', function () {
+					this.remove( this.children[ 0 ] );
+
+				} );
+				m_camera_group.add( m_controller1 );
+
+				m_controller2 = m_renderer.xr.getController( 1 );
+				m_controller2.addEventListener( 'selectstart', onSelectStartLeft );
+				m_controller2.addEventListener( 'selectend', onSelectEndLeft );
+				m_controller2.addEventListener( 'connected', function ( event ) {
+					this.add( buildController( event.data ) );
+
+				} );
+				m_controller2.addEventListener( 'disconnected', function () {
+					this.remove( this.children[ 0 ] );
+
+				} );
+				m_camera_group.add( m_controller2 );
+
+				const controllerModelFactory = new XRControllerModelFactory();
+
+				m_controllerGrip1 = m_renderer.xr.getControllerGrip( 0 );
+				m_controllerGrip1.add( controllerModelFactory.createControllerModel( m_controllerGrip1 ) );
+				m_camera_group.add( m_controllerGrip1 );
+
+				m_controllerGrip2 = m_renderer.xr.getControllerGrip( 1 );
+				m_controllerGrip2.add( controllerModelFactory.createControllerModel( m_controllerGrip2 ) );
+				m_camera_group.add( m_controllerGrip2 );
+				
+				//
+
+				m_vr_move_utils.g = new THREE.Vector3(0,-9.8,0);
+				m_vr_move_utils.tempVec = new THREE.Vector3();
+				m_vr_move_utils.tempVec1 = new THREE.Vector3();
+				m_vr_move_utils.tempVecP = new THREE.Vector3();
+				m_vr_move_utils.tempVecV = new THREE.Vector3();
+
+				// The m_vr_move_utils.guideline
+				m_vr_move_utils.lineSegments=10;
+				const lineGeometry = new THREE.BufferGeometry();
+				m_vr_move_utils.lineGeometryVertices = new Float32Array((m_vr_move_utils.lineSegments +1) * 3);
+				m_vr_move_utils.lineGeometryVertices.fill(0);
+				const lineGeometryColors = new Float32Array((m_vr_move_utils.lineSegments +1) * 3);
+				lineGeometryColors.fill(0.5);
+				lineGeometry.setAttribute('position', new THREE.BufferAttribute(m_vr_move_utils.lineGeometryVertices, 3));
+				lineGeometry.setAttribute('color', new THREE.BufferAttribute(lineGeometryColors, 3));
+				const lineMaterial = new THREE.LineBasicMaterial({ vertexColors: true, blending: THREE.AdditiveBlending });
+				m_vr_move_utils.guideline = new THREE.Line( lineGeometry, lineMaterial );
+
+				// The light at the end of the line
+				m_vr_move_utils.guidelight = new THREE.PointLight(0xffeeaa, 0, 2);
+
+				// The target on the ground
+				/*const guidespriteTexture = new THREE.TextureLoader().load('./assets/target.png');
+				m_vr_move_utils.guidesprite = new THREE.Mesh(
+				    new THREE.PlaneGeometry(0.3, 0.3, 1, 1),
+				    new THREE.MeshBasicMaterial({
+				        map: guidespriteTexture,
+				        blending: THREE.AdditiveBlending,
+				        color: 0x555555,
+				        transparent: true
+				    })
+				);*/
+				
+					
+
+			}
 			function init() {
 
-				
+
+				m_models_values["doma"] = new ModelInfo("doma" ,"doma-interior_texture16k.jpg", "doma-interior_textured.ply", 11.62, -0.137, 17.99, -1)
+				m_models_values["pedret"] = new ModelInfo("pedret" ,"pedret-interior_meshed_tex.png", "pedret-interior_meshed_simplified.ply", 2.27, 0.58, -4.89,-1)
+				m_models_values["solsona"] = new ModelInfo("solsona" ,"solsona_meshed_tex.jpg", "solsona_meshed_simplified.ply", 8.29, 0.73, 16.72,-1)
 				m_container = document.createElement( 'div' );
 				//const canvas = document.getElementById( 'canvas' );
 				//canvas.width = 300 * window.devicePixelRatio;
@@ -1624,11 +1741,18 @@
 				document.body.appendChild( VRButton.createButton( m_renderer, m_application_state ) );
 				
 
-				createGUI();
+				m_gui = new Gui();
+
+				
 
 				m_selection_rectangle.selectionBox = new SelectionBox( m_camera, m_scene );
 				m_selection_rectangle.helper = new SelectionHelper( m_selection_rectangle.selectionBox, m_renderer, 'selectBox' );
 				m_selection_rectangle.helper.element.hidden = true;
+
+
+
+
+
 
 				window.addEventListener( 'resize', onWindowResize );
 				
@@ -1663,32 +1787,6 @@
 				
 			}
 
-			function addShadowedLight( x, y, z, color, intensity ) {
-
-				const directionalLight = new THREE.DirectionalLight( color, intensity );
-				directionalLight.position.set( x, y, z );
-				m_scene.add( directionalLight );
-
-				directionalLight.castShadow = true;
-
-				const d = 1;
-				directionalLight.shadow.camera.left = - d;
-				directionalLight.shadow.camera.right = d;
-				directionalLight.shadow.camera.top = d;
-				directionalLight.shadow.camera.bottom = - d;
-
-				directionalLight.shadow.camera.near = 1;
-				directionalLight.shadow.camera.far = 4;
-
-				directionalLight.shadow.mapSize.width = 1024;
-				directionalLight.shadow.mapSize.height = 1024;
-
-				directionalLight.shadow.bias = - 0.001;
-
-			}
-
-
-
 			function onWindowResize() {
 
 				m_camera.aspect = window.innerWidth / window.innerHeight;
@@ -1717,8 +1815,54 @@
 				showCollections()
 
 			}
+			function updateVR()
+			{
+				if (m_vr_move_utils.guidingController) {
+			        // Controller start position
+			        const p = m_vr_move_utils.guidingController.getWorldPosition(m_vr_move_utils.tempVecP);
+			        //p.y = p.y+1
+			        // Set Vector V to the direction of the controller, at 1m/s
+			        const v = m_vr_move_utils.guidingController.getWorldDirection(m_vr_move_utils.tempVecV);
+			        //v.y = v.y+1
+			        // Scale the initial velocity to 6m/s
+			        v.multiplyScalar(6);
+
+			        // Time for tele ball to hit ground
+			        var offsety =  -m_camera_group.position.y;
+			        const t = (-v.y+offsety  + Math.sqrt((v.y+offsety)**2 - 2*(p.y+offsety)*m_vr_move_utils.g.y))/m_vr_move_utils.g.y;
+
+			        const vertex = m_vr_move_utils.tempVec.set(0,0,0);
+			        for (let i=1; i<=m_vr_move_utils.lineSegments; i++) {
+
+			            // set vertex to current position of the virtual ball at time t
+			            positionAtT(vertex,i*t/m_vr_move_utils.lineSegments,p,v,m_vr_move_utils.g);
+			            m_vr_move_utils.guidingController.worldToLocal(vertex);
+			            vertex.toArray(m_vr_move_utils.lineGeometryVertices,i*3);
+			        }
+			        m_vr_move_utils.guideline.geometry.attributes.position.needsUpdate = true;
+			        
+			        // Place the light and sprite near the end of the poing
+			        positionAtT(m_vr_move_utils.guidelight.position,t*0.98,p,v,m_vr_move_utils.g);
+			        positionAtT(m_vr_move_utils.guidesprite.position,t*0.98,p,v,m_vr_move_utils.g);
+			    }
+			}
+			function exitVR()
+			{
+				m_vr_move_utils.lastFrameInVR = false
+
+				resetCamera("ORBIT");
+				
+			}
+			function enterVR()
+			{
+				m_vr_move_utils.lastFrameInVR = true
+				resetCamera("ORBIT");
+				m_camera_group.position.y = m_models_values[m_gui.gui_options.current_model].vr_y
+				
+			}
 			function update()
 			{
+
 				const timer = Date.now() * 0.0005;
 				const delta = m_clock.getDelta();
 				requestAnimationFrame( animate );
@@ -1726,7 +1870,26 @@
 				switch(m_application_state.state)
 				{
 					case AppStates.READY_TO_GO:
-					{
+					{	
+						var changeModel = m_gui.update()
+						if(changeModel)
+						{
+							startSceneForModel()
+							return
+						}
+						if(m_renderer.xr.isPresenting)
+						{
+							if(!m_vr_move_utils.lastFrameInVR)
+								enterVR()
+							updateVR()
+						}
+						else if(m_vr_move_utils.lastFrameInVR)
+						{
+							exitVR()
+						}
+						m_vr_panels_group.visible = m_renderer.xr.isPresenting;
+						m_vr_panels_group.position.copy(m_camera.position)
+						m_vr_panels_group.rotation.copy(m_camera.rotation)
 						updateCollectionsAnims(delta)
 						if(m_application_state.need_to_update_auto_detect)
 							m_timer_update += delta
@@ -1748,12 +1911,12 @@
 						}
 							
 						m_stats.update();
-						if(m_timer_update > m_gui_options.timer_recalc)
+						if(m_timer_update > m_gui.gui_options.timer_recalc)
 						{
 							//console.log("update")
 							m_application_state.need_to_update_auto_detect = false
 							m_timer_update = 0
-							if(m_gui_options.auto_score_enabled)
+							if(m_gui.gui_options.auto_score_enabled)
 								updateCandidates(false);
 						}
 						if(m_camera_mode == "FLY")
@@ -1763,7 +1926,7 @@
 						}
 						m_old_pos_cam.copy(m_camera.position);
 
-						m_scene_models[0].material.uniforms.showRedArea.value = m_gui_options.red_area_enabled;
+						m_scene_models[0].material.uniforms.showRedArea.value = m_gui.gui_options.red_area_enabled;
 						break
 					}
 
@@ -1792,7 +1955,7 @@
 
 							m_application_state.state = AppStates.LOADING_PRECOMPUTED_DATA
 							var loader = new THREE.FileLoader();
-					        loader.load('models/'+m_models_values[m_gui_options.current_model].path+'/capture_info/precomputedCameraData.txt', function ( data ) {
+					        loader.load('models/'+m_models_values[m_gui.gui_options.current_model].path+'/capture_info/precomputedCameraData.txt', function ( data ) {
 							        // output the text to the console
 							        m_capture_rays_need_recomputation = DataLoader.loadPrecomputedFile(data, m_camera_list)
 							        m_application_state.precomputed_file_loaded = true
@@ -1839,7 +2002,7 @@
 			{
 
 				if(m_plane_image_secondary != null)
-					m_plane_image_secondary.material.uniforms.showTexture.value = m_gui_options.show_photo_enabled && m_gui_options.show_view_enabled && m_gui_options.show_camera_enabled;
+					m_plane_image_secondary.material.uniforms.showTexture.value = m_gui.gui_options.show_photo_enabled && m_gui.gui_options.show_view_enabled && m_gui.gui_options.show_camera_enabled;
 				
 				const left = Math.floor( window.innerWidth * m_views[view_index].left );
 				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
@@ -1873,7 +2036,7 @@
 				}
 				m_camera.aspect = width / height;
 				m_camera.updateProjectionMatrix();
-				m_cameraHelper.visible = m_gui_options.show_camera_enabled;
+				m_cameraHelper.visible = m_gui.gui_options.show_camera_enabled;
 				m_renderer.render( m_scene, m_camera );
 			}
 			function renderSecondaryCamera(view_index, draw_border)
@@ -1890,7 +2053,7 @@
 
 				if(m_plane_image_secondary != null)
 				{
-					m_plane_image_secondary.material.uniforms.showTexture.value = m_gui_options.show_photo_enabled;
+					m_plane_image_secondary.material.uniforms.showTexture.value = m_gui.gui_options.show_photo_enabled;
 
 					var frustumHeight = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_capture.fov * 0.5 ));
 					var frustumWidth = frustumHeight * m_camera_capture.aspect;
@@ -1965,8 +2128,8 @@
 				m_cameraHelper.update();
 				m_renderer.clear();
 				if(m_scene_models.length >0)
-					m_scene_models[0].material.uniforms.projectCapture.value = m_gui_options.project_capture_enabled && m_plane_image_secondary != null;
-				if(m_gui_options.show_view_enabled && !m_application_state.select_controls_enabled)
+					m_scene_models[0].material.uniforms.projectCapture.value = m_gui.gui_options.project_capture_enabled && m_plane_image_secondary != null;
+				if(m_gui.gui_options.show_view_enabled && !m_application_state.select_controls_enabled)
 				{
 					if(m_application_state.views_swaped)
 					{
