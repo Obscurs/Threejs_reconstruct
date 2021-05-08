@@ -596,7 +596,9 @@
 				if(m_application_state.select_controls_enabled)
 				{
 					//document.getElementById("selection_menu").style.display = "none";
-					GUI.toggleHide();
+					
+
+					m_gui.disableGui()
 					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
 				                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
 				                                    0.5 );   
@@ -672,7 +674,7 @@
 					return;
 				if(m_application_state.select_controls_enabled)
 				{
-					GUI.toggleHide();
+					m_gui.enableGui()
 					m_dragging = false;
 					var mouseNDC = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
 	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
@@ -1551,9 +1553,16 @@
 				var auxUp = new THREE.Vector3(0,-1,0)
 				var raycasterFloor =  new THREE.Raycaster(auxPos, auxUp);    
 				var intersectsFloor = raycasterFloor.intersectObjects( m_scene_models );  
+				console.log(intersectsFloor)
 				if(intersectsFloor.length > 0)
 				{
-					return intersectsFloor[0].point.y
+					var minY = 1000;
+					for(var i = 0; i < intersectsFloor.length; i++)
+					{
+						if(intersectsFloor[i].point.y < minY)
+							minY = intersectsFloor[i].point.y
+					}
+					return minY+0.5
 				}
 				else
 				{
