@@ -172,7 +172,7 @@
 			import { XRControllerModelFactory } from './jsm/webxr/XRControllerModelFactory.js';
 			import { DataLoader } from './scripts/DataLoader.js';
 			import { compareSimilitudes, compareCandidates, compareCanditateIndices} from './scripts/compareFuncs.js';
-			import { getWorldIntersectFromNDCxy, getNDCposFromWorld, positionAtT} from './scripts/utils.js';
+			import { getWorldIntersectFromNDCxy, getNDCposFromWorld, positionAtT, getWorldFromNDC} from './scripts/utils.js';
 
 			import { ModelInfo} from './scripts/ModelInfo.js';
 			import { CameraInfo} from './scripts/CameraInfo.js';
@@ -192,16 +192,16 @@
 
 			function moveToCapturePosition(index_capture)
 			{
-				var captureCam = m_camera_list[index_capture].mesh
+				var captureCam = m_camera_list[index_capture].camera
 				var direction = new THREE.Vector3();
 				captureCam.getWorldDirection( direction );
-				m_camera.position.copy( captureCam.position ).add( direction.multiplyScalar( 0.09 ) );
+				m_camera.position.copy( captureCam.position )
 				
 				var v1 = new THREE.Vector3(); // create once and reuse it
 				
 				m_controls.update()
 				
-				m_controls.target = new THREE.Vector3( captureCam.position.x, captureCam.position.y, captureCam.position.z );
+				m_controls.target = new THREE.Vector3( captureCam.position.x+direction.x, captureCam.position.y+direction.y, captureCam.position.z+direction.z );
 				//m_controls_secondary.target = new THREE.Vector3( captureCam.position.x, captureCam.position.y, captureCam.position.z );
 				//m_controls_secondary.update()
 				m_controls.update()
@@ -213,9 +213,9 @@
 				m_has_any_secondary_capture = true
 				var directionCapture = new THREE.Vector3();
 				var v1 = new THREE.Vector3();
-				m_camera_list[index_capture].mesh.getWorldDirection( directionCapture );
+				m_camera_list[index_capture].camera.getWorldDirection( directionCapture );
 				var positionCapture = new THREE.Vector3();
-				positionCapture.copy(m_camera_list[index_capture].mesh.position);
+				positionCapture.copy(m_camera_list[index_capture].camera.position);
 				
 				/*m_camera_capture.position.set( positionCapture.x,positionCapture.y,positionCapture.z );
 
@@ -294,7 +294,7 @@
 					    vertexShader: document.getElementById('vertexShaderScene').textContent,
 					    blending: THREE.NormalBlending,
 		                depthTest: false,
-		                transparent: true
+		                transparent: false
 						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
 					} );
 
@@ -358,30 +358,67 @@
 
 
 
-			function showCollectionSprite(min_pos, max_pos, index_capture, order, sprites_to_remove = [], isShifting = false, opacity = 1)
+			function showCollectionSprite(_min_pos, _max_pos, index_capture, order, sprites_to_remove = [], isShifting = false, opacity = 1)
 			{
+				var min_pos, max_pos, offset_x, offset_y;
+				if(m_renderer.xr.isPresenting)
+				{
+					//var hardcodedHeight = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_capture.fov * 0.5 ));
+					//var hardcodedWidth = frustumHeight * m_camera_capture.aspect;
+					var hardcodedHeight = 2 * 4 * Math.tan(THREE.Math.degToRad( m_camera_capture.fov * 0.5 ));
+					var hardcodedWidth = hardcodedHeight * m_camera_capture.aspect;
+					var scaleFx = hardcodedWidth/window.innerWidth
+					var scaleFy = hardcodedHeight/window.innerHeight
+					/*min_pos = getWorldFromNDC(m_camera, _min_pos)
+					max_pos = getWorldFromNDC(m_camera, _max_pos)*/
+					min_pos = new THREE.Vector3(_min_pos.x*scaleFx,_min_pos.y*scaleFy,0);
+					max_pos = new THREE.Vector3(_max_pos.x*scaleFx,_max_pos.y*scaleFy,0);
+					console.log(min_pos)
+					console.log(max_pos)
+					offset_x = -hardcodedWidth/2;
+					offset_y = hardcodedHeight/2
+				}
+				else{
+					min_pos = new THREE.Vector3(_min_pos.x,_min_pos.y,0);
+					max_pos = new THREE.Vector3(_max_pos.x,_max_pos.y,0);
+					offset_x = -window.innerWidth/2;
+					offset_y = window.innerHeight/2
+				}
+				
 				var scale1 = (max_pos.x -min_pos.x)/m_camera_list[index_capture].width;
 				var scale2 = (max_pos.y -min_pos.y)/m_camera_list[index_capture].height;
 				var scale = Math.min(scale1, scale2);
 				var sprite = m_camera_list[index_capture].sprite;
 				var existing = m_scene_collections.getObjectByName(sprite.name);
-				var _x = min_pos.x-window.innerWidth/2
-				var _y = min_pos.y+window.innerHeight/2
+				var _x = min_pos.x+offset_x
+				var _y = min_pos.y+offset_y
 				var spritepos = new THREE.Vector3(_x,_y,0);
+				if(m_renderer.xr.isPresenting)
+				{
+					spritepos.z = -order*0.25
+				}
 				//var spritepos = new THREE.Vector3(0,0,1);
 
 				//sprite.center.set(0,1)
 				sprite.scale.set(m_camera_list[index_capture].width*scale, m_camera_list[index_capture].height*scale, 1);
 				sprite.position.set(spritepos.x+(m_camera_list[index_capture].width*scale)/2,spritepos.y-(m_camera_list[index_capture].height*scale)/2, spritepos.z);
-				sprite.renderOrder = order;
+				if(m_renderer.xr.isPresenting)
+				{
+					sprite.renderOrder = -order;
+				}
+				else
+				{
+					sprite.renderOrder = order;
+				}
+				
 				sprite.name = index_capture;
 				//sprite.material.opacity = opacity;
 				sprite.material.uniforms.opacity.value = opacity;
 				if(!isShifting)
 				{
-					m_scene_collections.add(sprite);
+					//m_scene_collections.add(sprite);
 
-					m_current_sprites_in_scene.push(sprite)
+					m_current_sprites_in_scene.add(sprite)
 				}
 
 				if(sprites_to_remove.length > 0)
@@ -412,8 +449,8 @@
 				var height_image = remaining_height-num_elems*offset_per_image
 				for(var i = num_elems-1; i >= 0; i--)
 				{
-					var min = new THREE.Vector2( min_pos.x+currentOffset.x, min_pos.y-currentOffset.y );
-					var max = new THREE.Vector2( min_pos.x+currentOffset.x+width_image+animOffset*5 ,min_pos.y+currentOffset.y+height_image+animOffset*5);
+					var min = new THREE.Vector3( min_pos.x+currentOffset.x, min_pos.y-currentOffset.y,-1 );
+					var max = new THREE.Vector3( min_pos.x+currentOffset.x+width_image+animOffset*5 ,min_pos.y+currentOffset.y+height_image+animOffset*5,-1);
 					currentOffset.x = currentOffset.x + offset_per_image;
 					currentOffset.y = currentOffset.y + offset_per_image;
 					var opacity = 1
@@ -438,11 +475,13 @@
 				var sprites_to_remove = []
 				
 
-				for(var i = 0; i < m_current_sprites_in_scene.length; i++)
+				for(var i = 0; i < m_current_sprites_in_scene.children.length; i++)
 				{
-					sprites_to_remove.push(m_current_sprites_in_scene[i].name)
+					sprites_to_remove.push(m_current_sprites_in_scene.children[i].name)
 				}
-				m_current_sprites_in_scene = []
+				while(m_current_sprites_in_scene.children.length > 0){ 
+				    m_current_sprites_in_scene.remove(m_current_sprites_in_scene.children[0]); 
+				}
 				for(var i = 0; i < m_current_candidates_collections.length; i++)
 				{
 					var collection_width = remaining_width/4
@@ -456,13 +495,13 @@
 				}
 				//console.log(m_current_candidates_collections.length)
 				//console.log(sprites_to_remove)
-				for(var i = 0; i < sprites_to_remove.length; i++)
+				/*for(var i = 0; i < sprites_to_remove.length; i++)
 				{
 					var existing = m_scene_collections.getObjectByName(sprites_to_remove[i]);
 					if(existing)
 						m_scene_collections.remove( existing );
 
-				}
+				}*/
 
 			}
 
@@ -475,7 +514,7 @@
 	                                    0.5 );     
 	            var raycaster =  new THREE.Raycaster();                                        
 	           raycaster.setFromCamera( mouse3D, m_camera_collections );
-	            var intersects = raycaster.intersectObjects( m_current_sprites_in_scene );
+	            var intersects = raycaster.intersectObjects( m_current_sprites_in_scene.children );
 				//console.log(intersects)
 				//setDefaultColorsCameras();
 
@@ -713,8 +752,8 @@
 				//https://github.com/colmap/colmap/issues/797
 				//https://github.com/colmap/colmap/issues/572
 				console.log("      Loading Camera "+element.name+" ...")
-				 const loader = new PLYLoader();
-				 loader.load( './assets/camera.ply', function ( geometry ) {
+				 /*const loader = new PLYLoader();
+				 loader.load( './assets/camera.ply', function ( geometry ) {*/
 
 				 	var m = new THREE.Matrix4();
 					m.set( element.m1, element.m2, element.m3, element.tx,
@@ -723,6 +762,16 @@
 			           0, 0, 0, 1 );
 					m.invert();
 
+					
+					//const mesh = new THREE.m_vr_move_utils.LineSegments( geometry, material );
+					//const mesh = new THREE.m_vr_move_utils.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } ) );
+					var m2 = new THREE.Matrix4();
+
+					m2.makeRotationX(THREE.Math.degToRad(-90))
+					m2.multiply(m)
+
+					// START MESH
+					/*
 					geometry.computeVertexNormals();
 					const edges = new THREE.EdgesGeometry( geometry );
 					//const material = new THREE.MeshStandardMaterial( { color: 0x0055ff, flatShading: true } );
@@ -730,24 +779,14 @@
 
 					material.transparent = true;
 					material.opacity = 0.3; 
-					//const mesh = new THREE.m_vr_move_utils.LineSegments( geometry, material );
-					//const mesh = new THREE.m_vr_move_utils.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } ) );
 					const mesh = new THREE.Mesh( geometry, material );
-					var m2 = new THREE.Matrix4();
-
-					m2.makeRotationX(THREE.Math.degToRad(-90))
-					m2.multiply(m)
 					mesh.applyMatrix4(m2);
-					//mesh.rotateX(THREE.Math.degToRad(90));
-					const myAxis = new THREE.Vector3(0, 1, 0);
-
-					// rotate the mesh 45 on this axis
-					//mesh.rotateOnWorldAxis(myAxis, THREE.Math.degToRad(90));
-					//mesh.applyMatrix4(new THREE.Matrix4().makeScale(0.03, 0.03, 0.03))
 					mesh.castShadow = false;
 					mesh.receiveShadow = false;
 					mesh.material.opacity = 0.0; 
-					m_scene.add( mesh );
+					mesh.name = "cam-"+element.name
+					*/
+					//END MESH
 
 
 
@@ -758,16 +797,16 @@
 					//console.log("FOVS: "+fov_y + " "+fov_x)
 					var capture_camera = new THREE.PerspectiveCamera( fov_y*(180/Math.PI), element.width / element.height, 0.1, 100 );
 
-
-					capture_camera.position.set( mesh.position.x,mesh.position.y,mesh.position.z );
+					capture_camera.applyMatrix4(m2);
+					//capture_camera.position.set( mesh.position.x,mesh.position.y,mesh.position.z );
 					capture_camera.name = element.name
 						/////////////
 
 						//capture_camera.setFocalLength(element.f*(180/3.14))
-						var v1 = new THREE.Vector3();
-					v1.copy(mesh.up ).applyQuaternion(mesh.quaternion );
+						//var v1 = new THREE.Vector3();
+					/*v1.copy(mesh.up ).applyQuaternion(mesh.quaternion );
 					capture_camera.quaternion.copy(mesh.quaternion );
-					capture_camera.up.set(v1.x, v1.y, v1.z); 
+					capture_camera.up.set(v1.x, v1.y, v1.z); */
 
 					//capture_camera.aspect = element.width/element.height;
 
@@ -811,7 +850,7 @@
 						element.height,
 						m,
 						element.f,
-						mesh,
+						null,//mesh for debug
 						sprite,
 						capture_camera
 					);
@@ -827,7 +866,6 @@
 					    //console.log( texture.image.width, texture.image.height );
 					} );*/
 
-					m_camera_mesh_list.push(mesh);
 					//setDefaultColorsCameras()
 					m_application_state.num_cameras_loaded +=1
 
@@ -835,29 +873,29 @@
 					document.getElementById("loadingText").innerHTML = "Loading: "+completation.toString() +"%";
 					if(m_min_pos == null)
 					{
-						m_min_pos = new THREE.Vector3(mesh.position.x,mesh.position.y,mesh.position.z)
+						m_min_pos = new THREE.Vector3(capture_camera.position.x,capture_camera.position.y,capture_camera.position.z)
 					}
 					if(m_max_pos == null)
 					{
-						m_max_pos = new THREE.Vector3(mesh.position.x,mesh.position.y,mesh.position.z)
+						m_max_pos = new THREE.Vector3(capture_camera.position.x,capture_camera.position.y,capture_camera.position.z)
 					}
-					if(m_min_pos.x > mesh.position.x)
-						m_min_pos.x = mesh.position.x
-					if(m_min_pos.y > mesh.position.z)
-						m_min_pos.y = mesh.position.z
-					if(m_min_pos.z > mesh.position.z)
-						m_min_pos.z = mesh.position.z
+					if(m_min_pos.x > capture_camera.position.x)
+						m_min_pos.x = capture_camera.position.x
+					if(m_min_pos.y > capture_camera.position.z)
+						m_min_pos.y = capture_camera.position.z
+					if(m_min_pos.z > capture_camera.position.z)
+						m_min_pos.z = capture_camera.position.z
 
-					if(m_max_pos.x < mesh.position.x)
-						m_max_pos.x = mesh.position.x
-					if(m_max_pos.y < mesh.position.z)
-						m_max_pos.y = mesh.position.z
-					if(m_max_pos.z < mesh.position.z)
-						m_max_pos.z = mesh.position.z
+					if(m_max_pos.x < capture_camera.position.x)
+						m_max_pos.x = capture_camera.position.x
+					if(m_max_pos.y < capture_camera.position.z)
+						m_max_pos.y = capture_camera.position.z
+					if(m_max_pos.z < capture_camera.position.z)
+						m_max_pos.z = capture_camera.position.z
 					console.log("      Loading Camera "+element.name+" : DONE")
 					//console.log("CAMERA LOADED")
-
-				} );
+					/*
+				} );*/
 
 			}
 			
@@ -906,7 +944,7 @@
 
 					mesh.castShadow = true;
 					mesh.receiveShadow = true;
-
+					mesh.name = "THEMODEL"
 					m_scene.add( mesh );
 					m_scene_models.push(mesh);
 
@@ -961,7 +999,7 @@
 			function getScorePosition(index_cam)
 			{
 				var dist_max_aprox = (m_min_pos.distanceTo(m_max_pos))*2
-				var dist = m_camera_list[index_cam].mesh.position.distanceTo(m_camera.position)
+				var dist = m_camera_list[index_cam].camera.position.distanceTo(m_camera.position)
 				if(dist > dist_max_aprox)
 					dist = dist_max_aprox;
 				return (dist_max_aprox-dist)/dist_max_aprox;
@@ -971,7 +1009,7 @@
 			{
 				var direction1 = new THREE.Vector3();
 				var direction2 = new THREE.Vector3();
-				m_camera_list[index_cam].mesh.getWorldDirection( direction1 );
+				m_camera_list[index_cam].camera.getWorldDirection( direction1 );
 				m_camera.getWorldDirection( direction2 );
 				var dist = direction1.distanceTo(direction2);
 				return dist/2;
@@ -1460,7 +1498,6 @@
 				m_plane_image_secondary = null;
 
 				m_camera_list = [];
-				m_camera_mesh_list = [];
 				m_scene_models = [];
 				m_current_candidates = [];
 				m_current_candidates_collections = [];
@@ -1471,14 +1508,17 @@
 				m_capture_rays_need_recomputation = true;
 
 				m_dragging = false;
-				m_current_sprites_in_scene = [];
+				while(m_current_sprites_in_scene.children.length > 0){ 
+				    m_current_sprites_in_scene.remove(m_current_sprites_in_scene.children[0]); 
+				}
+				
 
 				while(m_scene.children.length > 0){ 
 				    m_scene.remove(m_scene.children[0]); 
 				}
-				while(m_scene_collections.children.length > 0){ 
+				/*while(m_scene_collections.children.length > 0){ 
 				    m_scene_collections.remove(m_scene_collections.children[0]); 
-				}
+				}*/
 				while(m_scene_capture.children.length > 0){ 
 				    m_scene_capture.remove(m_scene_capture.children[0]); 
 				}
@@ -1496,7 +1536,9 @@
 
 				clearSceneData()
 				m_vr_panels_group = new THREE.Group();
+				m_vr_panels_group.name = "vr_panels_group"
 				m_camera_group = new THREE.Group()
+				m_camera_group.name = "cameraGroup"
 				m_camera_group.add(m_vr_panels_group)
 				//m_scene.add(m_vr_panels_group)
 				initVR();
@@ -1531,12 +1573,15 @@
 					case 'tracked-pointer':
 
 						geometry = new THREE.BufferGeometry();
-						geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
+						geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 4 ], 3 ) );
 						geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( [ 0.5, 0.5, 0.5, 0, 0, 0 ], 3 ) );
 
 						material = new THREE.LineBasicMaterial( { vertexColors: true, blending: THREE.AdditiveBlending } );
-
-						return new THREE.Line( geometry, material );
+						material.depthTest = false;
+						material.transparent = true;
+						var theline = new THREE.Line( geometry, material );
+						theline.renderOrder = 1
+						return theline
 
 					case 'gaze':
 
@@ -1579,11 +1624,17 @@
 					if(m_vr_move_utils.guidingController != null)
 						return
 					m_vr_move_utils.vrguiEnabled = true
+					m_vr_panels_group.add(m_current_sprites_in_scene );
+					m_vr_panels_group.position.copy(m_camera.position)
+					m_vr_panels_group.rotation.copy(m_camera.rotation)
+					m_timer_update = m_gui.gui_options.timer_recalc+1
+					m_application_state.need_to_update_auto_detect = true;
 					m_gui.enableVRgui()
 				}
 				function onSelectEndLeft() {
 					if(m_vr_move_utils.vrguiEnabled)
 						m_gui.disableVRgui()
+					m_vr_panels_group.remove(m_current_sprites_in_scene );
 					m_vr_move_utils.vrguiEnabled = false
 				}
 				function onSelectStartRight() {
@@ -1662,6 +1713,7 @@
 				m_controllerGrip2.add( controllerModelFactory.createControllerModel( m_controllerGrip2 ) );
 				m_camera_group.add( m_controllerGrip2 );
 				
+				
 				//
 
 				m_vr_move_utils.g = new THREE.Vector3(0,-9.8,0);
@@ -1712,12 +1764,15 @@
 				//canvas.height = 300 * window.devicePixelRatio;
 				//const context = canvas.getContext( '2d' );
 				document.body.appendChild( m_container );
-
+				m_current_sprites_in_scene = new THREE.Group();
+				m_current_sprites_in_scene.name = "imageCollectionGroup"
+				m_current_sprites_in_scene.position.z = -4
 				m_scene = new THREE.Scene();
 				m_scene.background = new THREE.Color( 0x72645b );
 				m_scene.fog = new THREE.Fog( 0x72645b, 2, 15 );
 
 				m_scene_collections = new THREE.Scene();
+				m_scene_collections.add(m_current_sprites_in_scene);
 				m_scene_collections.background = null;
 
 				m_scene_capture = new THREE.Scene();
@@ -1730,7 +1785,7 @@
 				m_renderer.setSize( window.innerWidth, window.innerHeight );
 				m_renderer.outputEncoding = THREE.sRGBEncoding;
 				m_renderer.setClearColor(0xffffff, 0);
-				m_renderer.shadowMap.enabled = true;
+				//m_renderer.shadowMap.enabled = true;
 				m_renderer.autoClear = false; 
 				m_renderer.xr.enabled = true;
 				m_renderer.xr.setReferenceSpaceType( 'local' );
@@ -1793,7 +1848,6 @@
 				}
 
 				startSceneForModel();
-				
 			}
 
 			function onWindowResize() {
@@ -1855,18 +1909,26 @@
 			        positionAtT(m_vr_move_utils.guidesprite.position,t*0.98,p,v,m_vr_move_utils.g);
 			    }
 			}
+			//https://www.google.com/maps/place/Sant+Esteve+de+la+Doma/@41.6862288,2.2778211,15z/data=!4m5!3m4!1s0x0:0xf0f2da56ced3387!8m2!3d41.6862318!4d2.277729?authuser=1
+			//https://www.google.com/maps/place/MUSEU+DIOCESA+I+COMARCAL+DE+SOLSONA/@41.9941684,1.5193463,19.31z/data=!4m5!3m4!1s0x12a5ca1a2a0a3e57:0xeef7971a3fe002d3!8m2!3d41.9940063!4d1.5191797?authuser=1
 			function exitVR()
 			{
 				m_vr_move_utils.lastFrameInVR = false
 
+				//m_vr_panels_group.remove( m_current_sprites_in_scene );
+				m_scene_collections.add(m_current_sprites_in_scene);
 				resetCamera("ORBIT");
+				showCollections()
 				
 			}
 			function enterVR()
 			{
+				//m_vr_panels_group.add(m_current_sprites_in_scene );
+				m_scene_collections.remove(m_current_sprites_in_scene);
 				m_vr_move_utils.lastFrameInVR = true
 				resetCamera("ORBIT");
 				m_camera_group.position.y = m_models_values[m_gui.gui_options.current_model].vr_y
+				showCollections()
 				
 			}
 			function update()
@@ -1897,13 +1959,13 @@
 							exitVR()
 						}
 						m_vr_panels_group.visible = m_renderer.xr.isPresenting;
-						m_vr_panels_group.position.copy(m_camera.position)
-						m_vr_panels_group.rotation.copy(m_camera.rotation)
+						/*m_vr_panels_group.position.copy(m_camera.position)
+						m_vr_panels_group.rotation.copy(m_camera.rotation)*/
 						updateCollectionsAnims(delta)
 						if(m_application_state.need_to_update_auto_detect)
 							m_timer_update += delta
 
-						if(m_old_pos_cam.distanceTo(m_camera.position) > 0.0001)
+						if(!m_renderer.xr.isPresenting && m_old_pos_cam.distanceTo(m_camera.position) > 0.0001)
 						{
 							//console.log("changed!! " + m_old_pos_cam.x + " " +m_camera.position.x)
 							m_timer_update = 0;

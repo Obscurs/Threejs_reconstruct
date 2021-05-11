@@ -62,6 +62,13 @@ export function getNDCposFromWorld(camera, worldpos)
 	projected.project(camera)
 	return projected;
 }
+export function getWorldFromNDC(camera, NDC_position)
+{
+	var res = new Vector3(NDC_position.x,NDC_position.y,NDC_position.z)
+	camera.updateProjectionMatrix();
+	res.unproject(camera);
+	return res;
+}
 export function positionAtT(inVec,t,p,v,g) {
     inVec.copy(p);
     inVec.addScaledVector(v,t);

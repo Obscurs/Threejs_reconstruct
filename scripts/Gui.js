@@ -273,10 +273,12 @@ export class Gui {
 		this.gui_vr.__controllers[5].name(this.gui_options.auto_score_enabled ? 'Disable auto-suggest' : 'Enable auto-suggest')
 		this.gui_vr.domElement.style.display = '';
 		const mesh = new HTMLMesh( this.gui_vr.domElement );
-		mesh.position.x = - 0.3;
+		mesh.renderOrder = 1
+		mesh.material.depthTest = false;
+		mesh.position.x = + 0.5;
 		mesh.position.y = 0;
 		mesh.position.z = - 1.2;
-		mesh.rotation.y = Math.PI / 4;
+		mesh.rotation.y = -Math.PI / 4;
 		mesh.scale.setScalar( 2 );
 		//group.add( mesh );
 		m_vr_move_utils.vrgui = mesh;

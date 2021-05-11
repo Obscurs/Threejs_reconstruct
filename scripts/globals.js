@@ -29,7 +29,7 @@ var m_capture_rays_need_recomputation = true;
 var m_vr_mode = false;
 const m_num_rays_precomputation = 10;	//rays x rays
 var m_dragging = false;
-var m_current_sprites_in_scene = [];
+var m_current_sprites_in_scene;
 var m_selection_rectangle = {
 	startNDC: null,
 	endNDC: null,
