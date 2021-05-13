@@ -11,7 +11,9 @@ class DataLoader {
 		var rate_cam2 = 0;
 		for(var index_ray = 0; index_ray <cam1.rays.length; ++index_ray)
 		{
-			var projected = getNDCposFromWorld(cam2.camera, cam1.rays[index_ray])
+			var projected = new Vector3();
+			projected.copy(cam1.rays[index_ray])
+			projected.project(cam2.camera)
 			/*var projected = new THREE.Vector3();
 			projected.copy(cam1.rays[index_ray])
 			projected.project(cam2.camera)
@@ -19,7 +21,11 @@ class DataLoader {
 			if(projected.x > -1.0 && projected.x < 1.0 && projected.y > -1.0 && projected.y < 1.0)
 			{
 				//console.log("added " + index_cam)
-				count_inside_rays_cam1 = count_inside_rays_cam1 +1
+				var projected2 = new Vector3();
+				projected2.copy(cam1.rays[index_ray])
+				projected2.applyMatrix4( cam2.camera.matrixWorldInverse );
+				if(projected2.z < 0)
+					count_inside_rays_cam1 = count_inside_rays_cam1 +1
 			}
 				
 		}
@@ -35,7 +41,11 @@ class DataLoader {
 			if(projected.x > -1.0 && projected.x < 1.0 && projected.y > -1.0 && projected.y < 1.0)
 			{
 				//console.log("added " + index_cam)
-				count_inside_rays_cam2 = count_inside_rays_cam2 +1
+				var projected2 = new Vector3();
+				projected2.copy(cam2.rays[index_ray])
+				projected2.applyMatrix4( cam1.camera.matrixWorldInverse );
+				if(projected2.z < 0)
+					count_inside_rays_cam2 = count_inside_rays_cam2 +1
 			}
 				
 		}

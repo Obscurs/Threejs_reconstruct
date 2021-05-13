@@ -294,7 +294,7 @@
 					    vertexShader: document.getElementById('vertexShaderScene').textContent,
 					    blending: THREE.NormalBlending,
 		                depthTest: false,
-		                transparent: false
+		                transparent: true
 						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
 					} );
 
@@ -1029,6 +1029,7 @@
 					return 1;*/
 
 				m_camera.updateProjectionMatrix();
+				m_camera.updateMatrixWorld();
 				var count_inside_rays = 0
 
 				for(var index_ray = 0; index_ray <m_camera_list[index_cam].rays.length; ++index_ray)
@@ -1037,13 +1038,33 @@
 					projected.copy(m_camera_list[index_cam].rays[index_ray])
 					projected.project(m_camera)
 					//console.log(projected)
+					//if(m_camera_list[index_cam].name == "a017.jpg")
+					/*if(m_camera_list[index_cam].name == "a047.jpg")
+					{
+						var matrix = new THREE.Matrix4(); // create once and reuse
+						var projected2 = new THREE.Vector3();
+						projected2.copy(m_camera_list[index_cam].rays[index_ray])
+						// get the matrix that maps from world space to camera space
+						matrix.copy( m_camera.matrixWorldInverse );
+
+						// transform your point from world space to camera space
+						projected2.applyMatrix4( matrix );
+						console.log(projected2.z)
+					}*/
+						
 					if(projected.x > min_x && projected.x < max_x && projected.y > min_y && projected.y < max_y)
 					{
 						//console.log("added " + index_cam)
-						count_inside_rays = count_inside_rays +1
+						//console.log(projected.z)
+						var projected2 = new THREE.Vector3();
+						projected2.copy(m_camera_list[index_cam].rays[index_ray])
+						projected2.applyMatrix4( m_camera.matrixWorldInverse );
+						if(projected2.z < 0)
+							count_inside_rays = count_inside_rays +1
 					}
 						
 				}
+				console.log(m_camera_list[index_cam].name +" "+count_inside_rays)
 				if(m_camera_list[index_cam].rays.length > 0)
 					return count_inside_rays/m_camera_list[index_cam].rays.length
 				else
