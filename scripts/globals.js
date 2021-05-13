@@ -117,5 +117,6 @@ var m_vr_move_utils =
 	isDrawingSelectBox: false,
 	drawBoxStartPoint: null,
 	drawBoxEndPoint: null,
-	vr_camera: null
+	lineGeometryVerticesSquare: null,
+	lineSquare: null
 }
