@@ -18,7 +18,7 @@ var m_scene_models = [];
 var m_current_candidates = [];
 var m_current_candidates_collections = [];
 var m_group;
-
+var m_rectangle_select_vr = null;
 var m_controls;
 var m_controls_secondary;
 var m_camera_mode = "ORBIT";
@@ -45,6 +45,7 @@ var m_max_pos = null;
 var m_plane_image_secondary = null;
 var m_plane_render_target = null;
 var m_render_target_secondary = null;
+var m_old_vr_input_data = null;
 var m_application_state = 
 {
 	state: AppStates.THREE_JS_INIT,
@@ -113,4 +114,8 @@ var m_vr_move_utils =
 	vrguiEnabled: null,
 	vrgui: null,
 	lastFrameInVR: false,
+	isDrawingSelectBox: false,
+	drawBoxStartPoint: null,
+	drawBoxEndPoint: null,
+	vr_camera: null
 }

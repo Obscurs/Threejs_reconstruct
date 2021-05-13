@@ -373,8 +373,8 @@
 					max_pos = getWorldFromNDC(m_camera, _max_pos)*/
 					min_pos = new THREE.Vector3(_min_pos.x*scaleFx,_min_pos.y*scaleFy,0);
 					max_pos = new THREE.Vector3(_max_pos.x*scaleFx,_max_pos.y*scaleFy,0);
-					//console.log(min_pos)
-					//console.log(max_pos)
+					console.log(min_pos)
+					console.log(max_pos)
 					offset_x = -hardcodedWidth/2;
 					offset_y = hardcodedHeight/2
 				}
@@ -1029,67 +1029,22 @@
 					return 1;*/
 
 				m_camera.updateProjectionMatrix();
-				m_camera.updateMatrixWorld();
 				var count_inside_rays = 0
-				var camera;
-				if(m_renderer.xr.isPresenting)
-				{
-					//m_renderer.xr.getCamera(m_camera).getWorldPosition(m_vr_move_utils.tempVec);
-					camera = m_renderer.xr.getCamera(m_camera);
-				}
-				else
-				{
-					camera = m_camera;
-					
-				}
+
 				for(var index_ray = 0; index_ray <m_camera_list[index_cam].rays.length; ++index_ray)
 				{
 					var projected = new THREE.Vector3();
 					projected.copy(m_camera_list[index_cam].rays[index_ray])
-					projected.project(camera)
+					projected.project(m_camera)
 					//console.log(projected)
-					//if(m_camera_list[index_cam].name == "a017.jpg")
-					/*if(m_camera_list[index_cam].name == "a047.jpg")
-					{
-						var matrix = new THREE.Matrix4(); // create once and reuse
-						var projected2 = new THREE.Vector3();
-						projected2.copy(m_camera_list[index_cam].rays[index_ray])
-						// get the matrix that maps from world space to camera space
-						matrix.copy( m_camera.matrixWorldInverse );
-
-						// transform your point from world space to camera space
-						projected2.applyMatrix4( matrix );
-						console.log(projected2.z)
-					}*/
-						
-					var aux_x_min = min_x
-					var aux_y_min = min_y
-					var aux_x_max = max_x
-					var aux_y_max = max_y
-
-					if(max_y < min_y)
-					{
-						aux_y_min = max_y
-						aux_y_max = min_y
-					}
-					if(max_x < min_x)
-					{
-						aux_x_min = max_x
-						aux_x_max = min_x
-					}
-					if(projected.x > aux_x_min && projected.x < aux_x_max && projected.y > aux_y_min && projected.y < aux_y_max)
+					if(projected.x > min_x && projected.x < max_x && projected.y > min_y && projected.y < max_y)
 					{
 						//console.log("added " + index_cam)
-						//console.log(projected.z)
-						var projected2 = new THREE.Vector3();
-						projected2.copy(m_camera_list[index_cam].rays[index_ray])
-						projected2.applyMatrix4( camera.matrixWorldInverse );
-						if(projected2.z < 0)
-							count_inside_rays = count_inside_rays +1
+						count_inside_rays = count_inside_rays +1
 					}
 						
 				}
-				//console.log(m_camera_list[index_cam].name +" "+count_inside_rays)
+				console.log(m_camera_list[index_cam].name +" "+count_inside_rays)
 				if(m_camera_list[index_cam].rays.length > 0)
 					return count_inside_rays/m_camera_list[index_cam].rays.length
 				else
@@ -1111,8 +1066,8 @@
 					var minNDCpoint = getNDCposFromWorld(m_camera_list[index_cam].camera, m_selection_rectangle.startWorld)
 					var maxNDCpoint = getNDCposFromWorld(m_camera_list[index_cam].camera, m_selection_rectangle.endWorld)
 					//console.log("minmax")
-					console.log(minNDCpoint)
-					console.log(maxNDCpoint)
+					//console.log(minNDCpoint)
+					//console.log(maxNDCpoint)
 					if(minNDCpoint != null && maxNDCpoint !=null)
 					{
 						if(minNDCpoint.x >maxNDCpoint.x)
@@ -1369,10 +1324,10 @@
 			function updateCandidates(usingSelectionRectangle)
 			{
 				console.log("INFO: Updating candidates...")
-				/*var directionCamera = new THREE.Vector3();
+				var directionCamera = new THREE.Vector3();
 				m_camera.getWorldDirection( directionCamera );
 				var raycasterCamera =  new THREE.Raycaster(m_camera.position, directionCamera);    
-				var intersectsCamera = raycasterCamera.intersectObjects( m_scene_models );  */
+				var intersectsCamera = raycasterCamera.intersectObjects( m_scene_models );  
 				//console.log(intersectsCamera);
 
 				var changed = false
@@ -1381,39 +1336,15 @@
 
 				if(usingSelectionRectangle)
 				{
-					if(m_renderer.xr.isPresenting)
-					{	
-						var vec1aux = new THREE.Vector3()
-						var vec2aux = new THREE.Vector3()
-						var camera = m_renderer.xr.getCamera(m_camera)
-						m_selection_rectangle.startWorld = m_vr_move_utils.drawBoxStartPoint.ray;
-						m_selection_rectangle.endWorld = m_vr_move_utils.drawBoxEndPoint.ray;
-						m_selection_rectangle.startNDC = getNDCposFromWorld(camera,m_selection_rectangle.startWorld)
-						m_selection_rectangle.endNDC = getNDCposFromWorld(camera,m_selection_rectangle.endWorld)
-						/*var minWorldPoint = getWorldIntersectFromNDCxy(m_camera,m_selection_rectangle.startNDC,m_scene_models);
-						var maxWorldPoint = getWorldIntersectFromNDCxy(m_camera,m_selection_rectangle.endNDC,m_scene_models);
-						m_selection_rectangle.startWorld = minWorldPoint;
-						m_selection_rectangle.endWorld = maxWorldPoint;*/
-						console.log(m_selection_rectangle.startNDC)
-						console.log(m_selection_rectangle.endNDC)
-						console.log(camera.getWorldPosition(vec1aux))
-						console.log(camera.getWorldDirection(vec2aux))
-					}
-					else
-					{
-						var minWorldPoint = getWorldIntersectFromNDCxy(m_camera,m_selection_rectangle.startNDC,m_scene_models);
-						var maxWorldPoint = getWorldIntersectFromNDCxy(m_camera,m_selection_rectangle.endNDC,m_scene_models);
-						console.log(m_selection_rectangle.startNDC)
-						console.log(m_selection_rectangle.endNDC)
-						m_selection_rectangle.startWorld = minWorldPoint;
-						m_selection_rectangle.endWorld = maxWorldPoint;
-					}
-					
+					var minWorldPoint = getWorldIntersectFromNDCxy(m_camera,m_selection_rectangle.startNDC,m_scene_models);
+					var maxWorldPoint = getWorldIntersectFromNDCxy(m_camera,m_selection_rectangle.endNDC,m_scene_models);
+					m_selection_rectangle.startWorld = minWorldPoint;
+					m_selection_rectangle.endWorld = maxWorldPoint;
 				}
 				for (var i = 0; i < arrayLength; i++) {
 					
 				    //m_camera_list[i].material.opacity = 0.1; 
-				    var scoreCam = getScoreCam(i, null, usingSelectionRectangle)
+				    var scoreCam = getScoreCam(i, intersectsCamera, usingSelectionRectangle)
 				    var elem = {
 					    'index': i,
 					    'score': scoreCam,
@@ -1560,8 +1491,6 @@
 				m_application_state.need_to_update_auto_detect = false;
 				m_application_state.inVR = false;
 				
-				m_rectangle_select_vr = null;
-				m_old_vr_input_data = null;
 
 				m_min_pos = null;
 				m_max_pos = null;
@@ -1950,116 +1879,8 @@
 				showCollections()
 
 			}
-			function startVRbutton1event(controller)
-			{
-				console.log("start btn1")
-				var pos = new THREE.Vector3()
-				var dir = new THREE.Vector3()
-				m_controller1.getWorldPosition(pos);
-			    m_controller1.getWorldDirection(dir);
-			    
-
-			    /*const geometry = new THREE.PlaneGeometry( 1, 1 );
-				const material = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
-				m_rectangle_select_vr = new THREE.Mesh( geometry, material );
-				m_rectangle_select_vr.scale = 0
-				m_scene.add( m_rectangle_select_vr );*/
-
-			    m_vr_move_utils.isDrawingSelectBox = true
-			    m_vr_move_utils.drawBoxStartPoint = {
-			    	position: pos,
-			    	direction: dir,
-			    	ray: null
-			    }
-			    m_vr_move_utils.drawBoxEndPoint = {
-			    	position: pos,
-			    	direction: dir,
-			    	ray: null
-			    }
-			}
-			function endVRbutton1event(controller)
-			{
-				if(!m_vr_move_utils.isDrawingSelectBox)
-					return
-				console.log("end")
-				m_vr_move_utils.isDrawingSelectBox = false
-
-				//var camera = m_renderer.xr.getCamera(m_camera);
-				/*m_vr_move_utils.drawBoxStartPoint.position.project(camera)
-				m_vr_move_utils.drawBoxEndPoint.position.project(camera)*/
-				var raycasterEnd =  new THREE.Raycaster(m_vr_move_utils.drawBoxEndPoint.position, m_vr_move_utils.drawBoxEndPoint.direction);    
-				var intersectsEnd = raycasterEnd.intersectObjects( m_scene_models );  
-				var raycasterStart =  new THREE.Raycaster(m_vr_move_utils.drawBoxStartPoint.position, m_vr_move_utils.drawBoxStartPoint.direction);    
-				var intersectsStart = raycasterStart.intersectObjects( m_scene_models ); 
-				if(intersectsStart.length > 0 && intersectsEnd.length > 0)
-				{
-					m_vr_move_utils.drawBoxEndPoint.ray = intersectsEnd[0].point
-					m_vr_move_utils.drawBoxStartPoint.ray = intersectsStart[0].point
-					updateCandidates(true)
-				}
-				
-				m_vr_move_utils.drawBoxEndPoint = null
-				m_vr_move_utils.drawBoxStartPoint = null
-			}
-			function doVRinputEvents(controller, newData)
-			{
-				if(m_old_vr_input_data == null)
-				{
-					m_old_vr_input_data = newData
-					return;
-				}
-				if(newData.buttons[1] == 1 && m_old_vr_input_data.buttons[1] < 1)
-				{
-					startVRbutton1event();
-				}
-				else if(newData.buttons[1] == 0 && m_old_vr_input_data.buttons[1] > 0)
-				{
-					
-					endVRbutton1event();
-				}
-				m_old_vr_input_data = newData
-			}
-			function updateVRdrawBox()
-			{
-				var pos = new THREE.Vector3()
-				var dir = new THREE.Vector3()
-				m_controller1.getWorldPosition(pos);
-			    m_controller1.getWorldDirection(dir);
-			    //dir.multiplyScalar(5)
-			    //pos.add(dir)
-			    m_vr_move_utils.drawBoxEndPoint = {
-			    	position: pos,
-			    	direction: dir,
-			    	ray: null
-			    }
-			    //update the mesh:
-
-
-			}
 			function updateVR()
 			{
-				const session = m_renderer.xr.getSession();
-				let i = 0;
-				if(m_vr_move_utils.isDrawingSelectBox)
-					updateVRdrawBox()
-				if (session) {
-			        for (const source of session.inputSources) {
-			        	var handedness;
-			            if (source && source.handedness) {
-			                handedness = source.handedness; //left or right controllers
-			            }
-
-			            if (!source.gamepad || handedness != "right") continue;
-			            const controller = m_renderer.xr.getController(i++);
-
-			            var data = {
-			                //handedness: handedness,
-			                buttons: source.gamepad.buttons.map((b) => b.value),
-			                axes: source.gamepad.axes.slice(0)
-			            };
-			            doVRinputEvents(controller, data)
-			        }
-			    }
 				if (m_vr_move_utils.guidingController) {
 			        // Controller start position
 			        const p = m_vr_move_utils.guidingController.getWorldPosition(m_vr_move_utils.tempVecP);
