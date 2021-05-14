@@ -118,5 +118,6 @@ var m_vr_move_utils =
 	drawBoxStartPoint: null,
 	drawBoxEndPoint: null,
 	lineGeometryVerticesSquare: null,
-	lineSquare: null
+	lineSquare: null,
+	framesSquare: 0,
 }

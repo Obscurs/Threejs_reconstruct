@@ -122,12 +122,23 @@
 			uniform sampler2D texture2;
 			uniform bool showRedArea;
 			uniform bool projectCapture;
+			uniform bool squareVR;
+			uniform vec2 vUv_VR_square_min;
+			uniform vec2 vUv_VR_square_max;
 			varying vec2 vUv;
 			varying vec3 capturePos;
 			void main() {
 			  //gl_FragColor = vec4(mix(colorA, colorB, vUv.z), 1.0);
 			  //if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > 0.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
-			  if(showRedArea && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
+			  //if(squareVR && capturePos.x > vUv_VR_square_min.x && capturePos.x < vUv_VR_square_max.x && capturePos.y > vUv_VR_square_min.x && capturePos.y < vUv_VR_square_max.y)
+			  	if(squareVR && capturePos.x > vUv_VR_square_min.x && capturePos.y > vUv_VR_square_min.y && capturePos.x < vUv_VR_square_max.x && capturePos.y < vUv_VR_square_max.y)
+			  {
+			  		//if(capturePos.x < -0.95 || capturePos.x > 0.95 || capturePos.y < -0.95 || capturePos.y > 0.95)
+			  		gl_FragColor = vec4(mix(vec3(0.0,0.0,1.0), texture2D(texture1, vUv).xyz, 0.6), 1.0);
+			  		//else
+			  		//	gl_FragColor = texture2D(texture1, vUv); 
+			  }
+			  else if(showRedArea && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
 			  {
 
 			  	if(capturePos.x < -0.95 || capturePos.x > 0.95 || capturePos.y < -0.95 || capturePos.y > 0.95)
@@ -922,6 +933,10 @@
 				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
 				        texture1: { type: "t", value: loaderTex.load('./models/'+model.path+'/textures/'+m_models_values[m_gui.gui_options.current_model].texture_name) },
 				        texture2: { type: "t", value: null },
+				        squareVR: {type: 'bool', value: false},
+				        vUv_VR_square_min: {type: 'vec2', value: new THREE.Vector2()},
+				        vUv_VR_square_max: {type: 'vec2', value: new THREE.Vector2()},
+
 				    }
 					const material = new THREE.ShaderMaterial( { 
 						uniforms: uniforms,
@@ -1990,6 +2005,15 @@
 			    	direction: dir,
 			    	ray: null
 			    }
+
+			    var raycasterStart =  new THREE.Raycaster(m_vr_move_utils.drawBoxStartPoint.position, m_vr_move_utils.drawBoxStartPoint.direction);    
+				var intersectsStart = raycasterStart.intersectObjects( m_scene_models ); 
+				if(intersectsStart.length > 0){
+					m_vr_move_utils.drawBoxStartPoint.ray = intersectsStart[0].point
+					//m_scene_models[0].material.uniforms.vUv_VR_square_min.value = m_selection_rectangle.startNDC
+					/*m_scene_models[0].material.uniforms.vUv_VR_square_max.value   = null*/
+				}
+					
 			}
 			function endVRbutton1event(controller)
 			{
@@ -2003,16 +2027,30 @@
 				m_vr_move_utils.drawBoxEndPoint.position.project(camera)*/
 				var raycasterEnd =  new THREE.Raycaster(m_vr_move_utils.drawBoxEndPoint.position, m_vr_move_utils.drawBoxEndPoint.direction);    
 				var intersectsEnd = raycasterEnd.intersectObjects( m_scene_models );  
-				var raycasterStart =  new THREE.Raycaster(m_vr_move_utils.drawBoxStartPoint.position, m_vr_move_utils.drawBoxStartPoint.direction);    
-				var intersectsStart = raycasterStart.intersectObjects( m_scene_models ); 
-				if(intersectsStart.length > 0 && intersectsEnd.length > 0)
+				//var raycasterStart =  new THREE.Raycaster(m_vr_move_utils.drawBoxStartPoint.position, m_vr_move_utils.drawBoxStartPoint.direction);    
+				//var intersectsStart = raycasterStart.intersectObjects( m_scene_models ); 
+				if(m_vr_move_utils.drawBoxStartPoint.ray != null && intersectsEnd.length > 0)
 				{
 					m_vr_move_utils.drawBoxEndPoint.ray = intersectsEnd[0].point
-					m_vr_move_utils.drawBoxStartPoint.ray = intersectsStart[0].point
+					
 					updateCandidates(true)
 				}
 				//m_vr_move_utils.lineGeometryVerticesSquare = null
 				//m_scene.remove(m_vr_move_utils.lineSquare)
+				m_scene_models[0].material.uniforms.squareVR.value = false
+
+				if(m_camera_capture)
+				{
+					var viewMat = new THREE.Matrix4();
+					var projMat = new THREE.Matrix4();
+					viewMat.copy(m_camera_capture.matrixWorldInverse);
+					projMat.copy(m_camera_capture.projectionMatrix)
+					m_scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
+					m_scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
+				}
+				/*m_scene_models[0].material.uniforms.vUv_VR_square_min.value   = null
+				m_scene_models[0].material.uniforms.vUv_VR_square_max.value   = null*/
+
 				m_vr_move_utils.drawBoxEndPoint = null
 				m_vr_move_utils.drawBoxStartPoint = null
 			}
@@ -2029,6 +2067,62 @@
 			    	direction: dir,
 			    	ray: null
 			    }
+
+			    var camera = m_renderer.xr.getCamera(m_camera)
+				m_selection_rectangle.startNDC = getNDCposFromWorld(camera,m_vr_move_utils.drawBoxStartPoint.position)
+				m_selection_rectangle.endNDC = getNDCposFromWorld(camera,m_vr_move_utils.drawBoxEndPoint.position)
+				var v1 = new THREE.Vector2(m_selection_rectangle.startNDC.x,m_selection_rectangle.startNDC.y)
+				var v2 = new THREE.Vector2(m_selection_rectangle.endNDC.x,m_selection_rectangle.endNDC.y)
+			    m_scene_models[0].material.uniforms.squareVR.value = true
+			    var viewMat = new THREE.Matrix4();
+				var projMat = new THREE.Matrix4();
+				viewMat.copy(camera.matrixWorldInverse);
+				projMat.copy(camera.projectionMatrix)
+			    m_scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
+				m_scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
+				if(m_vr_move_utils.framesSquare < 20)
+					m_vr_move_utils.framesSquare = m_vr_move_utils.framesSquare +1
+				else
+				{
+					var raycasterEnd =  new THREE.Raycaster(m_vr_move_utils.drawBoxEndPoint.position, m_vr_move_utils.drawBoxEndPoint.direction);    
+					var intersectsEnd = raycasterEnd.intersectObjects( m_scene_models );      
+					if(intersectsEnd.length > 0)
+					{
+						m_vr_move_utils.drawBoxEndPoint.ray =intersectsEnd[0].point
+						//m_vr_move_utils.drawBoxEndPoint.ray = intersectsEnd[0].point
+						//m_vr_move_utils.drawBoxStartPoint.ray = intersectsStart[0].point
+						
+						
+						m_scene_models[0].material.uniforms.squareVR.value = true
+					}
+					m_vr_move_utils.framesSquare = 0
+				}
+				if(m_vr_move_utils.drawBoxEndPoint.ray !=null)
+				{
+					m_selection_rectangle.startNDC = getNDCposFromWorld(camera,m_vr_move_utils.drawBoxStartPoint.ray)
+					m_selection_rectangle.endNDC = getNDCposFromWorld(camera,m_vr_move_utils.drawBoxEndPoint.ray)
+					var aux =0;
+					if(m_selection_rectangle.startNDC.x >m_selection_rectangle.endNDC.x)
+					{
+						aux = m_selection_rectangle.startNDC.x
+						m_selection_rectangle.startNDC.x = m_selection_rectangle.endNDC.x
+						m_selection_rectangle.endNDC.x = aux
+					}
+					if(m_selection_rectangle.startNDC.y >m_selection_rectangle.endNDC.y)
+					{
+						aux = m_selection_rectangle.startNDC.y
+						m_selection_rectangle.startNDC.y = m_selection_rectangle.endNDC.y
+						m_selection_rectangle.endNDC.y = aux
+					}
+					m_scene_models[0].material.uniforms.vUv_VR_square_min.value   = m_selection_rectangle.startNDC
+					m_scene_models[0].material.uniforms.vUv_VR_square_max.value   = m_selection_rectangle.endNDC
+				}
+				//m_scene_models[0].material.uniforms.vUv_VR_square_min.value = v1;
+				//m_scene_models[0].material.uniforms.vUv_VR_square_max.value = v2;
+				
+
+				
+
 			    //update the mesh:
 
 			    /*const vertex1 = new THREE.Vector3()
