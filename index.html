@@ -648,6 +648,20 @@
 				        changeMode();*/
 				    /*}  else if (keyCode == 67) { //C
 				        toggleEnableCams();*/
+				    }else if(keyCode == 87) { //W
+				    	var collection = getCollectionIndexUnderMouse()
+						if(collection >=0 && m_current_candidates_collections[collection].elems.length > 1)
+						{
+							m_current_candidates_collections[collection].animating = -1			
+						}
+
+				    }else if(keyCode == 83) { //S
+				    	var collection = getCollectionIndexUnderMouse()
+						if(collection >=0 && m_current_candidates_collections[collection].elems.length > 1)
+						{
+							m_current_candidates_collections[collection].animating = +1			
+						}
+
 				    }  else if (keyCode == 17) {
 				    	m_application_state.select_controls_enabled = true;
 				    	m_controls.enabled = false;
