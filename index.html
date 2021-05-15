@@ -333,15 +333,19 @@
 				plane = new THREE.Mesh(new THREE.PlaneGeometry(1.0001, 1.0001), material_plane);
 				plane.name ="plane_photo"
 				plane.translateZ( -(m_camera_capture.near+0.0001) );
-				if(m_plane_image_secondary != null)
-				{
-					var existing = m_scene.getObjectByName("plane_photo");
-					if(existing)
-						m_scene.remove( existing );
-				}
+
+				var existing = m_scene.getObjectByName("plane_photo");
+				if(existing)
+					m_scene.remove( existing );
+			
+				
 				plane.applyMatrix(m_camera_capture.matrix)
 				m_plane_image_secondary = plane;
+
+
 				m_scene.add(m_plane_image_secondary)
+				
+				
 
 
 
@@ -350,23 +354,44 @@
 						uniforms: {tDiffuse: {value: m_render_target_secondary.texture}},
 					    fragmentShader: document.getElementById('fragmentShaderScreen').textContent,
 					    vertexShader: document.getElementById('vertexShaderSprite').textContent,
-					    depthWrite: false
+					    depthTest: false,
+					    depthWrite: false,
 						//map: loaderTex.load('./models/textures/doma-interior_texture16k.jpg'), 
 					} );
 
 				plane_rt = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material_plane_rt);
 				plane_rt.name ="plane_rt"
 				plane_rt.position.z = -1
-				m_plane_render_target = plane_rt
 
-				if(m_plane_render_target != null)
+				m_plane_render_target = plane_rt
+					
+				if(m_renderer.xr.isPresenting)
 				{
-					var existing = m_scene_capture.getObjectByName("plane_rt");
+					if(m_plane_render_target != null)
+						m_plane_render_target.renderOrder = 100
+					plane_rt.position.x = + 0.75;
+					plane_rt.rotation.y = -Math.PI / 3;
+					//plane_rt.position.y = - 0.2;
+					var existing = m_vr_panels_group.getObjectByName("plane_rt");
 					if(existing)
-						m_scene_capture.remove( existing );
-					//m_scene_capture.remove(m_plane_render_target)
+						m_vr_panels_group.remove( existing );
+					
+					if(m_plane_render_target != null && m_vr_move_utils.vrguiEnabled && m_gui.gui_options.show_view_enabled)
+						m_vr_panels_group.add(m_plane_render_target);
 				}
-				m_scene_capture.add(m_plane_render_target)
+				else
+				{
+					if(m_plane_render_target != null)
+					{
+						m_plane_render_target.renderOrder = 0
+						var existing = m_scene_capture.getObjectByName("plane_rt");
+						if(existing)
+							m_scene_capture.remove( existing );
+						//m_scene_capture.remove(m_plane_render_target)
+					}
+					m_scene_capture.add(m_plane_render_target)
+				}
+				
 
 				m_controls_secondary.reset();
 
@@ -1821,6 +1846,8 @@
 						return
 					m_vr_move_utils.vrguiEnabled = true
 					m_vr_panels_group.add(m_current_sprites_in_scene );
+					if(m_plane_render_target && m_gui.gui_options.show_view_enabled)
+						m_vr_panels_group.add(m_plane_render_target);
 					m_vr_panels_group.position.copy(m_camera.position)
 					m_vr_panels_group.rotation.copy(m_camera.rotation)
 					m_timer_update = m_gui.gui_options.timer_recalc+1
@@ -1833,6 +1860,8 @@
 					if(m_vr_move_utils.vrguiEnabled)
 						m_gui.disableVRgui()
 					m_vr_panels_group.remove(m_current_sprites_in_scene );
+					if(m_plane_render_target)
+						m_vr_panels_group.remove(m_plane_render_target);
 					m_vr_move_utils.vrguiEnabled = false
 				}
 				function onSelectStartRight() {
@@ -2404,8 +2433,25 @@
 							startSceneForModel()
 							return
 						}
+
 						if(m_renderer.xr.isPresenting)
 						{
+							if(m_gui.checkViewChanged)
+							{
+								if(m_gui.gui_options.show_view_enabled)
+								{
+									if(m_plane_render_target)
+										m_vr_panels_group.add(m_plane_render_target);
+								}
+								else
+								{
+									if(m_plane_render_target)
+										m_vr_panels_group.remove(m_plane_render_target);
+								}
+								
+								m_gui.checkViewChanged = false
+							}
+							
 							if(!m_vr_move_utils.lastFrameInVR)
 								enterVR()
 							updateVR()
@@ -2568,8 +2614,7 @@
 			}
 			function renderSecondaryCamera(view_index, draw_border)
 			{
-				if(m_renderer.xr.isPresenting)
-					return;
+
 				m_cameraHelper.visible = false;
 				const left = Math.floor( window.innerWidth * m_views[view_index].left );
 				const bottom = Math.floor( window.innerHeight * m_views[view_index].bottom );
@@ -2586,22 +2631,43 @@
 					var frustumWidth = frustumHeight * m_camera_capture.aspect;
 					m_plane_image_secondary.scale.x = frustumWidth;
 					m_plane_image_secondary.scale.y = frustumHeight;
-
+					m_renderer.xr.enabled = false;
 					var old_rt = m_renderer.getRenderTarget()
 					m_renderer.setRenderTarget(m_render_target_secondary)
 					//m_camera_capture.aspect = width / height;
 					m_camera_capture.updateProjectionMatrix();
+					var aux = false
+					if(m_vr_panels_group)
+					{
+						aux = m_vr_panels_group.visible 
+						m_vr_panels_group.visible = false
+					}
 					m_renderer.render( m_scene, m_camera_capture );
+					if(m_vr_panels_group)
+					{
+						m_vr_panels_group.visible = aux
+					}
 					m_renderer.setRenderTarget(null)
+					m_renderer.xr.enabled = true;
+					if(m_renderer.xr.isPresenting)
+					{
+						m_plane_render_target.scale.x = 2*m_camera_capture.aspect
+						m_plane_render_target.scale.y = 2
+						
+					}
+					else
+					{
+						m_plane_render_target.scale.x = window.innerHeight*m_camera_capture.aspect
+						m_plane_render_target.scale.y = window.innerHeight
 
-					m_plane_render_target.scale.x = window.innerHeight*m_camera_capture.aspect
-					m_plane_render_target.scale.y = window.innerHeight
+					}
 
-
-					//m_camera_capture_orto.aspect = width / height;
-					//m_camera_capture_orto.updateProjectionMatrix();
 				}
-
+				if(m_renderer.xr.isPresenting)
+				{
+					return;
+				}
+				
 				if(draw_border)
 				{
 					m_renderer.setViewport( left-0.1, bottom, width+0.1, height+0.1 );

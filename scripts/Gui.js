@@ -191,6 +191,7 @@ export class Gui {
 		{
 			updateGuiVR = true;
 		});*/
+		this.checkViewChanged = false
 		this.disableVRgui()
 
 	}
@@ -216,11 +217,13 @@ export class Gui {
 		{
 			this._updateGuiNormal()
 			this.updateGuiVRNames()
+			this.checkViewChanged = true;
 		}
 		else if(updateGuiVR)
 		{
 			this._updateGuiVR()
 			this.updateGuiVRNames()
+			this.checkViewChanged = true;
 		}
 		
 		if(showViewChanged)
@@ -234,6 +237,7 @@ export class Gui {
 				document.getElementById("info2").style.visibility = "hidden";
 			}
 			showViewChanged = false;
+
 		}
 		if(modelChanged)
 		{
@@ -275,10 +279,10 @@ export class Gui {
 		const mesh = new HTMLMesh( this.gui_vr.domElement );
 		mesh.renderOrder = 1
 		mesh.material.depthTest = false;
-		mesh.position.x = + 0.5;
+		mesh.position.x = - 0.5;
 		mesh.position.y = 0;
 		mesh.position.z = - 1.2;
-		mesh.rotation.y = -Math.PI / 4;
+		mesh.rotation.y = Math.PI / 4;
 		mesh.scale.setScalar( 2 );
 		//group.add( mesh );
 		m_vr_move_utils.vrgui = mesh;
