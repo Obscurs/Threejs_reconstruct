@@ -120,4 +120,5 @@ var m_vr_move_utils =
 	lineGeometryVerticesSquare: null,
 	lineSquare: null,
 	framesSquare: 0,
+	captureIntexUnderPointer: 0,
 }
