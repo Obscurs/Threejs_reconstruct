@@ -11,5 +11,7 @@ export class CameraInfo {
 		this.similitudes = [];
 		this.similitudes_indices_ordered = [];
 		this.rays = [];
+
 	}
+
 }

@@ -70,6 +70,8 @@ class InteractiveGroup extends Group {
 
 		function onXRControllerEvent( event ) {
 
+			if(event.data.handedness != "right")
+				return
 			const controller = event.target;
 
 			tempMatrix.identity().extractRotation( controller.matrixWorld );
@@ -101,11 +103,11 @@ class InteractiveGroup extends Group {
 		controller1.addEventListener( 'selectstart', onXRControllerEvent );
 		controller1.addEventListener( 'selectend', onXRControllerEvent );
 
-		/*const controller2 = renderer.xr.getController( 1 );
+		const controller2 = renderer.xr.getController( 1 );
 		controller2.addEventListener( 'move', onXRControllerEvent );
 		controller2.addEventListener( 'select', onXRControllerEvent );
 		controller2.addEventListener( 'selectstart', onXRControllerEvent );
-		controller2.addEventListener( 'selectend', onXRControllerEvent );*/
+		controller2.addEventListener( 'selectend', onXRControllerEvent );
 
 	}
 

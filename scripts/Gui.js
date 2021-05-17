@@ -13,16 +13,16 @@ export class Gui {
 		//this.is_vr = false;
 		this.gui_options =
 		{
-			projection: 0,
-			orientation: 5,
-			position: 1,
+			projection: 1,
+			orientation: 0,
+			position: 0,
 			timer_recalc: 1,
 
-			max_num_collections: 7,
+			max_num_collections: 6,
 			max_collection_size: 5,
 			similitude_treshold: 0.7,
 			discard_too_similar: true,
-			clustering_method: 'normal',
+			clustering_method: 'single_linkage',
 			clustering_method_aux: false,
 
 			red_area_enabled: false,
@@ -30,7 +30,7 @@ export class Gui {
 			show_view_enabled: false,
 			show_photo_enabled: false,
 			project_capture_enabled: false,
-			auto_score_enabled: false,
+			auto_score_enabled: true,
 
 			current_model: "pedret",
 
@@ -100,9 +100,9 @@ export class Gui {
 		modelsFolder.add( this.gui_options, 'current_model' ).options( models ).name( 'Current model' ).listen().onChange( function () {
 			modelChanged = true
 		} );
-		scoreFolder.add(this.gui_options, 'projection', 0, 10, 0.1 ).name( 'Projection' );
-		scoreFolder.add(this.gui_options, 'position', 0, 10, 0.1 ).name( 'Position' );
-		scoreFolder.add(this.gui_options, 'orientation', 0, 10, 0.1 ).name( 'Orientation' );
+		scoreFolder.add(this.gui_options, 'projection', 0, 1, 0.1 ).name( 'Shared points' );
+		scoreFolder.add(this.gui_options, 'position', 0, 1, 0.1 ).name( 'Position' );
+		scoreFolder.add(this.gui_options, 'orientation', 0, 1, 0.1 ).name( 'Orientation' );
 		scoreFolder.add(this.gui_options, 'timer_recalc', 0, 10, 0.1 ).name( 'Recalc timer' );
 
 		scoreFolder.open();
@@ -110,7 +110,7 @@ export class Gui {
 		const viewFolder = this.gui.addFolder( 'Display options' );
 
 
-		viewFolder.add(this.gui_options, 'red_area_enabled').name( 'Show area' ).listen().onChange(function ()
+		viewFolder.add(this.gui_options, 'red_area_enabled').name( 'Show highlighted area' ).listen().onChange(function ()
 		{
 			updateGuiVR = true;
 		});
@@ -142,8 +142,8 @@ export class Gui {
 
 		
 
-		candidatesFolder.add(this.gui_options, 'max_num_collections', 0, 20, 1 ).name( 'Max num collection' );
-		candidatesFolder.add(this.gui_options, 'max_collection_size', 0, 20, 1 ).name( 'Max size collection' );
+		candidatesFolder.add(this.gui_options, 'max_num_collections', 0, 10, 1 ).name( 'Max num collections' );
+		candidatesFolder.add(this.gui_options, 'max_collection_size', 0, 15, 1 ).name( 'Max size stack' );
 		candidatesFolder.add(this.gui_options, 'similitude_treshold', 0, 1, 0.01 ).name( 'Similitude treshold' );
 		//this.gui.add(this.gui_options, 'linkage_enabled').name( 'Linkage clustering' );
 		candidatesFolder.add( this.gui_options, 'clustering_method' ).options( clustering_methods ).name( 'Cluster method' ).onChange(function ()
@@ -262,9 +262,19 @@ export class Gui {
 		
 		vr_panels_group.add(this.interactiveGroup)
 		//scene.add( group );
-
-		
-
+	}
+	clearInteractiveGroup(vr_panels_group)
+	{
+		if(this.interactiveGroup)
+		{
+			while(this.interactiveGroup.children.length > 0)
+			{
+				this.interactiveGroup.remove(this.interactiveGroup.children[0])
+			}
+			vr_panels_group.remove(this.interactiveGroup)
+		}
+			
+			
 	}
 	enableVRgui()
 	{
@@ -294,7 +304,14 @@ export class Gui {
 		this.gui_vr.domElement.style.display = 'none';
 		this.gui_vr_enabled = false
 		if(this.interactiveGroup)
+		{
+			while(this.interactiveGroup.children.length > 0)
+			{
+				this.interactiveGroup.remove(this.interactiveGroup.children[0])
+			}
 			this.interactiveGroup.remove(m_vr_move_utils.vrgui);
+		}
+			
 	}
 
 	enableGui()

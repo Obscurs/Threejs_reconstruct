@@ -145,6 +145,18 @@
 			  		
 			  		//else
 			  		//	gl_FragColor = texture2D(texture1, vUv); 
+			  } 
+			  else if(projectCapture)
+			  {
+			  	if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
+			  	{
+			  		vec2 texCoords = vec2((capturePos.x+1.0f)/2.0f,(capturePos.y+1.0f)/2.0f);
+			  		gl_FragColor = texture2D(texture2, texCoords);
+			  	}
+			  	else
+			  	{
+			  		gl_FragColor = texture2D(texture1, vUv); 
+			  	}
 			  }
 			  else if(showRedArea && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
 			  {
@@ -156,17 +168,7 @@
 			  }
 			  else 
 			  {
-			  	if(projectCapture && capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
-			  	{
-			  		vec2 texCoords = vec2((capturePos.x+1.0f)/2.0f,(capturePos.y+1.0f)/2.0f);
-			  		gl_FragColor = texture2D(texture2, texCoords);
-			  	}
-			  	else
-			  	{
 			  		gl_FragColor = texture2D(texture1, vUv); 
-			  	}
-					
-					//discard;
 			  }
 
 			  
@@ -336,7 +338,13 @@
 
 				var existing = m_scene.getObjectByName("plane_photo");
 				if(existing)
+				{
+
 					m_scene.remove( existing );
+					existing.geometry.dispose();
+					existing.material.dispose();
+				}
+					
 			
 				
 				plane.applyMatrix(m_camera_capture.matrix)
@@ -373,8 +381,12 @@
 					plane_rt.rotation.y = -Math.PI / 3;
 					//plane_rt.position.y = - 0.2;
 					var existing = m_vr_panels_group.getObjectByName("plane_rt");
-					if(existing)
+					if(existing){
 						m_vr_panels_group.remove( existing );
+						existing.geometry.dispose();
+						existing.material.dispose();
+					}
+						
 					
 					if(m_plane_render_target != null && m_vr_move_utils.vrguiEnabled && m_gui.gui_options.show_view_enabled)
 						m_vr_panels_group.add(m_plane_render_target);
@@ -385,8 +397,12 @@
 					{
 						m_plane_render_target.renderOrder = 0
 						var existing = m_scene_capture.getObjectByName("plane_rt");
-						if(existing)
+						if(existing){
 							m_scene_capture.remove( existing );
+							existing.geometry.dispose();
+							existing.material.dispose();
+						}
+							
 						//m_scene_capture.remove(m_plane_render_target)
 					}
 					m_scene_capture.add(m_plane_render_target)
@@ -536,7 +552,10 @@
 					sprites_to_remove.push(m_current_sprites_in_scene.children[i].name)
 				}
 				while(m_current_sprites_in_scene.children.length > 0){ 
+					m_current_sprites_in_scene.children[0].geometry.dispose();
+					m_current_sprites_in_scene.children[0].material.dispose();
 				    m_current_sprites_in_scene.remove(m_current_sprites_in_scene.children[0]); 
+
 				}
 				for(var i = 0; i < m_current_candidates_collections.length; i++)
 				{
@@ -565,8 +584,8 @@
 			{
 				var pos = new THREE.Vector3()
 				var dir = new THREE.Vector3()
-				m_controller1.getWorldPosition(pos);
-			    m_controller1.getWorldDirection(dir);
+				getControllerRight().getWorldPosition(pos);
+			    getControllerRight().getWorldDirection(dir);
 			    dir.multiplyScalar(-1)
 			    var raycaster =  new THREE.Raycaster(pos, dir);    
 				var intersects = raycaster.intersectObjects( m_current_sprites_in_scene.children );
@@ -1632,6 +1651,10 @@
 				var start_y = m_models_values[m_gui.gui_options.current_model].pos_y_cam_start
 				var start_z = m_models_values[m_gui.gui_options.current_model].pos_z_cam_start
 
+				var target_x = m_models_values[m_gui.gui_options.current_model].target_x_cam_start
+				var target_y = m_models_values[m_gui.gui_options.current_model].target_y_cam_start
+				var target_z = m_models_values[m_gui.gui_options.current_model].target_z_cam_start
+
 				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 100 );
 				
 				m_camera.position.set( start_x,start_y,start_z );
@@ -1663,7 +1686,7 @@
 					m_controls.minAzimuthAngle = - Infinity; // radians
 					m_controls.maxAzimuthAngle = Infinity; // radians
 
-					m_controls.target.set(-1*0.03,start_y,2*0.03)
+					m_controls.target.set(target_x,target_y,target_z)
 
 					
 					m_controls_secondary = new OrbitControls( m_camera_capture_orto, m_renderer.domElement );
@@ -1716,7 +1739,8 @@
 
 				m_has_any_secondary_capture = false;
 				m_plane_image_secondary = null;
-
+				if(m_gui)
+					m_gui.clearInteractiveGroup(m_vr_panels_group)
 				m_camera_list = [];
 				m_scene_models = [];
 				m_current_candidates = [];
@@ -1729,17 +1753,29 @@
 
 				m_dragging = false;
 				while(m_current_sprites_in_scene.children.length > 0){ 
+					if(m_current_sprites_in_scene.children[0].geometry)
+						m_current_sprites_in_scene.children[0].geometry.dispose();
+					if(m_current_sprites_in_scene.children[0].material)
+						m_current_sprites_in_scene.children[0].material.dispose();
 				    m_current_sprites_in_scene.remove(m_current_sprites_in_scene.children[0]); 
 				}
 				
 
 				while(m_scene.children.length > 0){ 
+					if(m_scene.children[0].geometry)
+						m_scene.children[0].geometry.dispose();
+					if(m_scene.children[0].material)
+						m_scene.children[0].material.dispose();
 				    m_scene.remove(m_scene.children[0]); 
 				}
 				/*while(m_scene_collections.children.length > 0){ 
 				    m_scene_collections.remove(m_scene_collections.children[0]); 
 				}*/
-				while(m_scene_capture.children.length > 0){ 
+				while(m_scene_capture.children.length > 0){
+					if(m_scene_capture.children[0].geometry) 
+						m_scene_capture.children[0].geometry.dispose();
+					if(m_scene_capture.children[0].material) 
+						m_scene_capture.children[0].material.dispose();
 				    m_scene_capture.remove(m_scene_capture.children[0]); 
 				}
 				if(m_vr_panels_group)
@@ -1785,7 +1821,7 @@
 				animate();
 			}
 			function buildController( data ) {
-
+				console.log(data)
 				let geometry, material;
 
 				switch ( data.targetRayMode ) {
@@ -1841,7 +1877,30 @@
 			}
 			function initVR()
 			{
-				function onSelectStartLeft() {
+				function  onSelectStart()
+				{
+					if(this.type == "left")
+					{
+						onSelectStartLeft(this)
+					}
+					else if(this.type == "right")
+					{
+						onSelectStartRight(this)
+					}
+
+				}
+				function  onSelectEnd()
+				{
+					if(this.type == "left")
+					{
+						onSelectEndLeft(this)
+					}
+					else if(this.type == "right")
+					{
+						onSelectEndRight(this)
+					}
+				}
+				function onSelectStartLeft(controller) {
 					if(m_vr_move_utils.guidingController != null || m_vr_move_utils.isDrawingSelectBox)
 						return
 					m_vr_move_utils.vrguiEnabled = true
@@ -1854,7 +1913,7 @@
 					m_application_state.need_to_update_auto_detect = true;
 					m_gui.enableVRgui()
 				}
-				function onSelectEndLeft() {
+				function onSelectEndLeft(controller) {
 					if(m_vr_move_utils.isDrawingSelectBox)
 						return
 					if(m_vr_move_utils.vrguiEnabled)
@@ -1864,25 +1923,25 @@
 						m_vr_panels_group.remove(m_plane_render_target);
 					m_vr_move_utils.vrguiEnabled = false
 				}
-				function onSelectStartRight() {
+				function onSelectStartRight(controller) {
 					if(m_vr_move_utils.vrguiEnabled)
 					{
 						return
 					}
-				    m_vr_move_utils.guidingController = this;
+				    m_vr_move_utils.guidingController = controller;
 				    m_vr_move_utils.guidelight.intensity = 1;
-				    this.add(m_vr_move_utils.guideline);
+				    controller.add(m_vr_move_utils.guideline);
 				    m_scene.add(m_vr_move_utils.guidesprite);
 				}
 
-				function onSelectEndRight() {
+				function onSelectEndRight(controller) {
 					if(m_vr_move_utils.vrguiEnabled)
 					{
 						var captureIndex = getCaptureUnderVRpointer();
 						if(captureIndex >= 0)
 							selectCapture(captureIndex, true)
 					}
-				    if (m_vr_move_utils.guidingController === this) {
+				    if (m_vr_move_utils.guidingController === controller) {
 
 				        // first work out vector from feet to cursor
 
@@ -1908,16 +1967,17 @@
 				        // clean up
 				        m_vr_move_utils.guidingController = null;
 				        m_vr_move_utils.guidelight.intensity = 0;
-				        this.remove(m_vr_move_utils.guideline);
+				        controller.remove(m_vr_move_utils.guideline);
 				        m_scene.remove(m_vr_move_utils.guidesprite);
 				    }
 				}
+
 				m_controller1 = m_renderer.xr.getController( 0 );
-				m_controller1.addEventListener( 'selectstart', onSelectStartRight );
-				m_controller1.addEventListener( 'selectend', onSelectEndRight );
+				m_controller1.addEventListener( 'selectstart', onSelectStart );
+				m_controller1.addEventListener( 'selectend', onSelectEnd );
 				m_controller1.addEventListener( 'connected', function ( event ) {
 					this.add( buildController( event.data ) );
-
+					this.type = event.data.handedness
 				} );
 				m_controller1.addEventListener( 'disconnected', function () {
 					this.remove( this.children[ 0 ] );
@@ -1926,10 +1986,11 @@
 				m_camera_group.add( m_controller1 );
 
 				m_controller2 = m_renderer.xr.getController( 1 );
-				m_controller2.addEventListener( 'selectstart', onSelectStartLeft );
-				m_controller2.addEventListener( 'selectend', onSelectEndLeft );
+				m_controller2.addEventListener( 'selectstart', onSelectStart );
+				m_controller2.addEventListener( 'selectend', onSelectEnd );
 				m_controller2.addEventListener( 'connected', function ( event ) {
 					this.add( buildController( event.data ) );
+					this.type = event.data.handedness
 
 				} );
 				m_controller2.addEventListener( 'disconnected', function () {
@@ -1991,8 +2052,8 @@
 
 
 				m_models_values["doma"] = new ModelInfo("doma" ,"doma-interior_meshed_tex.png", "doma-interior_meshed_simplified.ply", 11.62, -0.137, 17.99, -1)
-				m_models_values["pedret"] = new ModelInfo("pedret" ,"pedret-interior_meshed_tex.png", "pedret-interior_meshed_simplified.ply", 2.27, 0.58, -4.89,-1)
-				m_models_values["solsona"] = new ModelInfo("solsona" ,"solsona_meshed_tex.jpg", "solsona_meshed_simplified.ply", 8.29, 0.73, 16.72,-1)
+				m_models_values["pedret"] = new ModelInfo("pedret" ,"pedret-interior_meshed_tex.png", "pedret-interior_meshed_simplified.ply", 2.51, 0.119, -7.99,-1)
+				m_models_values["solsona"] = new ModelInfo("solsona" ,"solsona_meshed_tex.jpg", "solsona_meshed_simplified.ply", 6.73, 0.54, 16.89,-1)
 				m_container = document.createElement( 'div' );
 				//const canvas = document.getElementById( 'canvas' );
 				//canvas.width = 300 * window.devicePixelRatio;
@@ -2113,6 +2174,13 @@
 				showCollections()
 
 			}
+			function getControllerRight()
+			{
+				if(m_controller1.type=="right")
+					return m_controller1
+				else
+					return m_controller2
+			}
 			function startVRbutton1event(controller)
 			{
 				if(m_vr_move_utils.vrguiEnabled)
@@ -2124,8 +2192,8 @@
 					console.log("start btn1")
 					var pos = new THREE.Vector3()
 					var dir = new THREE.Vector3()
-					m_controller1.getWorldPosition(pos);
-				    m_controller1.getWorldDirection(dir);
+					getControllerRight().getWorldPosition(pos);
+				    getControllerRight().getWorldDirection(dir);
 				    dir.multiplyScalar(-1)
 
 				    /*const geometry = new THREE.PlaneGeometry( 1, 1 );
@@ -2231,8 +2299,8 @@
 					return
 				var pos = new THREE.Vector3()
 				var dir = new THREE.Vector3()
-				m_controller1.getWorldPosition(pos);
-			    m_controller1.getWorldDirection(dir);
+				getControllerRight().getWorldPosition(pos);
+			    getControllerRight().getWorldDirection(dir);
 			    dir.multiplyScalar(-1)
 			    //dir.multiplyScalar(5)
 			    //pos.add(dir)
@@ -2412,6 +2480,8 @@
 				m_scene_collections.remove(m_current_sprites_in_scene);
 				m_vr_move_utils.lastFrameInVR = true
 				resetCamera("ORBIT");
+				m_camera_group.position.x = m_models_values[m_gui.gui_options.current_model].pos_x_cam_start
+				m_camera_group.position.z = m_models_values[m_gui.gui_options.current_model].pos_z_cam_start
 				m_camera_group.position.y = m_models_values[m_gui.gui_options.current_model].vr_y
 				showCollections()
 				
