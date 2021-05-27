@@ -29,8 +29,8 @@ export class Gui {
 			show_camera_enabled: false,
 			show_view_enabled: false,
 			show_photo_enabled: false,
-			project_capture_enabled: false,
-			auto_score_enabled: true,
+			project_capture_enabled: true,
+			auto_score_enabled: false,
 
 			current_model: "pedret",
 
@@ -51,6 +51,7 @@ export class Gui {
 
 		this.gui_vr = new GUI();
 		this.addElemsGuiVR()
+		this.enabled = true
 		
 		
 	}
@@ -88,69 +89,69 @@ export class Gui {
 	{
 		const models = [ 'pedret', 'doma','solsona'];
 		const clustering_methods = [ 'normal', 'single_linkage'];
-		const modelsFolder = this.gui.addFolder( 'Models' );
+		this.modelsFolder = this.gui.addFolder( 'Models' );
 
 		
 
-		modelsFolder.open();
+		this.modelsFolder.open();
 
-		const scoreFolder = this.gui.addFolder( 'Score computation' );
+		this.scoreFolder = this.gui.addFolder( 'Score computation' );
 		
 		
-		modelsFolder.add( this.gui_options, 'current_model' ).options( models ).name( 'Current model' ).listen().onChange( function () {
+		this.modelsFolder.add( this.gui_options, 'current_model' ).options( models ).name( 'Current model' ).listen().onChange( function () {
 			modelChanged = true
 		} );
-		scoreFolder.add(this.gui_options, 'projection', 0, 1, 0.1 ).name( 'Shared points' );
-		scoreFolder.add(this.gui_options, 'position', 0, 1, 0.1 ).name( 'Position' );
-		scoreFolder.add(this.gui_options, 'orientation', 0, 1, 0.1 ).name( 'Orientation' );
-		scoreFolder.add(this.gui_options, 'timer_recalc', 0, 10, 0.1 ).name( 'Recalc timer' );
+		this.scoreFolder.add(this.gui_options, 'projection', 0, 1, 0.1 ).name( 'View' );
+		this.scoreFolder.add(this.gui_options, 'position', 0, 1, 0.1 ).name( 'Position' );
+		this.scoreFolder.add(this.gui_options, 'orientation', 0, 1, 0.1 ).name( 'Orientation' );
+		this.scoreFolder.add(this.gui_options, 'timer_recalc', 0, 10, 0.1 ).name( 'Recalc timer' );
 
-		scoreFolder.open();
+		//this.scoreFolder.open();
 
-		const viewFolder = this.gui.addFolder( 'Display options' );
+		this.viewFolder = this.gui.addFolder( 'Display options' );
 
 
-		viewFolder.add(this.gui_options, 'red_area_enabled').name( 'Show highlighted area' ).listen().onChange(function ()
+		this.viewFolder.add(this.gui_options, 'red_area_enabled').name( 'Show highlighted area' ).listen().onChange(function ()
 		{
 			updateGuiVR = true;
 		});
-		viewFolder.add(this.gui_options, 'show_camera_enabled').name( 'Show camera' ).listen().onChange(function ()
+		this.viewFolder.add(this.gui_options, 'show_camera_enabled').name( 'Show camera' ).listen().onChange(function ()
 		{
 			updateGuiVR = true;
 		});
-		viewFolder.add(this.gui_options, 'show_photo_enabled').name( 'Show photo' ).listen().onChange(function ()
+		this.viewFolder.add(this.gui_options, 'show_photo_enabled').name( 'Show photo' ).listen().onChange(function ()
 		{
 			updateGuiVR = true;
 		});
-		viewFolder.add(this.gui_options, 'project_capture_enabled').name( 'Show projection' ).listen().onChange(function ()
+		this.viewFolder.add(this.gui_options, 'project_capture_enabled').name( 'Show projection' ).listen().onChange(function ()
 		{
 			updateGuiVR = true;
 		});
-		viewFolder.add(this.gui_options, 'show_view_enabled').name( 'Show view' ).listen().onChange(function ()
+		this.viewFolder.add(this.gui_options, 'show_view_enabled').name( 'Show view' ).listen().onChange(function ()
 		{
 			showViewChanged = true
 			updateGuiVR = true;
 		});
-		viewFolder.add(this.gui_options, 'auto_score_enabled').name( 'Auto-detect' ).listen().onChange(function ()
+		this.viewFolder.add(this.gui_options, 'auto_score_enabled').name( 'Auto-detect' ).listen().onChange(function ()
 		{
 			updateGuiVR = true;
 		});
-		viewFolder.open();
+		this.viewFolder.open();
 
 
-		const candidatesFolder = this.gui.addFolder( 'Candidate selection' );
+		this.candidatesFolder = this.gui.addFolder( 'Candidate selection' );
 
 		
 
-		candidatesFolder.add(this.gui_options, 'max_num_collections', 0, 10, 1 ).name( 'Max num collections' );
-		candidatesFolder.add(this.gui_options, 'max_collection_size', 0, 15, 1 ).name( 'Max size stack' );
-		candidatesFolder.add(this.gui_options, 'similitude_treshold', 0, 1, 0.01 ).name( 'Similitude treshold' );
+		this.candidatesFolder.add(this.gui_options, 'max_num_collections', 0, 10, 1 ).name( 'Max num collections' );
+		this.candidatesFolder.add(this.gui_options, 'max_collection_size', 0, 15, 1 ).name( 'Max size stack' );
+		this.candidatesFolder.add(this.gui_options, 'similitude_treshold', 0, 1, 0.01 ).name( 'Simil treshold' );
 		//this.gui.add(this.gui_options, 'linkage_enabled').name( 'Linkage clustering' );
-		candidatesFolder.add( this.gui_options, 'clustering_method' ).options( clustering_methods ).name( 'Cluster method' ).onChange(function ()
+		this.candidatesFolder.add( this.gui_options, 'clustering_method' ).options( clustering_methods ).name( 'Cluster method' ).onChange(function ()
 		{
 
 		});
-		candidatesFolder.open();
+		//this.candidatesFolder.open();
 	}
 	addElemsGuiVR()
 	{
@@ -316,10 +317,16 @@ export class Gui {
 
 	enableGui()
 	{
+		this.enabled = true
 		this.gui.domElement.style.display = '';
 	}
 	disableGui()
 	{
+		this.enabled = false
 		this.gui.domElement.style.display = 'none';
+	}
+	removeFocus()
+	{
+		this.gui.domElement.blur()
 	}
 }
