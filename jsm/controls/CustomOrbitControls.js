@@ -232,10 +232,25 @@ var OrbitControls = function ( object, domElement ) {
 			} 
 			else
 			{
-				spherical.radius *= scale;
+				if(scale > 1)
+				{
+					var direction = new Vector3();
+					scope.object.getWorldDirection( direction );
+					scope.object.position.add(direction.multiplyScalar( -scale*0.5 ))
+					scope.target.add( direction.multiplyScalar( scale*0.5 ));
+					scope.object.lookAt( scope.target );
+				}
+				else
+				{
+					spherical.radius *= scale;
+					//console.log(spherical.radius + " " + scale)
+					// restrict radius to be between desired limits
+					spherical.radius = Math.max( scope.minDistance, Math.min( scope.maxDistance, spherical.radius ) );
+				}
+				//spherical.radius *= scale;
 				//console.log(spherical.radius + " " + scale)
 				// restrict radius to be between desired limits
-				spherical.radius = Math.max( scope.minDistance, Math.min( scope.maxDistance, spherical.radius ) );
+				//spherical.radius = Math.max( scope.minDistance, Math.min( scope.maxDistance, spherical.radius ) );
 			}
 
 			

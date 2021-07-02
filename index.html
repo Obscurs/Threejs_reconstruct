@@ -33,6 +33,7 @@
 			uniform vec2 maxSel; 
 			uniform sampler2D texture1;
 			uniform float opacity;
+			uniform bool selected;
 
 			varying vec2 vUv;
 			float borderSel = 0.015;
@@ -40,7 +41,10 @@
 
 				if(vUv.x > 0.98 || vUv.x < 0.02 || vUv.y > 0.98 || vUv.y < 0.02)
 				{
-					gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+					if(selected)
+						gl_FragColor = vec4(0.0,1.0,0.0,opacity);
+					else
+						gl_FragColor = vec4(0.0,0.0,0.0,opacity);
 				}
 				else
 				{
@@ -52,7 +56,7 @@
 						(vUv.y > maxSel.y && vUv.y < maxSel.y+borderSel && vUv.x > minSel.x && vUv.x < maxSel.x+borderSel)
 						))
 					{
-						color = vec4(1.0,0.0,0.0,1.0);
+						color = vec4(1.0,0.0,0.0,opacity);
 					}
 					else
 					{
@@ -414,6 +418,12 @@
 			}
 			function selectCapture(index_capture, allow_jump = false)
 			{
+				if(!m_gui.gui_options.show_photo_collection && !m_renderer.xr.isPresenting)
+					return;
+				if(m_application_state.need_to_update_auto_detect)
+					return;
+				if(m_current_capture_in_view_index >=0 )
+					m_camera_list[m_current_capture_in_view_index].sprite.material.uniforms.selected.value = false;
 				//var index_capture = m_current_candidates[index_candidate].index;
 				if(m_current_capture_in_view_index == index_capture && allow_jump)
 				{
@@ -425,10 +435,20 @@
 					changeCaptureInView(index_capture)
 				}
 				m_current_capture_in_view_index = index_capture;
+				if(m_current_capture_in_view_index >=0)
+					m_camera_list[m_current_capture_in_view_index].sprite.material.uniforms.selected.value = true;
 				
 			}
 
-
+			function setCollectionOpacity(opacity)
+			{
+				var arrayLength = m_camera_list.length;
+				for (var i = 0; i < arrayLength; i++) {
+				    var sprite = m_camera_list[i].sprite;
+				    sprite.material.uniforms.opacity.value = opacity;
+				}
+				
+			}
 
 			function showCollectionSprite(_min_pos, _max_pos, index_capture, order, sprites_to_remove = [], isShifting = false, opacity = 1)
 			{
@@ -485,6 +505,8 @@
 				
 				sprite.name = index_capture;
 				//sprite.material.opacity = opacity;
+				
+
 				sprite.material.uniforms.opacity.value = opacity;
 				if(!isShifting)
 				{
@@ -614,6 +636,10 @@
 			
 			function getCaptureUnderMouse(event)
 			{
+				if(!m_gui.gui_options.show_photo_collection && !m_renderer.xr.isPresenting)
+					return -1;
+				if(m_application_state.need_to_update_auto_detect)
+					return -1;
 	            var mouse3D = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1,   
 	                                    -( event.clientY / window.innerHeight ) * 2 + 1,  
 	                                    0.5 );     
@@ -663,6 +689,10 @@
 			}
 			function getCollectionIndexUnderMouse()
 			{
+				if(!m_gui.gui_options.show_photo_collection && !m_renderer.xr.isPresenting)
+					return -1;
+				if(m_application_state.need_to_update_auto_detect)
+					return -1;
 				if(m_application_state.capture_index_over_mouse != -1)
 				{
 					var index_collection = -1
@@ -730,7 +760,7 @@
 						//console.log("mouse move, capture: "+ captureIndex)
 						if(m_vr_move_utils.captureIntexUnderPointer != captureIndex)
 						{
-							selectCapture(captureIndex)
+							//selectCapture(captureIndex)
 							m_vr_move_utils.captureIntexUnderPointer = captureIndex;
 						}
 					}
@@ -762,8 +792,8 @@
 						m_gui.removeFocus()
 					}
 					//console.log("mouse move, capture: "+ captureIndex)
-					if(m_application_state.capture_index_over_mouse != captureIndex && !m_application_state.select_controls_enabled)
-						selectCapture(captureIndex)
+					/*if(m_application_state.capture_index_over_mouse != captureIndex && !m_application_state.select_controls_enabled)
+						selectCapture(captureIndex)*/
 					m_application_state.capture_index_over_mouse = captureIndex;
 					if(m_controls)
 						m_controls.enabled = false;
@@ -994,6 +1024,7 @@
 				        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
 				        texture1: { type: "t", value: texture_sprite },
 				        opacity: {type: 'f', value: null },
+				        selected: {type: 'bool', value: false},
 
 				    }
 					const material_sprite = new THREE.ShaderMaterial( { 
@@ -1612,10 +1643,10 @@
 				m_current_candidates.sort(compareCandidates)
 				normalizeScores()
 				updateCandidateCollections()
-				if(m_current_capture_in_view_index == -1 && m_current_capture_in_view_index != m_current_candidates[0].index)
+				/*if(m_current_capture_in_view_index == -1 && m_current_capture_in_view_index != m_current_candidates[0].index)
 				{
 					changeCaptureInView(m_current_candidates[0].index)
-				}
+				}*/
 				showCollections()
 				//showCaptures(true)
 				console.log("INFO: Updating candidates: DONE")
@@ -2538,7 +2569,7 @@
 						else if(m_vr_move_utils.lastFrameInVR)
 						{
 							exitVR()
-						}
+						} 
 						m_vr_panels_group.visible = m_renderer.xr.isPresenting;
 						/*m_vr_panels_group.position.copy(m_camera.position)
 						m_vr_panels_group.rotation.copy(m_camera.rotation)*/
@@ -2551,6 +2582,8 @@
 							//console.log("changed!! " + m_old_pos_cam.x + " " +m_camera.position.x)
 							m_timer_update = 0;
 							m_application_state.need_to_update_auto_detect = true;
+							if(m_gui.gui_options.auto_score_enabled)
+								setCollectionOpacity(0.2);
 						}
 							
 						
@@ -2570,6 +2603,8 @@
 							m_timer_update = 0
 							if(m_gui.gui_options.auto_score_enabled)
 								updateCandidates(false);
+							else
+								setCollectionOpacity(1.0);
 						}
 						if(m_camera_mode == "FLY")
 						{
@@ -2827,7 +2862,7 @@
 					}
 				}
 
-				if(!m_application_state.select_controls_enabled)
+				if(!m_application_state.select_controls_enabled && (m_gui.gui_options.show_photo_collection || m_renderer.xr.isPresenting))
 					renderClusters(2);
 				
 

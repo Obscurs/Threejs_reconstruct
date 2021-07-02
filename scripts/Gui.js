@@ -31,7 +31,7 @@ export class Gui {
 			show_photo_enabled: false,
 			project_capture_enabled: true,
 			auto_score_enabled: false,
-
+			show_photo_collection: true,
 			current_model: "pedret",
 
 		}
@@ -133,6 +133,10 @@ export class Gui {
 			updateGuiVR = true;
 		});
 		this.viewFolder.add(this.gui_options, 'auto_score_enabled').name( 'Auto-detect' ).listen().onChange(function ()
+		{
+			updateGuiVR = true;
+		});
+		this.viewFolder.add(this.gui_options, 'show_photo_collection').name( 'Show collection' ).listen().onChange(function ()
 		{
 			updateGuiVR = true;
 		});
