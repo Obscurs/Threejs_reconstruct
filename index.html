@@ -272,29 +272,56 @@
 				var projMat = new THREE.Matrix4();
 
 				var texture_low, material, plane, plane_rt;
-
-				texture_low = THREE.ImageUtils.loadTexture( "models/"+m_models_values[m_gui.gui_options.current_model].path+"/thumbnails/"+m_camera_list[index_capture].name );
+				
+				//texture_low = THREE.ImageUtils.loadTexture( "models/"+m_models_values[m_gui.gui_options.current_model].path+"/thumbnails/"+m_camera_list[index_capture].name );
 
 				viewMat.copy(m_camera_capture.matrixWorldInverse);
 				projMat.copy(m_camera_capture.projectionMatrix)
 				m_scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
 				m_scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
-				m_scene_models[0].material.uniforms.texture2.value = texture_low;
+				//m_scene_models[0].material.uniforms.texture2.value = texture_low;
 				m_camera_capture.fov = m_camera_list[index_capture].camera.fov+30
 
+				const loaderLow = new THREE.TextureLoader();
+				loaderLow.load(
+					// resource URL
+					"models/"+m_models_values[m_gui.gui_options.current_model].path+"/thumbnails/"+m_camera_list[index_capture].name,
+					
+					// onLoad callback
+					function ( texture_low ) {
+						// in this example we create the material when the texture is loaded
+						if(m_camera_capture.name == tex_name)
+						{
+							//console.log(m_camera_capture.name + " "+tex_name)
+							m_changed_image_in_view = 1
+							console.log("INFO: Low tex loaded")
+							if(m_scene_models.length >0)
+								m_scene_models[0].material.uniforms.texture2.value = texture_low;
+							if(m_plane_image_secondary != null)
+								m_plane_image_secondary.material.uniforms.texture1.value = texture_low;
+						}
+						
+					},
+					// onError callback
+					function ( err ) {
+						console.error( 'Error trying to load texture (high res) for capture.' );
+					}
+				);
 
 				const loader = new THREE.TextureLoader();
 				var tex_name = m_camera_list[index_capture].name
 				loader.load(
 					// resource URL
 					"models/"+m_models_values[m_gui.gui_options.current_model].path+"/captures/"+m_camera_list[index_capture].name,
-
+					
 					// onLoad callback
 					function ( texture_high ) {
 						// in this example we create the material when the texture is loaded
 						if(m_camera_capture.name == tex_name)
 						{
 							//console.log(m_camera_capture.name + " "+tex_name)
+							console.log("INFO: High tex loaded")
+							m_changed_image_in_view = 1
 							if(m_scene_models.length >0)
 								m_scene_models[0].material.uniforms.texture2.value = texture_high;
 							if(m_plane_image_secondary != null)
@@ -534,17 +561,23 @@
 				{
 					animOffset = -(offsetAnim+1);
 				}
-				var currentOffset = new THREE.Vector2(5+animOffset*5,5+animOffset*5)
+				var offset_per_image = 10-2*i;
+				if(offset_per_image < 2)
+					offset_per_image = 2
+				
+				offset_per_image = 2
+				var half_offset_per_image = offset_per_image/2
+				var currentOffset = new THREE.Vector2(half_offset_per_image+animOffset*half_offset_per_image,half_offset_per_image+animOffset*half_offset_per_image)
 				var remaining_width = max_pos.x-min_pos.x-currentOffset.x;
 				var remaining_height = max_pos.y-min_pos.y-currentOffset.y;
-				var offset_per_image = 10;
+
 				var num_elems = m_current_candidates_collections[index_collection].elems.length
 				var width_image = remaining_width-num_elems*offset_per_image
 				var height_image = remaining_height-num_elems*offset_per_image
 				for(var i = num_elems-1; i >= 0; i--)
 				{
 					var min = new THREE.Vector3( min_pos.x+currentOffset.x, min_pos.y-currentOffset.y,-1 );
-					var max = new THREE.Vector3( min_pos.x+currentOffset.x+width_image+animOffset*5 ,min_pos.y+currentOffset.y+height_image+animOffset*5,-1);
+					var max = new THREE.Vector3( min_pos.x+currentOffset.x+width_image+animOffset*half_offset_per_image ,min_pos.y+currentOffset.y+height_image+animOffset*half_offset_per_image,-1);
 					currentOffset.x = currentOffset.x + offset_per_image;
 					currentOffset.y = currentOffset.y + offset_per_image;
 					var opacity = 1
@@ -1424,11 +1457,18 @@
 					var pair_elem_score = {
 						elem: m_current_candidates[i].index,
 						similitude: m_current_candidates[i].score,
+						score: m_current_candidates[i].score,
 					}
 					m_current_candidates_collections[m_current_candidates[i].index].elems = [pair_elem_score]
 					m_current_candidates_collections[m_current_candidates[i].index].distances = m_camera_list[m_current_candidates[i].index].similitudes.slice()
 				}
-				while(m_current_candidates_collections.length > num_clusters)
+				var countNulls = 0
+				for (var i = 0; i < m_current_candidates_collections.length; i++) {
+
+					if(m_current_candidates_collections[i].elems[0].score == 0)
+						countNulls = countNulls+1
+				}
+				while(true)
 				{
 					var mindist = 
 					{
@@ -1438,9 +1478,11 @@
 					}
 					for(var i = 0; i < m_current_candidates_collections.length; i++)
 					{
-						for(var j = i+1; j < m_current_candidates_collections[i].distances.length; j++)
+						if(m_current_candidates_collections[i].elems.length <num_elements_per_cluster)
 						{
-							if(m_current_candidates_collections[i].distances[j] > mindist.dist)
+							for(var j = i+1; j < m_current_candidates_collections[i].distances.length; j++)
+							{
+							if(m_current_candidates_collections[i].distances[j] > mindist.dist && m_current_candidates_collections[j].elems[0].score > 0 )
 							{
 								mindist.dist = m_current_candidates_collections[i].distances[j]
 								mindist.c1 = i
@@ -1452,8 +1494,11 @@
 						}
 						if(mindist.dist==1)
 								break;
+						}
+						
 					}
-					
+					if(mindist.dist == -1 && mindist.dist < 0.10)
+						break;
 					if(mindist.c1 > mindist.c2)
 					{
 						var c_aux = mindist.c1
@@ -1501,6 +1546,11 @@
 					m_current_candidates_collections[i].elems = aux_array
 				}
 				m_current_candidates_collections.sort(compareCandidates)
+
+				while(m_current_candidates_collections.length > num_clusters)
+				{
+					m_current_candidates_collections.pop();
+				}
 			}
 			function basicClustering(num_clusters, num_elements_per_cluster, treshold)
 			{
@@ -1632,10 +1682,7 @@
 					{
 						m_current_candidates.push(elem)
 					}
-				    else
-				    {
-				    	m_current_candidates[i] = elem
-				    }
+
 	
 						
 					
@@ -2122,6 +2169,7 @@
 				m_renderer.setClearColor(0xffffff, 0);
 				//m_renderer.shadowMap.enabled = true;
 				m_renderer.autoClear = false; 
+
 				m_renderer.xr.enabled = true;
 				m_renderer.xr.setReferenceSpaceType( 'local' );
 				m_renderer.setAnimationLoop( loop );
@@ -2740,6 +2788,7 @@
 
 				if(m_plane_image_secondary != null)
 				{
+					
 					m_plane_image_secondary.material.uniforms.showTexture.value = m_gui.gui_options.show_photo_enabled;
 
 					var frustumHeight = 2 * m_camera_capture.near * Math.tan(THREE.Math.degToRad( m_camera_capture.fov * 0.5 ));
@@ -2747,23 +2796,38 @@
 					m_plane_image_secondary.scale.x = frustumWidth;
 					m_plane_image_secondary.scale.y = frustumHeight;
 					m_renderer.xr.enabled = false;
-					var old_rt = m_renderer.getRenderTarget()
-					m_renderer.setRenderTarget(m_render_target_secondary)
-					//m_camera_capture.aspect = width / height;
-					m_camera_capture.updateProjectionMatrix();
-					var aux = false
-					if(m_vr_panels_group)
+					
+					if(m_changed_image_in_view >= 1)
 					{
-						aux = m_vr_panels_group.visible 
-						m_vr_panels_group.visible = false
+						if(m_changed_image_in_view >=1)
+							m_changed_image_in_view = 0
+						//m_changed_image_in_view = m_changed_image_in_view +1
+						var old_rt = m_renderer.getRenderTarget()
+						m_renderer.setRenderTarget(m_render_target_secondary)
+						//m_camera_capture.aspect = width / height;
+						m_camera_capture.updateProjectionMatrix();
+						var aux = false
+						if(m_vr_panels_group)
+						{
+							aux = m_vr_panels_group.visible 
+							m_vr_panels_group.visible = false
+						}
+						
+
+						m_renderer.render( m_scene, m_camera_capture );
+						console.log("INFO: Draw capture to render target")
+						
+
+						if(m_vr_panels_group)
+						{
+							m_vr_panels_group.visible = aux
+						}
+						m_renderer.setRenderTarget(null)
+						m_renderer.xr.enabled = true;
+						
 					}
-					m_renderer.render( m_scene, m_camera_capture );
-					if(m_vr_panels_group)
-					{
-						m_vr_panels_group.visible = aux
-					}
-					m_renderer.setRenderTarget(null)
-					m_renderer.xr.enabled = true;
+					
+					
 					if(m_renderer.xr.isPresenting)
 					{
 						m_plane_render_target.scale.x = 2*m_camera_capture.aspect

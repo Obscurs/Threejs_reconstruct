@@ -38,6 +38,7 @@ var m_selection_rectangle = {
 	selectionBox: null,
 	helper: null,
 }
+var m_changed_image_in_view = 1;
 var m_cameraHelper;
 var m_has_any_secondary_capture = false;
 var m_min_pos = null;

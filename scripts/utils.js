@@ -53,6 +53,25 @@ export function getWorldIntersectFromNDCxy(camera, ndc_pos, models)
 		return null;
 	}
 }
+
+export function checkWallBetweenTwoPoints(point1, point2, models)
+{
+	var dir = new Vector3(point2.x-point1.x,point2.y-point1.y,point2.z-point1.z)
+	dir.normalize();
+	var raycaster =  new Raycaster(point1, dir);    
+	var intersects = raycaster.intersectObjects( models );
+
+	for(var i =0; i < intersects.length; i++)
+	{
+		var point = intersects[i].point
+		if(point.distanceTo(point1) > 0.01 && point.distanceTo(point2) > 0.01 && point1.distanceTo(point) < point1.distanceTo(point2))
+		{
+			return true
+		}
+			
+	} 
+	return false
+}
 export function getNDCposFromWorld(camera, worldpos)
 {
 	if(worldpos == null)

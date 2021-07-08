@@ -1,6 +1,6 @@
 import { Vector3, Vector2 } from '../../build/three.module.js';
 import { compareSimilitudes } from './compareFuncs.js';
-import { getWorldIntersectFromNDCxy, getNDCposFromWorld } from './utils.js';
+import { getWorldIntersectFromNDCxy, getNDCposFromWorld, checkWallBetweenTwoPoints } from './utils.js';
 class DataLoader {
 	static computeSimilitudeForCams(cam1, cam2)
 	{
@@ -25,7 +25,11 @@ class DataLoader {
 				projected2.copy(cam1.rays[index_ray])
 				projected2.applyMatrix4( cam2.camera.matrixWorldInverse );
 				if(projected2.z < 0)
-					count_inside_rays_cam1 = count_inside_rays_cam1 +1
+				{
+					if(!checkWallBetweenTwoPoints(cam2.camera.position,cam1.rays[index_ray],m_scene_models))
+						count_inside_rays_cam1 = count_inside_rays_cam1 +1
+				}
+					
 			}
 				
 		}
@@ -45,7 +49,11 @@ class DataLoader {
 				projected2.copy(cam2.rays[index_ray])
 				projected2.applyMatrix4( cam1.camera.matrixWorldInverse );
 				if(projected2.z < 0)
-					count_inside_rays_cam2 = count_inside_rays_cam2 +1
+				{
+					if(!checkWallBetweenTwoPoints(cam1.camera.position,cam2.rays[index_ray],m_scene_models))
+						count_inside_rays_cam2 = count_inside_rays_cam2 +1
+				}
+					
 			}
 				
 		}
@@ -73,13 +81,16 @@ class DataLoader {
 	}
 	static precomputeCaptureSimilitude(camera_list)
 	{
+		var counter =0
 		console.log("INFO: Precomputing Similitudes....")
 		for(var index_cam=0; index_cam < camera_list.length; ++index_cam)
 		{	
 			camera_list[index_cam].similitudes = []
 			for(var index_cam2=0; index_cam2 < camera_list.length; ++index_cam2)
 			{
+				console.log("INFO: ("+counter+"/"+camera_list.length*camera_list.length+") Computing similitudes for cams: "+camera_list[index_cam].name+" "+camera_list[index_cam2].name)
 				camera_list[index_cam].similitudes.push(this.computeSimilitudeForCams(camera_list[index_cam],camera_list[index_cam2]))
+				counter = counter + 1
 			}
 			//var completation = Math.floor((index_cam/camera_list.length)*50+50)
 
