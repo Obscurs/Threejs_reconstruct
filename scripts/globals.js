@@ -47,6 +47,9 @@ var m_plane_image_secondary = null;
 var m_plane_render_target = null;
 var m_render_target_secondary = null;
 var m_old_vr_input_data = null;
+var m_recording_state = 0;
+var m_recording_timer = null;
+var m_recording_distance = 0;
 var m_application_state = 
 {
 	state: AppStates.THREE_JS_INIT,
