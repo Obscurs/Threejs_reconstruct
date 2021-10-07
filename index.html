@@ -16,9 +16,13 @@
 		<div id="info2">
 			2D view
 		</div>
+		<div id="info3">
+			
+		</div>
 		<div class=container4 id="loadingTextContainer">
 		  <p id="loadingText">Loading: 0% 
 		</div>
+		
 
 		<script id="vertexShaderSprite" type="x-shader/x-fragment" >
 			varying vec2 vUv;
@@ -201,6 +205,7 @@
 
 			import { ModelInfo} from './scripts/ModelInfo.js';
 			import { CameraInfo} from './scripts/CameraInfo.js';
+			import { VRControls} from './scripts/VRControls.js';
 			import { GUI } from './../jsm/libs/dat.gui.module.js';
 			//import { Application} from './scripts/Application.js';
 			import { Gui} from './scripts/Gui.js';
@@ -635,7 +640,7 @@
 
 			}
 
-			function getCaptureUnderVRpointer()
+			/*function getCaptureUnderVRpointer()
 			{
 				var pos = new THREE.Vector3()
 				var dir = new THREE.Vector3()
@@ -665,7 +670,7 @@
 	            }
 	            else
 	            	return -1
-			}
+			}*/
 			
 			function getCaptureUnderMouse(event)
 			{
@@ -699,7 +704,7 @@
 	            else
 	            	return -1
 			}
-			function getCollectionIndexUnderVRPointer()
+			/*function getCollectionIndexUnderVRPointer()
 			{
 				if(m_vr_move_utils.captureIntexUnderPointer != -1)
 				{
@@ -719,7 +724,7 @@
 					return index_collection;
 				}
 				return -1;
-			}
+			}*/
 			function getCollectionIndexUnderMouse()
 			{
 				if(!m_gui.gui_options.show_photo_collection && !m_renderer.xr.isPresenting)
@@ -785,9 +790,11 @@
 				    		m_recording_distance = 0;
 				    		m_recording_timer = 0;
 				    		m_recording_state = 1;
+				    		document.getElementById("info3").innerHTML  = "Recording...";
 				    	}
 				    	else if(m_recording_state == 1)
 				    	{
+				    		document.getElementById("info3").innerHTML  = "";
 				    		m_recording_state = 0;
 				    		Math.round(m_recording_distance * 100) / 100
 
@@ -806,7 +813,7 @@
 			};
 
 
-			function onVRPointerMove()
+			/*function onVRPointerMove()
 			{
 				if(m_vr_move_utils.vrguiEnabled)
 				{
@@ -830,7 +837,7 @@
 					m_vr_move_utils.captureIntexUnderPointer = -1;
 				}
 				
-			}
+			}*/
 			
 
 
@@ -1168,8 +1175,35 @@
 				const loaderTex = new THREE.TextureLoader(m_manager);
 
 
+				loader.load( './models/'+model.path+'/meshes/'+model.mesh_name+"_colision.ply", function ( geometry ) {
+					geometry.computeVertexNormals();
+					
+				    const material = new THREE.MeshBasicMaterial( {
+						opacity: 0.0,
+						transparent: true,
+					} );
 
-				loader.load( './models/'+model.path+'/meshes/'+model.mesh_name, function ( geometry ) {
+					const mesh = new THREE.Mesh( geometry, material );
+
+					var m2 = new THREE.Matrix4();
+					m2.makeRotationX(THREE.Math.degToRad(-90))
+
+					mesh.applyMatrix4(m2);
+
+
+					mesh.name = "THEMODEL_COL"
+					m_scene.add( mesh );
+					m_scene_models_col.push(mesh);
+
+					m_application_state.num_models_loaded +=1
+					console.log("INFO: Loading Model Col: DONE")
+					var completation = Math.floor(((m_application_state.num_cameras_loaded+m_application_state.num_models_loaded*10)/(m_application_state.num_cameras_to_load+m_application_state.num_models_to_load*10))*80)
+					document.getElementById("loadingText").innerHTML = "Loading: "+completation.toString() +"%";
+
+
+				} );
+
+				loader.load( './models/'+model.path+'/meshes/'+model.mesh_name+".ply", function ( geometry ) {
 					geometry.computeVertexNormals();
 					let uniforms = {
 				        viewMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
@@ -1222,21 +1256,8 @@
 			
 			function loadModels()
 			{
-				m_application_state.num_models_to_load = 2
+				m_application_state.num_models_to_load = 3
 				loadModel(m_models_values[m_gui.gui_options.current_model]);
-
-				const loader = new PLYLoader();
-				 loader.load( './assets/arrow.ply', function ( geometry ) {
-					const material = new THREE.MeshBasicMaterial( { color: 0xffffff} );
-					m_vr_move_utils.guidesprite = new THREE.Mesh( geometry, material );
-					console.log(m_vr_move_utils.guidesprite)
-					m_application_state.num_models_loaded +=1
-				})
-				//m_scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
-
-				//addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
-				//addShadowedLight( 0.5, 1, - 1, 0xffaa00, 1 );
-
 
 			}
 
@@ -1737,10 +1758,10 @@
 
 			function resetCamera(mode)
 			{
-				if(m_camera)
+				/*if(m_camera)
 				{
 					m_camera_group.remove(m_camera)
-				}
+				}*/
 				if(m_cameraHelper)
 				{
 					m_scene.remove(m_cameraHelper)
@@ -1762,10 +1783,14 @@
 				var target_x = m_models_values[m_gui.gui_options.current_model].target_x_cam_start
 				var target_y = m_models_values[m_gui.gui_options.current_model].target_y_cam_start
 				var target_z = m_models_values[m_gui.gui_options.current_model].target_z_cam_start
-
-				m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 100 );
-				
-				m_camera.position.set( start_x,start_y,start_z );
+				if(!m_camera)
+					m_camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 100 );
+				if(!m_renderer.xr.isPresenting)
+					m_camera.position.set( start_x,start_y,start_z );
+				else
+				{
+					m_camera.position.set( 0,0,0 );
+				}
 				//camera.position.set( 3,0.15,3 );
 				m_camera.name = "main_camera"
 				//m_camera.up.set(0,0,1);
@@ -1805,7 +1830,11 @@
 					m_controls_secondary.minAzimuthAngle = - Infinity; // radians
 					m_controls_secondary.maxAzimuthAngle = Infinity; // radians
 					m_controls_secondary.enabled = false;
-
+				}
+				else
+				{
+					if(m_controls)
+						m_controls.enabled = false
 				}
 				m_camera_group.position.set(0,0,0)
 
@@ -1842,6 +1871,7 @@
 				m_recording_distance = 0;
 				m_recording_timer = 0;
 				m_recording_state = 0;
+				document.getElementById("info3").innerHTML  = "";
 				m_rectangle_select_vr = null;
 				m_old_vr_input_data = null;
 
@@ -1854,6 +1884,7 @@
 					m_gui.clearInteractiveGroup(m_vr_panels_group)
 				m_camera_list = [];
 				m_scene_models = [];
+				m_scene_models_col = [];
 				m_current_candidates = [];
 				m_current_candidates_collections = [];
 
@@ -1908,7 +1939,9 @@
 				m_camera_group.name = "cameraGroup"
 				m_camera_group.add(m_vr_panels_group)
 				//m_scene.add(m_vr_panels_group)
-				initVR();
+
+
+				
 				document.getElementById("loadingTextContainer").style.visibility = "visible";
 				var xmlhttp = new XMLHttpRequest();
 				xmlhttp.onreadystatechange = function() {
@@ -1925,13 +1958,14 @@
 
 				loadModels();
 				initControls(m_camera_mode)
+				m_VRControls = new VRControls(m_scene,m_renderer, m_camera, m_camera_group, null)
 				m_gui.initInteractiveGroup(m_renderer, m_camera, m_scene, m_vr_panels_group, m_vr_move_utils)
 				
 
 				m_application_state.three_js_inited = true
 				animate();
 			}
-			function buildController( data ) {
+			/*function buildController( data ) {
 				console.log(data)
 				let geometry, material;
 
@@ -1958,8 +1992,8 @@
 
 				}
 
-			}
-			function getFloorFromPos(position)
+			}*/
+			/*function getFloorFromPos(position)
 			{
 				var auxPos = new THREE.Vector3(position.x,100 ,position.z)
 				var auxUp = new THREE.Vector3(0,-1,0)
@@ -1980,9 +2014,9 @@
 				{
 					return m_models_values[m_gui.gui_options.current_model].vr_y
 				}
-			}
+			}*/
 
-			function moveVRCam(offset)
+			/*function moveVRCam(offset)
 			{
 				m_camera_group.position.add(offset)
 			}
@@ -2145,26 +2179,15 @@
 				m_vr_move_utils.guidelight = new THREE.PointLight(0xffeeaa, 0, 2);
 
 				// The target on the ground
-				/*const guidespriteTexture = new THREE.TextureLoader().load('./assets/target.png');
-				m_vr_move_utils.guidesprite = new THREE.Mesh(
-				    new THREE.PlaneGeometry(0.3, 0.3, 1, 1),
-				    new THREE.MeshBasicMaterial({
-				        map: guidespriteTexture,
-				        blending: THREE.AdditiveBlending,
-				        color: 0x555555,
-				        transparent: true
-				    })
-				);*/
 				
-					
-
-			}
+				
+			}*/
 			function init() {
 
 
-				m_models_values["doma"] = new ModelInfo("doma" ,"doma-interior_meshed_tex.png", "doma-interior_meshed_simplified.ply", 11.62, -0.137, 17.99, -1)
-				m_models_values["pedret"] = new ModelInfo("pedret" ,"pedret-interior_meshed_tex.png", "pedret-interior_meshed_simplified.ply", 2.51, 0.119, -7.99,-1)
-				m_models_values["solsona"] = new ModelInfo("solsona" ,"solsona_meshed_tex.jpg", "solsona_meshed_simplified.ply", 6.73, 0.54, 16.89,-1)
+				m_models_values["doma"] = new ModelInfo("doma" ,"doma-interior_meshed_tex.png", "doma-interior_meshed_simplified", 11.62, -0.137, 17.99, -1)
+				m_models_values["pedret"] = new ModelInfo("pedret" ,"pedret-interior_meshed_tex.png", "pedret-interior_meshed_simplified", 2.51, 0.119, -7.99,-1)
+				m_models_values["solsona"] = new ModelInfo("solsona" ,"solsona_meshed_tex.jpg", "solsona_meshed_simplified", 6.73, 0.54, 16.89,-1)
 				m_container = document.createElement( 'div' );
 				//const canvas = document.getElementById( 'canvas' );
 				//canvas.width = 300 * window.devicePixelRatio;
@@ -2208,8 +2231,8 @@
 
 				// stats
 
-				m_stats = new Stats();
-				m_container.appendChild( m_stats.dom );
+				//m_stats = new Stats();
+				//m_container.appendChild( m_stats.dom );
 				document.body.appendChild( VRButton.createButton( m_renderer, m_application_state ) );
 				
 
@@ -2256,6 +2279,7 @@
 					m_application_state.textures_loaded = true
 				}
 
+				
 				startSceneForModel();
 			}
 
@@ -2287,7 +2311,10 @@
 				showCollections()
 
 			}
-			function getControllerRight()
+			////////////////////////////////////////
+			///////////// START TODO VR ////////////
+			////////////////////////////////////////
+			/*function getControllerRight()
 			{
 				if(m_controller1.type=="right")
 					return m_controller1
@@ -2309,26 +2336,7 @@
 				    getControllerRight().getWorldDirection(dir);
 				    dir.multiplyScalar(-1)
 
-				    /*const geometry = new THREE.PlaneGeometry( 1, 1 );
-					const material = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
-					m_rectangle_select_vr = new THREE.Mesh( geometry, material );
-					m_rectangle_select_vr.scale = 0
-					m_scene.add( m_rectangle_select_vr );*/
 
-
-					/*const lineGeometry = new THREE.BufferGeometry();
-					m_vr_move_utils.lineGeometryVerticesSquare = new Float32Array((1 +1) * 3);
-					m_vr_move_utils.lineGeometryVerticesSquare.fill(0);
-					const lineGeometryColors = new Float32Array((1 +1) * 3);
-					lineGeometryColors.fill(0.5);
-					lineGeometry.setAttribute('position', new THREE.BufferAttribute(m_vr_move_utils.lineGeometryVerticesSquare, 3));
-					lineGeometry.setAttribute('color', new THREE.BufferAttribute(lineGeometryColors, 3));
-					const lineMaterial = new THREE.LineBasicMaterial({ vertexColors: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-					
-					m_vr_move_utils.lineSquare = new THREE.Line( lineGeometry, lineMaterial );
-					m_vr_move_utils.lineSquare.renderOrder = 2
-					m_scene.add(m_vr_move_utils.lineSquare)
-	*/
 				    m_vr_move_utils.isDrawingSelectBox = true
 				    m_vr_move_utils.drawBoxStartPoint = {
 				    	position: pos,
@@ -2345,12 +2353,8 @@
 					var intersectsStart = raycasterStart.intersectObjects( m_scene_models ); 
 					if(intersectsStart.length > 0){
 						m_vr_move_utils.drawBoxStartPoint.ray = intersectsStart[0].point
-						//m_scene_models[0].material.uniforms.vUv_VR_square_min.value = m_selection_rectangle.startNDC
-						/*m_scene_models[0].material.uniforms.vUv_VR_square_max.value   = null*/
 					}
-				}
-				
-					
+				}	
 			}
 			function endVRbutton1event(controller)
 			{
@@ -2373,8 +2377,7 @@
 					m_vr_move_utils.isDrawingSelectBox = false
 
 					//var camera = m_renderer.xr.getCamera(m_camera);
-					/*m_vr_move_utils.drawBoxStartPoint.position.project(camera)
-					m_vr_move_utils.drawBoxEndPoint.position.project(camera)*/
+
 					var raycasterEnd =  new THREE.Raycaster(m_vr_move_utils.drawBoxEndPoint.position, m_vr_move_utils.drawBoxEndPoint.direction);    
 					var intersectsEnd = raycasterEnd.intersectObjects( m_scene_models );  
 					//var raycasterStart =  new THREE.Raycaster(m_vr_move_utils.drawBoxStartPoint.position, m_vr_move_utils.drawBoxStartPoint.direction);    
@@ -2398,14 +2401,14 @@
 						m_scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
 						m_scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
 					}
-					/*m_scene_models[0].material.uniforms.vUv_VR_square_min.value   = null
-					m_scene_models[0].material.uniforms.vUv_VR_square_max.value   = null*/
 
 					m_vr_move_utils.drawBoxEndPoint = null
 					m_vr_move_utils.drawBoxStartPoint = null
 				}
 				
 			}
+
+
 			function updateVRdrawBox()
 			{
 				if(!m_vr_move_utils.isDrawingSelectBox)
@@ -2480,26 +2483,10 @@
 
 			    //update the mesh:
 
-			    /*const vertex1 = new THREE.Vector3()
-			    var dirAux1 = new THREE.Vector3()
-			    dirAux1.copy(m_vr_move_utils.drawBoxStartPoint.direction)
-			    dirAux1.multiplyScalar(-8)
-			    vertex1.copy(m_vr_move_utils.drawBoxStartPoint.position)
-			    vertex1.add(dirAux1)
-			    const vertex2 = new THREE.Vector3()
-			    var dirAux2 = new THREE.Vector3()
-			    dirAux2.copy(m_vr_move_utils.drawBoxEndPoint.direction)
-			    dirAux2.multiplyScalar(-8)
-			    vertex2.copy(m_vr_move_utils.drawBoxEndPoint.position)
-			    vertex2.add(dirAux2)
-		        vertex1.toArray(m_vr_move_utils.lineGeometryVerticesSquare,0*3);
-		        vertex2.toArray(m_vr_move_utils.lineGeometryVerticesSquare,1*3);
-		        
-		        m_vr_move_utils.lineSquare.geometry.attributes.position.needsUpdate = true;*/
-
-
 			}
-
+			////////////////////////////////////////
+			////////////// END TODO VR /////////////
+			////////////////////////////////////////
 			function doVRinputEvents(controller, newData)
 			{
 				if(m_old_vr_input_data == null)
@@ -2517,9 +2504,15 @@
 				}
 				m_old_vr_input_data = newData
 			}
-			
-			function updateVR()
+			*/
+			function updateVR(delta)
 			{
+
+				m_VRControls.update(delta)
+							////////////////////////////////////////
+			///////////// START TODO VR ////////////
+			////////////////////////////////////////
+			/*
 				const session = m_renderer.xr.getSession();
 				let i = 0;
 				if(m_vr_move_utils.isDrawingSelectBox)
@@ -2574,9 +2567,12 @@
 			        positionAtT(m_vr_move_utils.guidelight.position,t*0.98,p,v,m_vr_move_utils.g);
 			        positionAtT(m_vr_move_utils.guidesprite.position,t*0.98,p,v,m_vr_move_utils.g);
 			    }
+			    */
+			    
+			    			////////////////////////////////////////
+			////////////// END TODO VR /////////////
+			////////////////////////////////////////
 			}
-			//https://www.google.com/maps/place/Sant+Esteve+de+la+Doma/@41.6862288,2.2778211,15z/data=!4m5!3m4!1s0x0:0xf0f2da56ced3387!8m2!3d41.6862318!4d2.277729?authuser=1
-			//https://www.google.com/maps/place/MUSEU+DIOCESA+I+COMARCAL+DE+SOLSONA/@41.9941684,1.5193463,19.31z/data=!4m5!3m4!1s0x12a5ca1a2a0a3e57:0xeef7971a3fe002d3!8m2!3d41.9940063!4d1.5191797?authuser=1
 			function exitVR()
 			{
 				m_vr_move_utils.lastFrameInVR = false
@@ -2592,10 +2588,10 @@
 				//m_vr_panels_group.add(m_current_sprites_in_scene );
 				m_scene_collections.remove(m_current_sprites_in_scene);
 				m_vr_move_utils.lastFrameInVR = true
-				resetCamera("ORBIT");
+				resetCamera("NULL");
 				m_camera_group.position.x = m_models_values[m_gui.gui_options.current_model].pos_x_cam_start
 				m_camera_group.position.z = m_models_values[m_gui.gui_options.current_model].pos_z_cam_start
-				m_camera_group.position.y = m_models_values[m_gui.gui_options.current_model].vr_y
+				m_camera_group.position.y = m_models_values[m_gui.gui_options.current_model].vr_y+1
 				showCollections()
 				
 			}
@@ -2612,6 +2608,7 @@
 					{	
 						if(m_recording_state==1)
 						{
+
 							m_recording_distance += m_old_pos_cam.distanceTo(m_camera.position);
 							m_recording_timer += delta;
 
@@ -2643,7 +2640,7 @@
 							
 							if(!m_vr_move_utils.lastFrameInVR)
 								enterVR()
-							updateVR()
+							updateVR(delta)
 						}
 						else if(m_vr_move_utils.lastFrameInVR)
 						{
@@ -2674,7 +2671,7 @@
 								m_controls_secondary.update();
 						}
 							
-						m_stats.update();
+						//m_stats.update();
 						if(m_timer_update > m_gui.gui_options.timer_recalc)
 						{
 							//console.log("update")
@@ -2707,7 +2704,8 @@
 					}
 					case AppStates.LOADING_MESHES:
 					{
-						if(m_application_state.num_models_to_load == m_application_state.num_models_to_load && m_application_state.num_cameras_loaded == m_application_state.num_cameras_to_load)
+						if(m_application_state.num_models_to_load == m_application_state.num_models_to_load && m_application_state.num_cameras_loaded == m_application_state.num_cameras_to_load
+							&& m_VRControls.isLoaded())
 						{
 							document.getElementById("loadingText").innerHTML = "Loading: 80%";
 							m_application_state.state = AppStates.LOADING_TEXTURES

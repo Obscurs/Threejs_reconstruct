@@ -15,6 +15,7 @@ const AppStates =
 var m_camera_list = [];
 var m_camera_mesh_list = [];
 var m_scene_models = [];
+var m_scene_models_col = [];
 var m_current_candidates = [];
 var m_current_candidates_collections = [];
 var m_group;
@@ -50,6 +51,7 @@ var m_old_vr_input_data = null;
 var m_recording_state = 0;
 var m_recording_timer = null;
 var m_recording_distance = 0;
+var m_VRControls = null;
 var m_application_state = 
 {
 	state: AppStates.THREE_JS_INIT,

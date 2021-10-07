@@ -94,3 +94,30 @@ export function positionAtT(inVec,t,p,v,g) {
     inVec.addScaledVector(g,0.5*t**2);
     return inVec;
 }
+export function intersectionObjectLine(models, pos, dir)
+{
+
+    var raycaster =  new Raycaster(pos, dir);    
+	var intersects = raycaster.intersectObjects( models );
+
+	//console.log(intersects)
+	//setDefaultColorsCameras();
+	
+    if ( intersects.length > 0 ) 
+    {
+    	
+    	var curr_index = intersects[ 0 ]
+    	var curr_depth = intersects[ 0 ].distance
+    	for(var i=0; i <intersects.length; i++)
+    	{
+    		if(intersects[ 0 ].distance < curr_depth)
+    		{
+    			curr_depth = intersects[ 0 ].distance;
+    			curr_index = intersects[ i ];
+    		}
+    	}
+    	return curr_index
+    }
+    else
+    	return null
+}

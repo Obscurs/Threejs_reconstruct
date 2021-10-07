@@ -1,15 +1,13 @@
 #Use to create local host
-import SimpleHTTPServer
-import SocketServer
+import http.server
+import socketserver
 
+PORT = 8000
 
-Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
+Handler = http.server.SimpleHTTPRequestHandler
 Handler.extensions_map.update({
-    ".js": "application/javascript",
+      ".js": "application/javascript",
 });
 
-httpd = SocketServer.TCPServer(("", 8000), Handler)
-
-print("Serving at port", 8000)
-print(Handler.extensions_map[".js"])
+httpd = socketserver.TCPServer(("", PORT), Handler)
 httpd.serve_forever()
