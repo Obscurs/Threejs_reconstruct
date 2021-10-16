@@ -1175,7 +1175,7 @@
 				const loaderTex = new THREE.TextureLoader(m_manager);
 
 
-				loader.load( './models/'+model.path+'/meshes/'+model.mesh_name+"_colision.ply", function ( geometry ) {
+				loader.load( './models/'+model.path+'/meshes/'+model.mesh_name+"_colision_ground.ply", function ( geometry ) {
 					geometry.computeVertexNormals();
 					
 				    const material = new THREE.MeshBasicMaterial( {
@@ -1191,12 +1191,39 @@
 					mesh.applyMatrix4(m2);
 
 
-					mesh.name = "THEMODEL_COL"
+					mesh.name = PointedObjectNames.GROUND
 					m_scene.add( mesh );
 					m_scene_models_col.push(mesh);
 
 					m_application_state.num_models_loaded +=1
-					console.log("INFO: Loading Model Col: DONE")
+					console.log("INFO: Loading Model Col ground: DONE")
+					var completation = Math.floor(((m_application_state.num_cameras_loaded+m_application_state.num_models_loaded*10)/(m_application_state.num_cameras_to_load+m_application_state.num_models_to_load*10))*80)
+					document.getElementById("loadingText").innerHTML = "Loading: "+completation.toString() +"%";
+
+
+				} );
+				loader.load( './models/'+model.path+'/meshes/'+model.mesh_name+"_colision_select.ply", function ( geometry ) {
+					geometry.computeVertexNormals();
+					
+				    const material = new THREE.MeshBasicMaterial( {
+						opacity: 0.0,
+						transparent: true,
+					} );
+
+					const mesh = new THREE.Mesh( geometry, material );
+
+					var m2 = new THREE.Matrix4();
+					m2.makeRotationX(THREE.Math.degToRad(-90))
+
+					mesh.applyMatrix4(m2);
+
+
+					mesh.name = PointedObjectNames.WALL
+					m_scene.add( mesh );
+					m_scene_models_col.push(mesh);
+
+					m_application_state.num_models_loaded +=1
+					console.log("INFO: Loading Model Col select: DONE")
 					var completation = Math.floor(((m_application_state.num_cameras_loaded+m_application_state.num_models_loaded*10)/(m_application_state.num_cameras_to_load+m_application_state.num_models_to_load*10))*80)
 					document.getElementById("loadingText").innerHTML = "Loading: "+completation.toString() +"%";
 
@@ -2704,7 +2731,7 @@
 					}
 					case AppStates.LOADING_MESHES:
 					{
-						if(m_application_state.num_models_to_load == m_application_state.num_models_to_load && m_application_state.num_cameras_loaded == m_application_state.num_cameras_to_load
+						if(m_application_state.num_models_loaded == m_application_state.num_models_to_load && m_application_state.num_cameras_loaded == m_application_state.num_cameras_to_load
 							&& m_VRControls.isLoaded())
 						{
 							document.getElementById("loadingText").innerHTML = "Loading: 80%";

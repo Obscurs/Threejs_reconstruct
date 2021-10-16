@@ -98,7 +98,7 @@ export function intersectionObjectLine(models, pos, dir)
 {
 
     var raycaster =  new Raycaster(pos, dir);    
-	var intersects = raycaster.intersectObjects( models );
+	var intersects = raycaster.intersectObjects( models,true );
 
 	//console.log(intersects)
 	//setDefaultColorsCameras();

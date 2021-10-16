@@ -10,7 +10,14 @@ const AppStates =
 	LOADING_TEXTURES: "loading_textures_state",
 	LOADING_PRECOMPUTED_DATA: "loading_precomputed_state",
 	READY_TO_GO: "ready_state",
-
+}
+const PointedObjectNames =
+{
+	GROUND: "THEMODEL_COL_GROUND",
+	WALL: "THEMODEL_COL_SELECT",
+	VR_GUI: "VR_GUI",
+	VR_GUI_PLANE: "VR_GUI_PLANE",
+	VR_GUI_TYPE: "VR_GUI_TYPE"
 }
 var m_camera_list = [];
 var m_camera_mesh_list = [];

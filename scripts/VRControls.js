@@ -1,24 +1,30 @@
 
 import * as THREE from '../build/three.module.js';
 import { positionAtT, intersectionObjectLine} from './utils.js';
+import { VRGUI} from './VRGUI.js';
 import { XRControllerModelFactory } from '../jsm/webxr/XRControllerModelFactory.js';
 import { PLYLoader } from '../jsm/loaders/PLYLoader.js';
 const VRStates =
 {
 	IDLE: "idle_state",
-	DRAGGING: "drag_state",
-	MOVING: "move_state",
-	SHOWING_UI: "ui_state",
-	DELETING_ITEM: "deleting_state",
+	CLICKING: "clicking_state",
+	SELECTING_AREA: "drag_state",
+	DRAGGING_UI: "ui_state",
 }
+const MODELS_TO_LOAD = 2
 const HEIGHT_OFFSET = 1
 const TeleportTypes = 
 {
 	LINE: "LINE",
 	ARC:  "ARC",
 }
+var IconTypes =
+{
+	SELECT_TOOL: null,
+	TELEPORT_ARROW: null
+}
 export class VRControls {
-	constructor(scene, renderer, camera, camera_group, selector) {
+	constructor(scene, renderer, camera, camera_group) {
 		this.loaded = false
 
 		this.g = null
@@ -41,7 +47,6 @@ export class VRControls {
 		this.scene = scene
 		this.renderer = renderer
 		this.camera = camera
-		this.selector = selector
 
 		this.state = VRStates.IDLE
 		this.leftControllerData = null
@@ -51,19 +56,39 @@ export class VRControls {
 		this.colPlane = null
 		this.currentPointedGroundY = -1
 		this.currentPointedPosition = new THREE.Vector3()
+		this.currentPointedObject = null
+		this.currentClickedObject = null
 		this.timerGroundUpdater =0
 		this.startedMovement = false
 		this.teleportType = TeleportTypes.LINE
+		this.models_loaded = 0
+		this.GUI = new VRGUI(this.camera_group)
+
+		this.drag_timer = 0
 		var self = this
 
 		const loader = new PLYLoader();
 		loader.load( '../assets/arrow.ply', function ( geometry ) {
 			const material = new THREE.MeshBasicMaterial( { color: 0xffffff} );
-			self.guidesprite = new THREE.Mesh( geometry, material );
-			self.loaded = true;
-			console.log(self.guidesprite)
-		})
+			material.depthTest = false;
+			IconTypes.TELEPORT_ARROW = new THREE.Mesh( geometry, material );
+			IconTypes.TELEPORT_ARROW.renderOrder = 1
 
+
+			self.models_loaded +=1
+			self.loaded = true;
+			//console.log(self.guidesprite)
+		})
+		loader.load( '../assets/selectTool.ply', function ( geometry ) {
+			const material = new THREE.MeshBasicMaterial( { color: 0xffffff} );
+			material.depthTest = false;
+			IconTypes.SELECT_TOOL = new THREE.Mesh( geometry, material );
+			IconTypes.SELECT_TOOL.renderOrder = 1
+			//self.guidesprite 
+			self.models_loaded +=1
+			self.loaded = (self.models_loaded == MODELS_TO_LOAD);
+			//console.log(self.guidesprite)
+		})
 
 
 
@@ -106,6 +131,9 @@ export class VRControls {
 					self.instancePointed = null
 				}
 			}*/
+			self.state = VRStates.CLICKING
+			self.currentClickedObject = self.currentPointedObject
+
 		    
 		}
 
@@ -116,10 +144,17 @@ export class VRControls {
 				self.instanceDragged = null
 				self.state = VRStates.IDLE
 			}*/
-			if(true) //check collision object to decide what to do
+			self.drag_timer = 0
+			if(self.state == VRStates.CLICKING)
 			{
-				self.endMovingUser(self.rightControllerData.controller)
+				if(self.currentPointedObject.name==PointedObjectNames.GROUND) //check collision object to decide what to do
+				{
+					self.endMovingUser(self.rightControllerData.controller)
+				}
+				//else if()
 			}
+			self.state = VRStates.IDLE
+			self.currentPointedObject = null
 
 		    
 		}
@@ -252,7 +287,27 @@ export class VRControls {
 	}
 
 
-	
+	updateGuideSprite(requestedSprite)
+	{
+		if(requestedSprite == null)
+		{
+			if(this.guidesprite != null)
+				m_scene.remove(this.guidesprite);
+			this.guidesprite = null
+			return
+		}
+		if(this.guidesprite != requestedSprite)
+		{
+			if(this.guidesprite != null)
+			{
+				m_scene.remove(this.guidesprite);
+				requestedSprite.position.copy(this.guidesprite)
+			}
+			this.guidesprite = requestedSprite
+			m_scene.add(this.guidesprite)
+		}
+		
+	}
 	startMovingUser(controller)
 	{
 		console.log("startMoviing")
@@ -260,7 +315,7 @@ export class VRControls {
 		this.guidingController = controller;
 	    this.guidelight.intensity = 1;
 	    controller.add(this.guideline);
-	    this.scene.add(this.guidesprite);
+	    //this.scene.add(this.guidesprite);
 	    this.startedMovement = true
 	}
 	endMoveArc(controller)
@@ -286,12 +341,12 @@ export class VRControls {
         //locomotion(offset);
         this.moveVRCam(cursorPos)
         // clean up
-        this.guidingController = null;
-        this.guidelight.intensity = 0;
-        controller.remove(this.guideline);
-        m_scene.remove(this.guidesprite);
+       // this.guidingController = null;
+        //this.guidelight.intensity = 0;
+        /*controller.remove(this.guideline);
+        m_scene.remove(this.guidesprite);*/
 
-        this.state = VRStates.IDLE
+        //this.state = VRStates.IDLE
 	}
 	endMoveLine(controller)
 	{
@@ -349,9 +404,7 @@ export class VRControls {
 	
 	doInputEvents()
 	{
-		if(this.rightControllerData == null/* || this.leftControllerData == null*/)
-			return
-		this.doJoystickEvents()
+		/*this.doJoystickEvents()
 		if(this.isAButtonPressed(this.rightControllerData))
 		{
 			if(this.state == VRStates.IDLE)
@@ -384,7 +437,7 @@ export class VRControls {
 			{
 				this.state = VRStates.IDLE
 			}
-		}
+		}*/
 		
 	}
 	updatePointedPosition(dt)
@@ -421,11 +474,27 @@ export class VRControls {
 				this.guidingController.getWorldPosition(pos);
 			    this.guidingController.getWorldDirection(dir);
 			    dir.multiplyScalar(-1)
-			    var pos = intersectionObjectLine(m_scene_models_col, pos, dir)
-			    if(pos != null)
+			    var intersection = intersectionObjectLine(m_scene_models_col, pos, dir)
+			    var intersectionUI = intersectionObjectLine(this.GUI.getGroup().children,pos,dir)
+			    if(intersection != null && intersectionUI == null)
 			    {
-			    	this.currentPointedPosition.copy(pos.point)
+			    	this.currentPointedPosition.copy(intersection.point)
 			    	this.currentPointedGroundY = this.getFloorFromPos(this.currentPointedPosition)
+			    	this.currentPointedObject = intersection.object
+			    	if(this.currentPointedObject.name == PointedObjectNames.GROUND)
+			    		this.updateGuideSprite(IconTypes.TELEPORT_ARROW)
+			    	else if(this.currentPointedObject.name == PointedObjectNames.WALL)
+			    	{
+			    		this.updateGuideSprite(IconTypes.SELECT_TOOL)
+			    		this.guidesprite.lookAt(pos)
+			    	}
+			    	else
+			    		this.updateGuideSprite(null)
+			    }
+			    else if(intersectionUI != null)
+			    {
+			    	this.currentPointedObject = intersectionUI.object
+			    	this.updateGuideSprite(null)
 			    }
 			    
 			}
@@ -462,7 +531,8 @@ export class VRControls {
         
         // Place the light and sprite near the end of the poing
         positionAtT(this.guidelight.position,t*0.98,p,v,this.g);
-        positionAtT(this.guidesprite.position,t*0.98,p,v,this.g);
+        if(this.guidesprite != null)
+        	positionAtT(this.guidesprite.position,t*0.98,p,v,this.g);
 	}
 	updateGuidingControllerLine()
 	{
@@ -484,22 +554,33 @@ export class VRControls {
             vertex.toArray(this.lineGeometryVertices,i*3);
         }
         this.guidelight.position.copy(this.currentPointedPosition)
-        this.guidesprite.position.copy(this.currentPointedPosition)
+        if(this.guidesprite != null)
+        	this.guidesprite.position.copy(this.currentPointedPosition)
 	}
 	update(dt)
 	{
-		
+
+		if(this.state == VRStates.CLICKING)
+		{
+			this.drag_timer += dt
+			if(this.drag_timer > 0.5)
+				this.state = VRStates.DRAGGING
+		}
+
 		this.updateControllers()
 		this.updatePointedPosition(dt)
-		this.doInputEvents()
-		if(this.state == VRStates.DRAGGING)
-			this.updateInstanceDragged(dt)
-		if(this.state == VRStates.SHOWING_UI && this.rightControllerData != null)
+		//this.doInputEvents()
+		if(this.state == VRStates.DRAGGING && this.currentClickedObject.type == PointedObjectNames.VR_GUI_TYPE)
 		{
 			var pos = new THREE.Vector3()
-			this.rightControllerData.controller.getWorldPosition(pos)
-			//this.selector.updateUI(dt, pos)
+			var dir = new THREE.Vector3()
+			this.guidingController.getWorldPosition(pos);
+			this.guidingController.getWorldDirection(dir);
+			//dir.multiplyScalar(-1)
+
+			this.GUI.updateDrag(pos, dir)
 		}
+			
 		/*const session = this.renderer.xr.getSession();
 		let i = 0;
 		if (session) {
@@ -568,7 +649,13 @@ export class VRControls {
 		var auxPos = new THREE.Vector3(position.x,100 ,position.z)
 		var auxUp = new THREE.Vector3(0,-1,0)
 		var raycasterFloor =  new THREE.Raycaster(auxPos, auxUp);    
-		var intersectsFloor = raycasterFloor.intersectObjects( m_scene_models_col );  
+		var models = []
+		for(var i=0; i<m_scene_models_col.length; ++i )
+		{
+			if(m_scene_models_col[i].name=="THEMODEL_COL_GROUND")
+				models.push(m_scene_models_col[i])
+		}
+		var intersectsFloor = raycasterFloor.intersectObjects( models );  
 		//console.log(intersectsFloor)
 		if(intersectsFloor.length > 0)
 		{
