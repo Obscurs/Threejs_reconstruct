@@ -133,6 +133,10 @@ export class VRControls {
 			}*/
 			self.state = VRStates.CLICKING
 			self.currentClickedObject = self.currentPointedObject
+			if(self.currentClickedObject.type == PointedObjectNames.VR_GUI_TYPE)
+			{
+				self.currentClickedObject.onStartClick()
+			}
 
 		    
 		}
@@ -147,14 +151,34 @@ export class VRControls {
 			self.drag_timer = 0
 			if(self.state == VRStates.CLICKING)
 			{
+				if(self.currentClickedObject.type == PointedObjectNames.VR_GUI_TYPE)
+				{
+					if(self.currentClickedObject == self.currentPointedObject)
+					{
+						self.currentClickedObject.onEndClick()
+					}
+					else
+					{
+						self.currentClickedObject.onCancelClick()
+					}
+
+				}
 				if(self.currentPointedObject.name==PointedObjectNames.GROUND) //check collision object to decide what to do
 				{
 					self.endMovingUser(self.rightControllerData.controller)
 				}
+				
 				//else if()
 			}
+			else if(self.state == VRStates.DRAGGING)
+			{
+				if(self.currentClickedObject.type == PointedObjectNames.VR_GUI_TYPE)
+				{
+					self.currentClickedObject.onEndDrag()
+				}
+			}
 			self.state = VRStates.IDLE
-			self.currentPointedObject = null
+			self.currentClickedObject = null
 
 		    
 		}
@@ -559,26 +583,39 @@ export class VRControls {
 	}
 	update(dt)
 	{
-
+		this.GUI.update(dt, this.currentPointedObject)
+		/*if(this.currentPointedObject != null && this.currentPointedObject.type == PointedObjectNames.VR_GUI_TYPE)
+		{
+			this.currentPointedObject.onHover()
+		}*/
 		if(this.state == VRStates.CLICKING)
 		{
 			this.drag_timer += dt
 			if(this.drag_timer > 0.5)
+			{
 				this.state = VRStates.DRAGGING
+				if(this.currentClickedObject != null && this.currentClickedObject == this.currentPointedObject && this.currentClickedObject.type == PointedObjectNames.VR_GUI_TYPE)
+				{
+					this.currentClickedObject.onStartDrag()
+				}
+			}
+				
 		}
 
 		this.updateControllers()
 		this.updatePointedPosition(dt)
 		//this.doInputEvents()
+
+
 		if(this.state == VRStates.DRAGGING && this.currentClickedObject.type == PointedObjectNames.VR_GUI_TYPE)
 		{
+			
 			var pos = new THREE.Vector3()
 			var dir = new THREE.Vector3()
 			this.guidingController.getWorldPosition(pos);
 			this.guidingController.getWorldDirection(dir);
-			//dir.multiplyScalar(-1)
-
-			this.GUI.updateDrag(pos, dir)
+			//this.GUI.updateDrag(pos, dir)
+			this.currentClickedObject.onUpdateDrag(pos,dir)
 		}
 			
 		/*const session = this.renderer.xr.getSession();
@@ -677,6 +714,10 @@ export class VRControls {
 	{
 		//this.camera_group.position.add(offset)
 		this.camera_group.position.copy(offset)
+	}
+	updateVRCollections(collections)
+	{
+		this.GUI.updatePhotoCollections(collections)
 	}
 	
 }

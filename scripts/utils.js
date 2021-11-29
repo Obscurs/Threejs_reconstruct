@@ -1,4 +1,5 @@
 import { Vector3, Raycaster } from '../../build/three.module.js';
+import { compareSimilitudes, compareCandidates, compareCanditateIndices} from './compareFuncs.js';
 export function getWorldIntersectFromNDCxy(camera, ndc_pos, models)
 {
 	camera.updateProjectionMatrix();
@@ -120,4 +121,177 @@ export function intersectionObjectLine(models, pos, dir)
     }
     else
     	return null
+}
+
+
+export function singleLinkageClustering(num_clusters, num_elements_per_cluster, cameraList, candidates)
+{
+
+
+	var result = []
+	for (var i = 0; i < candidates.length; i++) {
+		//TODO use class for this structure
+		var aux_collection_elem = {
+			score: 0,
+			elems: null,
+			distances: null,
+			animating: 0,
+			min: null,
+			max: null,
+		}
+		result.push(aux_collection_elem);
+	}
+	for (var i = 0; i < candidates.length; i++) {
+		var pair_elem_score = {
+			elem: candidates[i].index,
+			similitude: candidates[i].score,
+			score: candidates[i].score,
+		}
+		result[candidates[i].index].elems = [pair_elem_score]
+		result[candidates[i].index].distances = cameraList[candidates[i].index].similitudes.slice()
+	}
+	var countNulls = 0
+	for (var i = 0; i < result.length; i++) {
+
+		if(result[i].elems[0].score == 0)
+			countNulls = countNulls+1
+	}
+	while(true)
+	{
+		var mindist = 
+		{
+			c1: null,
+			c2: null,
+			dist: -1, //1 is the maximum distance allowed
+		}
+		for(var i = 0; i < result.length; i++)
+		{
+			if(result[i].elems.length <num_elements_per_cluster)
+			{
+				for(var j = i+1; j < result[i].distances.length; j++)
+				{
+				if(result[i].distances[j] > mindist.dist && result[j].elems[0].score > 0 )
+				{
+					mindist.dist = result[i].distances[j]
+					mindist.c1 = i
+					mindist.c2 = j
+				}
+				if(mindist.dist==1)
+					break;
+			}
+			if(mindist.dist==1)
+					break;
+			}
+			
+		}
+		if(mindist.dist == -1 && mindist.dist < 0.10)
+			break;
+		if(mindist.c1 > mindist.c2)
+		{
+			var c_aux = mindist.c1
+			mindist.c1 = mindist.c2
+			mindist.c2 = c_aux
+		}
+
+		var newdistances = []
+		for(var i=0; i < result.length; i++)
+		{
+			var val1 = result[mindist.c1].distances[i]
+			var val2 = result[mindist.c2].distances[i]
+			if(i != mindist.c1 && i != mindist.c2)
+				newdistances.push(Math.max(val1,val2))
+		}
+		newdistances.push(1)
+		//TODO use class for this structure
+		var aux_collection_elem = {
+			score: 0,
+			elems: result[mindist.c1].elems.concat(result[mindist.c2].elems),
+			distances: newdistances.slice(),
+			animating: 0,
+			min: null,
+			max: null,
+		}
+		//console.log("joined "+cameraList[result[mindist.c1].elems[0].elem].name+ " with "+cameraList[result[mindist.c2].elems[0].elem].name)
+		result.splice(mindist.c2,1)
+		result.splice(mindist.c1,1)
+		for(var i = 0; i < result.length; i++)
+		{
+			result[i].distances.splice(mindist.c2,1)
+			result[i].distances.splice(mindist.c1,1)
+			result[i].distances.push(aux_collection_elem.distances[i])
+		}
+		result.push(aux_collection_elem)
+	}
+	
+	for(var i = 0; i < result.length; i++)
+	{
+		result[i].elems.sort(compareSimilitudes)
+		var aux_array = []
+		for(var j = 0; j < Math.min(num_elements_per_cluster,result[i].elems.length); j++)
+			aux_array.push(result[i].elems[j].elem)
+		if(result[i].elems.length >0)
+			result[i].score = result[i].elems[0].similitude
+		result[i].elems = aux_array
+	}
+	result.sort(compareCandidates)
+
+	while(result.length > num_clusters)
+	{
+		result.pop();
+	}
+	return result
+}
+export function basicClustering(num_clusters, num_elements_per_cluster, treshold, maxNumCollections, cameraList, candidates)
+{
+	var aux_candidate_list = []
+	for (var i = 0; i < candidates.length; i++) {
+		aux_candidate_list.push(candidates[i])
+	}
+	aux_candidate_list.sort(compareCanditateIndices)
+	var result = []
+	var current_collection_index = 0
+	for (var i = 0; i < candidates.length; i++) {
+		if(candidates[i].collection_index == -1 && result.length < num_clusters)
+		{
+			//TODO use class for this structure
+			var aux_collection_elem = {
+				score: candidates[i].score,
+				elems: [candidates[i].index],
+				animating: 0,
+				min: null,
+				max: null,
+			}
+			result.push(aux_collection_elem)
+			candidates[i].collection_index=current_collection_index;
+			var reached_treshold = false;
+			var aux_index_capture = 0;
+			while(!reached_treshold && aux_index_capture < cameraList[candidates[i].index].similitudes_indices_ordered.length)
+			{
+				if(cameraList[candidates[i].index].similitudes_indices_ordered[aux_index_capture].similitude > treshold)
+				{
+
+					if(aux_candidate_list[cameraList[candidates[i].index].similitudes_indices_ordered[aux_index_capture].index].collection_index == -1)
+					{
+
+						aux_candidate_list[cameraList[candidates[i].index].similitudes_indices_ordered[aux_index_capture].index].collection_index = current_collection_index;
+
+						if(result[current_collection_index].elems.length < num_elements_per_cluster)
+						{
+							result[current_collection_index].elems.push(cameraList[candidates[i].index].similitudes_indices_ordered[aux_index_capture].index)
+						}
+						
+					}
+				}
+				else
+				{
+					reached_treshold = true;
+				}
+				aux_index_capture = aux_index_capture+1;
+			}
+			current_collection_index = current_collection_index +1
+		}
+		else if(result.length >= maxNumCollections)
+			break;
+	}
+	return result
 }

@@ -17,8 +17,13 @@ const PointedObjectNames =
 	WALL: "THEMODEL_COL_SELECT",
 	VR_GUI: "VR_GUI",
 	VR_GUI_PLANE: "VR_GUI_PLANE",
-	VR_GUI_TYPE: "VR_GUI_TYPE"
+	VR_GUI_IMAGE: "VR_GUI_IMAGE",
+	VR_GUI_GROUP: "VR_GUI_GROUP",
+	VR_GUI_BUTTON: "VR_GUI_BUTTON",
+	VR_GUI_TYPE: "VR_GUI_TYPE",
+	VR_GUI_GROUP_STACKS: "VR_GUI_GROUP_STACKS"
 }
+const NUM_SHADERS_TO_LOAD = 6;
 var m_camera_list = [];
 var m_camera_mesh_list = [];
 var m_scene_models = [];
@@ -46,6 +51,15 @@ var m_selection_rectangle = {
 	selectionBox: null,
 	helper: null,
 }
+var m_shaders = 
+{
+	captureImageFrag: null,
+	sceneFrag: null,
+	sceneVert: null,
+	screenFrag: null,
+	spriteVert: null,
+	spriteFrag: null,
+}
 var m_changed_image_in_view = 1;
 var m_cameraHelper;
 var m_has_any_secondary_capture = false;
@@ -64,6 +78,7 @@ var m_application_state =
 	state: AppStates.THREE_JS_INIT,
 	num_cameras_loaded: 0,
 	num_models_loaded: 0,
+	num_shaders_loaded: 0,
 	three_js_inited: false,
 	num_cameras_to_load: 0,
 	num_models_to_load: 0,
@@ -135,3 +150,5 @@ var m_vr_move_utils =
 	framesSquare: 0,
 	captureIntexUnderPointer: 0,
 }
+
+var m_debug_func = null;
