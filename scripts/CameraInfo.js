@@ -5,7 +5,12 @@ export class CameraInfo {
 		this.height = height;
 		this.matrix = matrix;
 		this.focal = focal;
-		this.sprite = sprite;
+		this.spriteProperties = {
+			minSel: -1,
+			maxSel: -1,
+			indexInGroup: -1,
+			//selected: false,
+		}
 		this.camera = camera;
 		this.mesh = mesh;
 		this.similitudes = [];
