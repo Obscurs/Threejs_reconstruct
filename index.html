@@ -334,13 +334,29 @@ function showCollectionSprite(_min_pos, _max_pos, index_capture, order, useNewSp
 		offset_y = window.innerHeight/2
 	}
 	
-	var scale1 = (max_pos.x -min_pos.x)/m_camera_list[index_capture].width;
+	/*var scale1 = (max_pos.x -min_pos.x)/m_camera_list[index_capture].width;
 	var scale2 = (max_pos.y -min_pos.y)/m_camera_list[index_capture].height;
-	var scale = Math.min(scale1, scale2);
+	var scale = Math.min(scale1, scale2);*/
+	var scale = max_pos.x -min_pos.x
+
 
 
 	if(useNewSprites)
 	{
+		var offsetTexel_x = 0.0
+		var offsetTexel_y = 0.0
+		var factorTexel_x = 1.0
+		var factorTexel_y = 1.0
+		if(m_camera_list[index_capture].height > m_camera_list[index_capture].width)
+		{
+			factorTexel_y = m_camera_list[index_capture].width/m_camera_list[index_capture].height
+			offsetTexel_y = (1.0-factorTexel_y)/2.0
+		}
+		else
+		{
+			factorTexel_x = m_camera_list[index_capture].height/m_camera_list[index_capture].width
+			offsetTexel_x = (1.0-factorTexel_x)/2.0
+		}
 
 		var texture_sprite = new THREE.TextureLoader().load( 'models/'+m_models_values[m_gui.gui_options.current_model].path+'/thumbnails/'+m_camera_list[index_capture].name);
 
@@ -351,13 +367,16 @@ function showCollectionSprite(_min_pos, _max_pos, index_capture, order, useNewSp
 	        texture1: { type: "t", value: texture_sprite },
 	        opacity: {type: 'f', value: null },
 	        selected: {type: 'bool', value: false},
+	        offsetTexel: {type: 'vec2', value: new THREE.Vector2(offsetTexel_x,offsetTexel_y)},
+	        factorTexel: {type: 'vec2', value: new THREE.Vector2(factorTexel_x,factorTexel_y)},
+
 
 	    }
 
 		const material_sprite = new THREE.ShaderMaterial( { 
 			uniforms: uniformsSprite,
-		    fragmentShader: m_shaders.spriteFrag,
-		    vertexShader: m_shaders.spriteVert,
+		    fragmentShader: m_shaders.spriteSquaredFrag,
+		    vertexShader: m_shaders.spriteSquaredVert,
 		    blending: THREE.NormalBlending,
 	        depthTest: false,
 	        transparent: true
@@ -381,9 +400,10 @@ function showCollectionSprite(_min_pos, _max_pos, index_capture, order, useNewSp
 	{
 		spritepos.z = -order*0.25
 	}
-
-	sprite.scale.set(m_camera_list[index_capture].width*scale, m_camera_list[index_capture].height*scale, 1);
-	sprite.position.set(spritepos.x+(m_camera_list[index_capture].width*scale)/2,spritepos.y-(m_camera_list[index_capture].height*scale)/2, spritepos.z);
+	//var scaleAux = max_pos.x -min_pos.x
+	sprite.scale.set(scale, scale, 1);
+	//sprite.scale.set(m_camera_list[index_capture].width*scale, m_camera_list[index_capture].height*scale, 1);
+	sprite.position.set(spritepos.x+scale/2,spritepos.y-scale/2, spritepos.z);
 	if(m_renderer.xr.isPresenting)
 	{
 		sprite.renderOrder = -order;
@@ -806,30 +826,6 @@ function loadCamera(element, index, array)
 	capture_camera.updateMatrixWorld();
 	capture_camera.updateProjectionMatrix();
 	
-
-	/*const texture_sprite = new THREE.TextureLoader().load( 'models/'+m_models_values[m_gui.gui_options.current_model].path+'/thumbnails/'+element.name);
-
-	let uniformsSprite = {
-        minSel: {type: 'vec2', value: new THREE.Vector2(0,0)},
-        maxSel: {type: 'vec2', value: new THREE.Vector2(0,0)},
-        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
-        texture1: { type: "t", value: texture_sprite },
-        opacity: {type: 'f', value: null },
-        selected: {type: 'bool', value: false},
-
-    }
-
-	const material_sprite = new THREE.ShaderMaterial( { 
-		uniforms: uniformsSprite,
-	    fragmentShader: m_shaders.spriteFrag,
-	    vertexShader: m_shaders.spriteVert,
-	    blending: THREE.NormalBlending,
-        depthTest: false,
-        transparent: true
-	} );
-	var geometry_sprite = new THREE.PlaneGeometry(1,1);
-	const sprite = new THREE.Mesh(geometry_sprite, material_sprite);*/
-
 	var new_camera = new CameraInfo(
 		element.name,
 		element.width,
@@ -837,7 +833,6 @@ function loadCamera(element, index, array)
 		m,
 		element.f,
 		null,//mesh for debug
-		null,//sprite, 
 		capture_camera
 	);
 	
@@ -1418,6 +1413,8 @@ function clearSceneData()
 			m_current_sprites_in_scene.children[0].geometry.dispose();
 		if(m_current_sprites_in_scene.children[0].material)
 			m_current_sprites_in_scene.children[0].material.dispose();
+		if(m_current_sprites_in_scene.children[0].texture)
+			m_current_sprites_in_scene.children[0].texture.dispose();
 	    m_current_sprites_in_scene.remove(m_current_sprites_in_scene.children[0]); 
 	}
 	
@@ -1596,6 +1593,8 @@ function loadShaders()
 	shaderLoader.load('assets/shaders/screen.frag',function ( data ) {m_shaders.screenFrag =  data; onLoadShader(); },);
 	shaderLoader.load('assets/shaders/sprite.vert',function ( data ) {m_shaders.spriteVert =  data; onLoadShader(); },);
 	shaderLoader.load('assets/shaders/sprite.frag',function ( data ) {m_shaders.spriteFrag =  data; onLoadShader(); },);
+	shaderLoader.load('assets/shaders/spriteSquared.vert',function ( data ) {m_shaders.spriteSquaredVert =  data; onLoadShader(); },);
+	shaderLoader.load('assets/shaders/spriteSquared.frag',function ( data ) {m_shaders.spriteSquaredFrag =  data; onLoadShader(); },);
 }
 function onWindowResize() {
 

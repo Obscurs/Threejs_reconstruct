@@ -1,5 +1,5 @@
 export class CameraInfo {
-	constructor(name, width, height, matrix, focal, mesh, sprite, camera) {
+	constructor(name, width, height, matrix, focal, mesh, camera) {
 		this.name = name;
 		this.width = width;
 		this.height = height;

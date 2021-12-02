@@ -59,6 +59,8 @@ var m_shaders =
 	screenFrag: null,
 	spriteVert: null,
 	spriteFrag: null,
+	spriteSquaredVert: null,
+	spriteSquaredFrag: null,
 }
 var m_changed_image_in_view = 1;
 var m_cameraHelper;
