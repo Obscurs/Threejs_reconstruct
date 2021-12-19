@@ -3,18 +3,18 @@ import { compareSimilitudes, compareCandidates, compareCanditateIndices} from '.
 export function getWorldIntersectFromNDCxy(camera, ndc_pos, models)
 {
 	camera.updateProjectionMatrix();
-	var NDC_position = new Vector3(ndc_pos.x,ndc_pos.y,1);
-	var pointIntersect = new Vector3();
+	const NDC_position = new Vector3(ndc_pos.x,ndc_pos.y,1);
+	const pointIntersect = new Vector3();
 	NDC_position.unproject(camera);
 
 	//m_camera_list[i].getWorldDirection( directionPhoto );
 	//var raycasterPhoto =  new Raycaster(camera.position, NDC_position,0, 10000); 
 
-	 var raycaster =  new Raycaster();  
+	const raycaster =  new Raycaster();  
 
    	raycaster.setFromCamera( ndc_pos, camera );
 
-	var intersectsPhoto = raycaster.intersectObjects( models );  
+	const intersectsPhoto = raycaster.intersectObjects( models );  
 
 
 
@@ -57,14 +57,14 @@ export function getWorldIntersectFromNDCxy(camera, ndc_pos, models)
 
 export function checkWallBetweenTwoPoints(point1, point2, models)
 {
-	var dir = new Vector3(point2.x-point1.x,point2.y-point1.y,point2.z-point1.z)
+	const dir = new Vector3(point2.x-point1.x,point2.y-point1.y,point2.z-point1.z)
 	dir.normalize();
-	var raycaster =  new Raycaster(point1, dir);    
-	var intersects = raycaster.intersectObjects( models );
+	const raycaster =  new Raycaster(point1, dir);    
+	const intersects = raycaster.intersectObjects( models );
 
-	for(var i =0; i < intersects.length; i++)
+	for(let i =0; i < intersects.length; i++)
 	{
-		var point = intersects[i].point
+		const point = intersects[i].point
 		if(point.distanceTo(point1) > 0.01 && point.distanceTo(point2) > 0.01 && point1.distanceTo(point) < point1.distanceTo(point2))
 		{
 			return true
@@ -77,14 +77,14 @@ export function getNDCposFromWorld(camera, worldpos)
 {
 	if(worldpos == null)
 		return null;
-	var projected = new Vector3();
+	const projected = new Vector3();
 	projected.copy(worldpos)
 	projected.project(camera)
 	return projected;
 }
 export function getWorldFromNDC(camera, NDC_position)
 {
-	var res = new Vector3(NDC_position.x,NDC_position.y,NDC_position.z)
+	const res = new Vector3(NDC_position.x,NDC_position.y,NDC_position.z)
 	camera.updateProjectionMatrix();
 	res.unproject(camera);
 	return res;
@@ -98,8 +98,8 @@ export function positionAtT(inVec,t,p,v,g) {
 export function intersectionObjectLine(models, pos, dir)
 {
 
-    var raycaster =  new Raycaster(pos, dir);    
-	var intersects = raycaster.intersectObjects( models,true );
+    const raycaster =  new Raycaster(pos, dir);    
+	const intersects = raycaster.intersectObjects( models,true );
 
 	//console.log(intersects)
 	//setDefaultColorsCameras();
@@ -107,9 +107,9 @@ export function intersectionObjectLine(models, pos, dir)
     if ( intersects.length > 0 ) 
     {
     	
-    	var curr_index = intersects[ 0 ]
-    	var curr_depth = intersects[ 0 ].distance
-    	for(var i=0; i <intersects.length; i++)
+    	let curr_index = intersects[ 0 ]
+    	let curr_depth = intersects[ 0 ].distance
+    	for(let i=0; i <intersects.length; i++)
     	{
     		if(intersects[ 0 ].distance < curr_depth)
     		{
@@ -128,10 +128,10 @@ export function singleLinkageClustering(num_clusters, num_elements_per_cluster, 
 {
 
 
-	var result = []
-	for (var i = 0; i < candidates.length; i++) {
+	const result = []
+	for (let i = 0; i < candidates.length; i++) {
 		//TODO use class for this structure
-		var aux_collection_elem = {
+		const aux_collection_elem = {
 			score: 0,
 			elems: null,
 			distances: null,
@@ -141,8 +141,8 @@ export function singleLinkageClustering(num_clusters, num_elements_per_cluster, 
 		}
 		result.push(aux_collection_elem);
 	}
-	for (var i = 0; i < candidates.length; i++) {
-		var pair_elem_score = {
+	for (let i = 0; i < candidates.length; i++) {
+		const pair_elem_score = {
 			elem: candidates[i].index,
 			similitude: candidates[i].score,
 			score: candidates[i].score,
@@ -150,25 +150,25 @@ export function singleLinkageClustering(num_clusters, num_elements_per_cluster, 
 		result[candidates[i].index].elems = [pair_elem_score]
 		result[candidates[i].index].distances = cameraList[candidates[i].index].similitudes.slice()
 	}
-	var countNulls = 0
-	for (var i = 0; i < result.length; i++) {
+	let countNulls = 0
+	for (let i = 0; i < result.length; i++) {
 
 		if(result[i].elems[0].score == 0)
 			countNulls = countNulls+1
 	}
 	while(true)
 	{
-		var mindist = 
+		const mindist = 
 		{
 			c1: null,
 			c2: null,
 			dist: -1, //1 is the maximum distance allowed
 		}
-		for(var i = 0; i < result.length; i++)
+		for(let i = 0; i < result.length; i++)
 		{
 			if(result[i].elems.length <num_elements_per_cluster)
 			{
-				for(var j = i+1; j < result[i].distances.length; j++)
+				for(let j = i+1; j < result[i].distances.length; j++)
 				{
 				if(result[i].distances[j] > mindist.dist && result[j].elems[0].score > 0 )
 				{
@@ -188,22 +188,22 @@ export function singleLinkageClustering(num_clusters, num_elements_per_cluster, 
 			break;
 		if(mindist.c1 > mindist.c2)
 		{
-			var c_aux = mindist.c1
+			const c_aux = mindist.c1
 			mindist.c1 = mindist.c2
 			mindist.c2 = c_aux
 		}
 
-		var newdistances = []
-		for(var i=0; i < result.length; i++)
+		const newdistances = []
+		for(let i=0; i < result.length; i++)
 		{
-			var val1 = result[mindist.c1].distances[i]
-			var val2 = result[mindist.c2].distances[i]
+			const val1 = result[mindist.c1].distances[i]
+			const val2 = result[mindist.c2].distances[i]
 			if(i != mindist.c1 && i != mindist.c2)
 				newdistances.push(Math.max(val1,val2))
 		}
 		newdistances.push(1)
 		//TODO use class for this structure
-		var aux_collection_elem = {
+		const aux_collection_elem = {
 			score: 0,
 			elems: result[mindist.c1].elems.concat(result[mindist.c2].elems),
 			distances: newdistances.slice(),
@@ -214,7 +214,7 @@ export function singleLinkageClustering(num_clusters, num_elements_per_cluster, 
 		//console.log("joined "+cameraList[result[mindist.c1].elems[0].elem].name+ " with "+cameraList[result[mindist.c2].elems[0].elem].name)
 		result.splice(mindist.c2,1)
 		result.splice(mindist.c1,1)
-		for(var i = 0; i < result.length; i++)
+		for(let i = 0; i < result.length; i++)
 		{
 			result[i].distances.splice(mindist.c2,1)
 			result[i].distances.splice(mindist.c1,1)
@@ -223,11 +223,11 @@ export function singleLinkageClustering(num_clusters, num_elements_per_cluster, 
 		result.push(aux_collection_elem)
 	}
 	
-	for(var i = 0; i < result.length; i++)
+	for(let i = 0; i < result.length; i++)
 	{
 		result[i].elems.sort(compareSimilitudes)
-		var aux_array = []
-		for(var j = 0; j < Math.min(num_elements_per_cluster,result[i].elems.length); j++)
+		const aux_array = []
+		for(let j = 0; j < Math.min(num_elements_per_cluster,result[i].elems.length); j++)
 			aux_array.push(result[i].elems[j].elem)
 		if(result[i].elems.length >0)
 			result[i].score = result[i].elems[0].similitude
@@ -243,18 +243,18 @@ export function singleLinkageClustering(num_clusters, num_elements_per_cluster, 
 }
 export function basicClustering(num_clusters, num_elements_per_cluster, treshold, maxNumCollections, cameraList, candidates)
 {
-	var aux_candidate_list = []
-	for (var i = 0; i < candidates.length; i++) {
+	const aux_candidate_list = []
+	for (let i = 0; i < candidates.length; i++) {
 		aux_candidate_list.push(candidates[i])
 	}
 	aux_candidate_list.sort(compareCanditateIndices)
-	var result = []
-	var current_collection_index = 0
-	for (var i = 0; i < candidates.length; i++) {
+	const result = []
+	let current_collection_index = 0
+	for (let i = 0; i < candidates.length; i++) {
 		if(candidates[i].collection_index == -1 && result.length < num_clusters)
 		{
 			//TODO use class for this structure
-			var aux_collection_elem = {
+			const aux_collection_elem = {
 				score: candidates[i].score,
 				elems: [candidates[i].index],
 				animating: 0,
@@ -263,8 +263,8 @@ export function basicClustering(num_clusters, num_elements_per_cluster, treshold
 			}
 			result.push(aux_collection_elem)
 			candidates[i].collection_index=current_collection_index;
-			var reached_treshold = false;
-			var aux_index_capture = 0;
+			let reached_treshold = false;
+			let aux_index_capture = 0;
 			while(!reached_treshold && aux_index_capture < cameraList[candidates[i].index].similitudes_indices_ordered.length)
 			{
 				if(cameraList[candidates[i].index].similitudes_indices_ordered[aux_index_capture].similitude > treshold)

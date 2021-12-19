@@ -1,6 +1,6 @@
 class VRButton {
 
-	static createButton( renderer, app_state ) {
+	static createButton( renderer ) {
 
 		/*if ( options ) {
 

@@ -25,7 +25,7 @@
 		
 <script type="module">
 import * as THREE from '../build/three.module.js';
-import Stats from './jsm/libs/stats.module.js';			
+/*import Stats from './jsm/libs/stats.module.js';			
 import { PLYLoader } from './jsm/loaders/PLYLoader.js';
 import { OrbitControls } from './jsm/controls/CustomOrbitControls.js';
 import { SelectionBox } from './jsm/interactive/SelectionBox.js';
@@ -38,20 +38,21 @@ import { getWorldIntersectFromNDCxy, getNDCposFromWorld, positionAtT, getWorldFr
 import { singleLinkageClustering, basicClustering} from './scripts/utils.js';
 import { ModelInfo} from './scripts/ModelInfo.js';
 import { CameraInfo} from './scripts/CameraInfo.js';
-import { VRControls} from './scripts/VRControls.js';
+
 import { GUI } from './../jsm/libs/dat.gui.module.js';
 import { Gui} from './scripts/Gui.js';
+import { ThumbnailSprite } from './scripts/ThumbnailSprite.js';*/
 
-const m_clock = new THREE.Clock();
-var m_manager = new THREE.LoadingManager();
+import { Application } from './scripts/Application.js';
 
-var m_old_pos_cam =  new THREE.Vector3();
+m_views[1].height = 0.3
+m_views[1].width = (m_views[1].height*(window.innerWidth / window.innerHeight))*(1/(window.innerWidth / window.innerHeight))
+m_views[1].left = 1.0-m_views[1].width
+//init();
+APPLICATION = new Application()
 
-init();
 
-
-
-function moveToCapturePosition(index_capture)
+/*function moveToCapturePosition(index_capture)
 {
 	if(m_renderer.xr.isPresenting)
 	{
@@ -277,9 +278,7 @@ function selectCapture(index_capture, allow_jump = false)
 		return;
 	if(m_application_state.need_to_update_auto_detect)
 		return;
-	/*if(m_current_capture_in_view_index >=0 )
-		m_camera_list[m_current_capture_in_view_index].spriteProperties.selected = false;*/
-	//var index_capture = m_current_candidates[index_candidate].index;
+
 	if(m_current_capture_in_view_index == index_capture && allow_jump)
 	{
 		moveToCapturePosition(index_capture)
@@ -290,25 +289,24 @@ function selectCapture(index_capture, allow_jump = false)
 		changeCaptureInView(index_capture)
 	}
 	m_current_capture_in_view_index = index_capture;
-	/*if(m_current_capture_in_view_index >=0)
-		m_camera_list[m_current_capture_in_view_index].spriteProperties.selected = true;*/
+
 
 	for(var i = 0; i < m_current_sprites_in_scene.children.length; ++i)
 	{
-		if(m_current_sprites_in_scene.children[i].name == m_current_capture_in_view_index && m_current_capture_in_view_index >=0)
-			m_current_sprites_in_scene.children[i].material.uniforms.selected.value = true
+		if(m_current_sprites_in_scene.children[i].getName() == m_current_capture_in_view_index && m_current_capture_in_view_index >=0)
+			m_current_sprites_in_scene.children[i].setUniformSelected(true)
 		else
-			m_current_sprites_in_scene.children[i].material.uniforms.selected.value = false
+			m_current_sprites_in_scene.children[i].setUniformSelected(false)
 			
 	}
 	
-}
-
+}*/
+/*
 function setCollectionOpacity(opacity)
 {
 	var arrayLength = m_current_sprites_in_scene.children.length;
 	for (var i = 0; i < arrayLength; i++) {
-		m_current_sprites_in_scene.children[i].material.uniforms.opacity.value = opacity;
+		m_current_sprites_in_scene.children[i].setUniformOpacity(opacity);
 	}
 	
 }
@@ -334,60 +332,16 @@ function showCollectionSprite(_min_pos, _max_pos, index_capture, order, useNewSp
 		offset_y = window.innerHeight/2
 	}
 	
-	/*var scale1 = (max_pos.x -min_pos.x)/m_camera_list[index_capture].width;
-	var scale2 = (max_pos.y -min_pos.y)/m_camera_list[index_capture].height;
-	var scale = Math.min(scale1, scale2);*/
 	var scale = max_pos.x -min_pos.x
 
 
 
 	if(useNewSprites)
 	{
-		var offsetTexel_x = 0.0
-		var offsetTexel_y = 0.0
-		var factorTexel_x = 1.0
-		var factorTexel_y = 1.0
-		if(m_camera_list[index_capture].height > m_camera_list[index_capture].width)
-		{
-			factorTexel_y = m_camera_list[index_capture].width/m_camera_list[index_capture].height
-			offsetTexel_y = (1.0-factorTexel_y)/2.0
-		}
-		else
-		{
-			factorTexel_x = m_camera_list[index_capture].height/m_camera_list[index_capture].width
-			offsetTexel_x = (1.0-factorTexel_x)/2.0
-		}
-
-		var texture_sprite = new THREE.TextureLoader().load( 'models/'+m_models_values[m_gui.gui_options.current_model].path+'/thumbnails/'+m_camera_list[index_capture].name);
-
-		let uniformsSprite = {
-	        minSel: {type: 'vec2', value: new THREE.Vector2(0,0)},
-	        maxSel: {type: 'vec2', value: new THREE.Vector2(0,0)},
-	        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
-	        texture1: { type: "t", value: texture_sprite },
-	        opacity: {type: 'f', value: null },
-	        selected: {type: 'bool', value: false},
-	        offsetTexel: {type: 'vec2', value: new THREE.Vector2(offsetTexel_x,offsetTexel_y)},
-	        factorTexel: {type: 'vec2', value: new THREE.Vector2(factorTexel_x,factorTexel_y)},
-
-
-	    }
-
-		const material_sprite = new THREE.ShaderMaterial( { 
-			uniforms: uniformsSprite,
-		    fragmentShader: m_shaders.spriteSquaredFrag,
-		    vertexShader: m_shaders.spriteSquaredVert,
-		    blending: THREE.NormalBlending,
-	        depthTest: false,
-	        transparent: true
-		} );
-		var geometry_sprite = new THREE.PlaneGeometry(1,1);
-		var newsprite = new THREE.Mesh(geometry_sprite, material_sprite);
-		newsprite.name = index_capture;
-		newsprite.texture = texture_sprite
+		var pathSprite = 'models/'+m_models_values[m_gui.gui_options.current_model].path+'/thumbnails/'+m_camera_list[index_capture].name
+		var newsprite = new ThumbnailSprite(pathSprite, index_capture, m_camera_list[index_capture].width,m_camera_list[index_capture].height)
 		m_current_sprites_in_scene.add(newsprite)
 		m_camera_list[index_capture].spriteProperties.indexInGroup = m_current_sprites_in_scene.children.length -1
-
 	}
 
 	var sprite = m_current_sprites_in_scene.children[m_camera_list[index_capture].spriteProperties.indexInGroup]
@@ -400,9 +354,7 @@ function showCollectionSprite(_min_pos, _max_pos, index_capture, order, useNewSp
 	{
 		spritepos.z = -order*0.25
 	}
-	//var scaleAux = max_pos.x -min_pos.x
 	sprite.scale.set(scale, scale, 1);
-	//sprite.scale.set(m_camera_list[index_capture].width*scale, m_camera_list[index_capture].height*scale, 1);
 	sprite.position.set(spritepos.x+scale/2,spritepos.y-scale/2, spritepos.z);
 	if(m_renderer.xr.isPresenting)
 	{
@@ -412,22 +364,15 @@ function showCollectionSprite(_min_pos, _max_pos, index_capture, order, useNewSp
 	{
 		sprite.renderOrder = order;
 	}
-	//TODOO
 	
 	
-	sprite.material.uniforms.minSel.value = m_camera_list[index_capture].spriteProperties.minSel
-	sprite.material.uniforms.maxSel.value = m_camera_list[index_capture].spriteProperties.maxSel
-	sprite.material.uniforms.selected.value = m_current_capture_in_view_index == sprite.name
-	sprite.material.uniforms.opacity.value = opacity;
+	sprite.setUniformMinSel(m_camera_list[index_capture].spriteProperties.minSel)
+	sprite.setUniformMaxSel(m_camera_list[index_capture].spriteProperties.maxSel)
+	sprite.setUniformSelected(m_current_capture_in_view_index == sprite.name)
+	sprite.setUniformOpacity(opacity);
 	
 
-	/*if(sprites_to_remove.length > 0)
-	{
-		const index = sprites_to_remove.indexOf(sprite.name);
-		if (index > -1) {
-		  sprites_to_remove.splice(index, 1);
-		}
-	}	*/
+
 }
 
 function showCollection(min_pos, max_pos, index_collection, useNewSprites = false, isShifting = false, offsetAnim = 0)
@@ -475,9 +420,7 @@ function showCollection(min_pos, max_pos, index_collection, useNewSprites = fals
 function clearCollectionSprites()
 {
 	while(m_current_sprites_in_scene.children.length > 0){ 
-		m_current_sprites_in_scene.children[0].texture.dispose();
-		m_current_sprites_in_scene.children[0].geometry.dispose();
-		m_current_sprites_in_scene.children[0].material.dispose();
+		m_current_sprites_in_scene.children[0].dispose();
 	    m_current_sprites_in_scene.remove(m_current_sprites_in_scene.children[0]); 
 	}
 }
@@ -490,10 +433,7 @@ function showCollections(useNewSprites)
 	
 	if(useNewSprites)
 		clearCollectionSprites()
-	/*for(var i = 0; i < m_current_sprites_in_scene.children.length; i++)
-	{
-		sprites_to_remove.push(m_current_sprites_in_scene.children[i].name)
-	}*/
+
 
 	for(var i = 0; i < m_current_candidates_collections.length; i++)
 	{
@@ -508,10 +448,10 @@ function showCollections(useNewSprites)
 	}
 
 
-}
+}*/
 
 
-
+/*
 function getCaptureUnderMouse(event)
 {
 	if(!m_gui.gui_options.show_photo_collection && !m_renderer.xr.isPresenting)
@@ -568,17 +508,14 @@ function getCollectionIndexUnderMouse()
 		return index_collection;
 	}
 	return -1;
-}
-function onDocumentKeyDown(event) {
+}*/
+/*function onDocumentKeyDown(event) {
 	if(m_application_state.state == AppStates.READY_TO_GO)
 	{
 		var keyCode = event.which;
 	    if (keyCode == 82) { //R
 	        resetCamera("ORBIT");
-	    /*} else if (keyCode == 77) { //M
-	        changeMode();*/
-	    /*}  else if (keyCode == 67) { //C
-	        toggleEnableCams();*/
+
 	    }else if(keyCode == 87) { //W
 	    	var collection = getCollectionIndexUnderMouse()
 			if(collection >=0 && m_current_candidates_collections[collection].elems.length > 1)
@@ -600,8 +537,6 @@ function onDocumentKeyDown(event) {
 	    	m_controls_secondary.enabled = false;
 	    	m_selection_rectangle.helper.element.hidden = false;
 	    	
-	    	/*m_canvas.setHeight(window.innerHeight);
-			m_canvas.setWidth(window.innerWidth);*/
 	    }
 	     else if (keyCode == 32) { //Space
 	    	if(m_recording_state == 0)
@@ -624,19 +559,16 @@ function onDocumentKeyDown(event) {
 
 	    		
 
-	    	
-	    	/*m_canvas.setHeight(window.innerHeight);
-			m_canvas.setWidth(window.innerWidth);*/
 	    }
 	}
-};
+};*/
 
 
 
 
 
 
-function onDocumentPointerMove(event)
+/*function onDocumentPointerMove(event)
 {
 	if(!m_application_state.state == AppStates.READY_TO_GO)
 		return;
@@ -650,8 +582,7 @@ function onDocumentPointerMove(event)
 			m_gui.removeFocus()
 		}
 		//console.log("mouse move, capture: "+ captureIndex)
-		/*if(m_application_state.capture_index_over_mouse != captureIndex && !m_application_state.select_controls_enabled)
-			selectCapture(captureIndex)*/
+
 		m_application_state.capture_index_over_mouse = captureIndex;
 		if(m_controls)
 			m_controls.enabled = false;
@@ -791,9 +722,9 @@ function onDocumentPointerUp( event ) {
 		if(captureIndex >= 0)
 			selectCapture(captureIndex, true)
 	}
-}
+}*/
 
-
+/*
 function loadCamera(element, index, array)
 {
 	console.log("      Loading Camera "+element.name+" ...")
@@ -894,7 +825,7 @@ function loadModel(model)
 
 		mesh.applyMatrix4(m2);
 
-
+		mesh.isGUI = false
 		mesh.name = PointedObjectNames.GROUND
 		m_scene.add( mesh );
 		m_scene_models_col.push(mesh);
@@ -921,7 +852,7 @@ function loadModel(model)
 
 		mesh.applyMatrix4(m2);
 
-
+		mesh.isGUI = false
 		mesh.name = PointedObjectNames.WALL
 		m_scene.add( mesh );
 		m_scene_models_col.push(mesh);
@@ -1142,10 +1073,10 @@ function getScoreCam(index_cam, intersectsCamera, usingSelectionRectangle)
 	}
 
 	
-}
+}*/
 
 
-function shiftCollectionSprites(collection,index, direction)
+/*function shiftCollectionSprites(collection,index, direction)
 {
 	if(direction > 0)
 	{
@@ -1187,8 +1118,8 @@ function updateCollectionsAnims(delta)
 	}
 	//m_application_state.
 }
-
-function updateCandidateCollections()
+*/
+/*function updateCandidateCollections()
 {
 	//TODO clear m_current_candidates_collections???
 	//TODO use structure for m_current_candidates
@@ -1210,6 +1141,7 @@ function updateCandidateCollections()
 				var vrColElem = {
 					imagePath: 'models/'+m_models_values[m_gui.gui_options.current_model].path+'/thumbnails/'+cameraInfo.name,
 					index: m_current_candidates_collections[i].elems[j],
+					camInfo: cameraInfo,
 				}
 				elems.push(vrColElem)
 			}	
@@ -1217,8 +1149,8 @@ function updateCandidateCollections()
 		}
 		m_VRControls.updateVRCollections(vrCollections);
 	}
-}
-function normalizeScores()
+}*/
+/*function normalizeScores()
 {
 	var biggest_score = m_current_candidates[0].score;
 	for (var i = 0; i < m_current_candidates.length; i++) {
@@ -1284,11 +1216,11 @@ function updateCandidates(usingSelectionRectangle)
 
 	showCollections(true)
 	console.log("INFO: Updating candidates: DONE")
-}
+}*/
 
 
 
-function resetCamera(mode)
+/*function resetCamera(mode)
 {
 
 	if(m_cameraHelper)
@@ -1360,9 +1292,9 @@ function initControls(mode)
 {
 	resetCamera(mode)
 	m_scene.add(m_camera_group);
-}
+}*/
 
-function clearSceneData()
+/*function clearSceneData()
 {
 	m_gui.disableGui()
 	//APL STATE
@@ -1409,12 +1341,7 @@ function clearSceneData()
 
 	m_dragging = false;
 	while(m_current_sprites_in_scene.children.length > 0){ 
-		if(m_current_sprites_in_scene.children[0].geometry)
-			m_current_sprites_in_scene.children[0].geometry.dispose();
-		if(m_current_sprites_in_scene.children[0].material)
-			m_current_sprites_in_scene.children[0].material.dispose();
-		if(m_current_sprites_in_scene.children[0].texture)
-			m_current_sprites_in_scene.children[0].texture.dispose();
+		m_current_sprites_in_scene.children[0].dispose();
 	    m_current_sprites_in_scene.remove(m_current_sprites_in_scene.children[0]); 
 	}
 	
@@ -1426,9 +1353,7 @@ function clearSceneData()
 			m_scene.children[0].material.dispose();
 	    m_scene.remove(m_scene.children[0]); 
 	}
-	/*while(m_scene_collections.children.length > 0){ 
-	    m_scene_collections.remove(m_scene_collections.children[0]); 
-	}*/
+
 	while(m_scene_capture.children.length > 0){
 		if(m_scene_capture.children[0].geometry) 
 			m_scene_capture.children[0].geometry.dispose();
@@ -1444,8 +1369,8 @@ function clearSceneData()
 	}
 	
 	
-}
-function startSceneForModel()
+}*/
+/*function startSceneForModel()
 {
 
 	clearSceneData()
@@ -1477,23 +1402,25 @@ function startSceneForModel()
 
 	m_application_state.three_js_inited = true
 	animate();
-}
-
+}*/
+/*
 function init() {
 	m_debug_func = updateCandidates
 
+	//TOREFACT
 	m_models_values["doma"] = new ModelInfo("doma" ,"doma-interior_meshed_tex.png", "doma-interior_meshed_simplified", 11.62, -0.137, 17.99, -1)
 	m_models_values["pedret"] = new ModelInfo("pedret" ,"pedret-interior_meshed_tex.png", "pedret-interior_meshed_simplified", 2.51, 0.119, -7.99,-1)
 	m_models_values["solsona"] = new ModelInfo("solsona" ,"solsona_meshed_tex.jpg", "solsona_meshed_simplified", 6.73, 0.54, 16.89,-1)
+	
+
 	m_container = document.createElement( 'div' );
-	//const canvas = document.getElementById( 'canvas' );
-	//canvas.width = 300 * window.devicePixelRatio;
-	//canvas.height = 300 * window.devicePixelRatio;
-	//const context = canvas.getContext( '2d' );
 	document.body.appendChild( m_container );
+	
+
 	m_current_sprites_in_scene = new THREE.Group();
 	m_current_sprites_in_scene.name = "imageCollectionGroup"
 	m_current_sprites_in_scene.position.z = -4
+	
 	m_scene = new THREE.Scene();
 	m_scene.background = new THREE.Color( 0x72645b );
 	m_scene.fog = new THREE.Fog( 0x72645b, 2, 15 );
@@ -1503,36 +1430,31 @@ function init() {
 	m_scene_collections.background = null;
 
 	m_scene_capture = new THREE.Scene();
-	m_scene.background = new THREE.Color( 0x72645b );
 
-	// m_renderer
-	var canvas = document.getElementById("canvas");
 	m_renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true} );
 	m_renderer.setPixelRatio( window.devicePixelRatio );
 	m_renderer.setSize( window.innerWidth, window.innerHeight );
 	m_renderer.outputEncoding = THREE.sRGBEncoding;
 	m_renderer.setClearColor(0xffffff, 0);
-	//m_renderer.shadowMap.enabled = true;
 	m_renderer.autoClear = false; 
 
 	m_renderer.xr.enabled = true;
 	m_renderer.xr.setReferenceSpaceType( 'local' );
 	m_renderer.setAnimationLoop( loop );
+
+	//TOREFACT
 	m_render_target_secondary = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
 
+	//TOREFACT
 	m_views[1].height = 0.3
 	m_views[1].width = (m_views[1].height*(window.innerWidth / window.innerHeight))*(1/(window.innerWidth / window.innerHeight))
 	m_views[1].left = 1.0-m_views[1].width
 
 	m_container.appendChild( m_renderer.domElement );
 
-	// stats
 
-	//m_stats = new Stats();
-	//m_container.appendChild( m_stats.dom );
-	document.body.appendChild( VRButton.createButton( m_renderer, m_application_state ) );
+	document.body.appendChild( VRButton.createButton( m_renderer) );
 	
-
 	m_gui = new Gui();
 
 	
@@ -1554,7 +1476,7 @@ function init() {
 	document.addEventListener( 'pointerdown', onDocumentPointerDown );
 	document.addEventListener("keydown", onDocumentKeyDown, false);
 	document.addEventListener("keyup", event => {
-	  if (/*event.isComposing || */event.keyCode === 17 && !m_application_state.views_swaped) {
+	  if (event.isComposing || event.keyCode === 17 && !m_application_state.views_swaped) {
 	    m_gui.enableGui()
 	    m_application_state.select_controls_enabled = false;
 		m_dragging = false
@@ -1562,11 +1484,11 @@ function init() {
 	    m_controls.enabled = true;
 
 	    m_selection_rectangle.helper.element.hidden = true;
-		/*m_canvas.setHeight(0);
-		m_canvas.setWidth(0);*/
+
 	  }
 	});
 
+	//TOREFACT
 	m_manager.onLoad = function()
 	{
 		//m_renderer.render( m_scene, camera );
@@ -1624,8 +1546,8 @@ function onWindowResize() {
 	showCollections(false)
 
 }
-
-function updateVR(delta)
+*/
+/*function updateVR(delta)
 {
 
 	m_VRControls.update(delta)
@@ -1652,8 +1574,8 @@ function enterVR()
 	m_camera_group.position.y = m_models_values[m_gui.gui_options.current_model].vr_y+1
 	showCollections(false)
 	
-}
-function update()
+}*/
+/*function update()
 {
 
 	const timer = Date.now() * 0.0005;
@@ -1705,8 +1627,7 @@ function update()
 				exitVR()
 			} 
 			m_vr_panels_group.visible = m_renderer.xr.isPresenting;
-			/*m_vr_panels_group.position.copy(m_camera.position)
-			m_vr_panels_group.rotation.copy(m_camera.rotation)*/
+			
 			updateCollectionsAnims(delta)
 			if(m_application_state.need_to_update_auto_detect)
 				m_timer_update += delta
@@ -1831,8 +1752,8 @@ function animate() {
 	
 	//m_renderer.setAnimationLoop( loop );
 
-}
-function renderMainCamera(view_index, draw_border)
+}*/
+/*function renderMainCamera(view_index, draw_border)
 {
 
 	if(m_plane_image_secondary != null)
@@ -1853,11 +1774,6 @@ function renderMainCamera(view_index, draw_border)
 	} else
 	{
 		m_renderer.setScissorTest( false );
-		/*m_renderer.xr.getCamera(m_camera).up.set(0,0,1);
-		m_renderer.xr.getCamera(m_camera).cameras[0].up.set(0,0,1); 
-		m_renderer.xr.getCamera(m_camera).cameras[1].up.set(0,0,1); */
-		//m_camera.up.set(0,0,1);
-
 
 	}
 
@@ -1872,8 +1788,8 @@ function renderMainCamera(view_index, draw_border)
 	m_camera.updateProjectionMatrix();
 	m_cameraHelper.visible = m_gui.gui_options.show_camera_enabled;
 	m_renderer.render( m_scene, m_camera );
-}
-function renderSecondaryCamera(view_index, draw_border)
+}*/
+/*function renderSecondaryCamera(view_index, draw_border)
 {
 
 	m_cameraHelper.visible = false;
@@ -1967,12 +1883,8 @@ function renderSecondaryCamera(view_index, draw_border)
 	{
 		m_renderer.render( m_scene_capture, m_camera_capture_orto );
 	}
-
-	
-
-	
-}
-function renderClusters(view_index)
+}*/
+/*function renderClusters(view_index)
 {
 	if(m_renderer.xr.isPresenting)
 		return;
@@ -1985,8 +1897,8 @@ function renderClusters(view_index)
 	m_renderer.setViewport( left, bottom, width, height );
 	m_renderer.setScissor( left, bottom, width, height );
 	m_renderer.render( m_scene_collections, m_camera_collections );
-}
-function render() {
+}*/
+/*function render() {
 	if(m_application_state.state != AppStates.READY_TO_GO)
 		return;
 	//if ( windowWidth != window.innerWidth || windowHeight != window.innerHeight ) {
@@ -2030,8 +1942,8 @@ function render() {
 		renderClusters(2);
 	
 
-}
-function precomputeCaptureInfo(rays_x, rays_y, iteration)
+}*/
+/*function precomputeCaptureInfo(rays_x, rays_y, iteration)
 {
 	
 
@@ -2046,7 +1958,7 @@ function precomputeCaptureInfo(rays_x, rays_y, iteration)
 		m_application_state.count_precomputation_iterations = 0
 	}
 	
-}
+}*/
 
 
 </script>
