@@ -39,6 +39,10 @@ export class CaptureSelected {
 		}
 
 	}
+	getCameraCapture()
+	{
+		return this.c_camera_capture
+	}
 	init(scene)
 	{
 		this.c_render_target_secondary = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);

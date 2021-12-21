@@ -153,14 +153,15 @@ export class WebCollection extends UIElement{
 
 	    if ( intersects.length > 0 ) 
 	    {
-	    	let curr_index = intersects[ 0 ].object.name
+	    	let curr_index = intersects[ 0 ].object.imageIndex
 	    	let curr_depth = intersects[ 0 ].object.renderOrder
 	    	for(let i=0; i <intersects.length; i++)
 	    	{
 	    		if(intersects[ i ].object.renderOrder > curr_depth)
 	    		{
 	    			curr_depth = intersects[ i ].object.renderOrder;
-	    			curr_index = intersects[ i ].object.name;
+	    			curr_index = intersects[ i ].object.imageIndex;
+
 	    		}
 	    	}
 	    	return curr_index
@@ -179,7 +180,7 @@ export class WebCollection extends UIElement{
 		this.c_current_capture_selected = index
 		for(let i = 0; i < this.children.length; ++i)
 		{
-			if(this.children[i].getName() == index && index >=0)
+			if(this.children[i].getIndex() == index && index >=0)
 				this.children[i].setUniformSelected(true)
 			else
 				this.children[i].setUniformSelected(false)

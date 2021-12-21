@@ -18,10 +18,11 @@ export class VRGUI extends UIElement {
 		this.currentCollections = []
 		this.camera_group = camera_group
 		this.colSphere = null
-		this.photo_stack = null
+		this.photo_stack = new VRGUIPhotoStack()
 		this.zoomed_photo = new VRGUIZoomedPhoto()
 		this.main_photos = new UIElement("Main Photos", true);
 		this.project_capture = false
+		this.current_col_index_highlighted = -1
 
 
 		/*this.main_photos.name = PointedObjectNames.VR_GUI_GROUP_STACKS
@@ -69,23 +70,7 @@ export class VRGUI extends UIElement {
 		this.add(this.main_photos)
 		this.add(plane)
 		this.add(this.zoomed_photo)
-		/*for(var i=0; i < MAX_NUM_STACKS; ++i)
-		{
-			testObj = {
-				width: 100,
-				height: 100,
-
-			}
-			var testImage = new VRGUIPhoto('https://s3.amazonaws.com/duhaime/blog/tsne-webgl/assets/cat.jpg',0,testObj, 1.05*i,0,0)
-			this.main_photos.add(testImage)
-
-			//var stack = new VRGUIPhotoStack(this,null,null,null, i)
-			//this.photo_stacks.push(stack)
-			//this.add(stack)
-		}*/
-
-		this.photo_stack = null/*new VRGUIPhotoStack(null, null, null)*/
-		//this.add(this.photo_stack)
+		this.add(this.photo_stack)
 
 		this.camera_group.add(this)
 
@@ -117,6 +102,10 @@ export class VRGUI extends UIElement {
 			this.lookAt(this.camera_group.position)
 		}
 	}
+	getCameraCapture()
+	{
+		return this.c_capture_selected.getCameraCapture()
+	}
 	getProjectCapture()
 	{
 		return this.project_capture
@@ -138,7 +127,7 @@ export class VRGUI extends UIElement {
 		}
 		for(let i=0; i < collections.length; ++i)
 		{
-			const newImage = new VRGUIPhoto(collections[i][0].imagePath,collections[i][0].index,collections[i][0].camInfo, 1.05*i,0,0)
+			const newImage = new VRGUIPhoto(collections[i][0].imagePath,collections[i][0].index, i,collections[i][0].camInfo, 1.05*i,0,0)
 			this.main_photos.add(newImage)
 		}
 	}
@@ -155,7 +144,25 @@ export class VRGUI extends UIElement {
 	{
 		this.updateDrag(from, direction)
 	}
+	displayImageCollection(index_capture, collection_index)
+	{
+		if(this.current_col_index_highlighted != -1)
+		{
+			this.main_photos.children[this.current_col_index_highlighted].setHighlighted(false)
+		}
+		this.current_col_index_highlighted = collection_index
+		this.main_photos.children[this.current_col_index_highlighted].setHighlighted(true)
 
+
+
+		this.photo_stack.disposePage()
+		this.photo_stack.setImages(this.currentCollections[collection_index], collection_index)
+		this.photo_stack.generatePage()
+		this.photo_stack.setVisible(true)
+
+		//TODO fill current
+		//TODO show
+	}
 
 	changeCaptureInView(camera, scene, sceneModels)
 	{

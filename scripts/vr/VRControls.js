@@ -1,6 +1,6 @@
 
 import * as THREE from '../../build/three.module.js';
-import { positionAtT, intersectionObjectLine} from './../utils.js';
+import { positionAtT, intersectionObjectLine, getNDCposFromWorld} from './../utils.js';
 import { VRGUI} from './VRGUI.js';
 import { XRControllerModelFactory } from '../../jsm/webxr/XRControllerModelFactory.js';
 import { PLYLoader } from '../../jsm/loaders/PLYLoader.js';
@@ -68,6 +68,18 @@ export class VRControls {
 		this.models_loaded = 0
 		this.GUI = new VRGUI(this.camera_group)
 
+		this.selectBox = {
+			startPos: null,
+			endPos: null,
+			startDir: null,
+			endDir: null,
+			startRay: null,
+			endRay: null,
+			startNDC: null,
+			endNDC: null,
+			sceneModelsPointer: null, //TODO get rid of this
+		}
+
 		this.scene_models_col = null
 		this.drag_timer = 0
 		var self = this
@@ -131,7 +143,7 @@ export class VRControls {
 			{
 				if(self.instancePointed != null && self.instancePointed.object.name != SCENE_MODEL_NAME)
 				{
-					self.state = VRStates.DRAGGING
+					self.state = VRStates.DRAGGING_UI
 					self.instanceDragged = self.instancePointed 
 					self.instancePointed = null
 				}
@@ -148,7 +160,7 @@ export class VRControls {
 
 		function onSelectEndRight(self, controller) {
 
-			/*if(self.state == VRStates.DRAGGING)
+			/*if(self.state == VRStates.DRAGGING_UI)
 			{
 				self.instanceDragged = null
 				self.state = VRStates.IDLE
@@ -172,25 +184,28 @@ export class VRControls {
 				{
 					self.endMovingUser(self.rightControllerData.controller)
 				}
+				else if(self.currentPointedObject.name==PointedObjectNames.WALL)
+				{
+					self.updateCollectionNoBox()
+				}
 				
 				//else if()
 			}
-			else if(self.state == VRStates.DRAGGING)
+			else if(self.state == VRStates.DRAGGING_UI)
 			{
 				if(self.currentClickedObject.hasClickFunctions)
 				{
 					self.currentClickedObject.onEndDrag()
 				}
 			}
+			else if(self.state == VRStates.SELECTING_AREA)
+			{
+				self.endSelectionBox()
+			}
 			self.state = VRStates.IDLE
 			self.currentClickedObject = null
-
-		    
 		}
 		
-
-
-
 		this.controller1 = this.renderer.xr.getController( 0 );
 		this.controller1.addEventListener( 'selectstart', function(){ onSelectStart(self, this);} );
 		this.controller1.addEventListener( 'selectend', function(){ onSelectEnd(self, this);} );
@@ -299,24 +314,8 @@ export class VRControls {
 			this.resetCameraPos()
 		}
 	}
-	genCandidatesWIP()
+	sendCollectionsToGui()
 	{
-		const clusteringOptions = {
-			max_num_collections: 6,
-			max_collection_size: 10,
-			similitude_treshold: 0.7,
-			discard_too_similar: true,
-			clustering_method: 'single_linkage',
-			clustering_method_aux: false,
-		}
-		const scoreOptions = {
-			position: 1,
-			orientation: 0,
-			projection: 0,
-		}
-		console.log(Scorer.c_min_pos)
-		console.log(this.camera)
-		Scorer.genNewCandidates(DataLoader.getCameraList(), null, clusteringOptions, scoreOptions, this.camera)
 		let collections = Scorer.getCurrentCandidates()
 
 		const vrCollections = []
@@ -337,6 +336,26 @@ export class VRControls {
 			vrCollections.push(elems)
 		}
 		this.GUI.updatePhotoCollections(vrCollections)
+	}
+	genCandidatesWIP()
+	{
+		const clusteringOptions = {
+			max_num_collections: 6,
+			max_collection_size: 20,
+			similitude_treshold: 0.7,
+			discard_too_similar: true,
+			clustering_method: 'single_linkage',
+			clustering_method_aux: false,
+		}
+		const scoreOptions = {
+			position: 1,
+			orientation: 0,
+			projection: 0,
+		}
+		console.log(Scorer.c_min_pos)
+		console.log(this.camera)
+		Scorer.genNewCandidates(DataLoader.getCameraList(), null, clusteringOptions, scoreOptions, this.camera)
+		this.sendCollectionsToGui()
 
 
 	}
@@ -690,7 +709,171 @@ export class VRControls {
         if(this.guidesprite != null)
         	this.guidesprite.position.copy(this.currentPointedPosition)
 	}
-	update(dt, scene_models_col)
+
+	startSelectionBox(scene_models_col)
+	{
+		console.log("start box")
+		let pos = new THREE.Vector3()
+		let dir = new THREE.Vector3()
+	    this.guidingController.getWorldPosition(pos);
+		this.guidingController.getWorldDirection(dir);
+	    dir.multiplyScalar(-1)
+
+		this.selectBox.startPos = pos
+	    this.selectBox.endPos = pos
+	    this.selectBox.startDir = dir
+	    this.selectBox.endDir = dir
+	    this.selectBox.startRay = null
+	    this.selectBox.endRay = null
+	    this.selectBox.startNDC = null
+		this.selectBox.endNDC = null
+		this.selectBox.sceneModelsPointer = null
+
+	    var raycasterStart =  new THREE.Raycaster(this.selectBox.startPos,  this.selectBox.startDir);    
+		var intersectsStart = raycasterStart.intersectObjects( scene_models_col ); 
+		if(intersectsStart.length > 0){
+			this.selectBox.startRay = intersectsStart[0].point
+	    	this.selectBox.endRay = intersectsStart[0].point
+		}
+	}
+
+	updateCollectionNoBox()
+	{
+		//TODO get this from other place
+		const clusteringOptions = {
+			max_num_collections: 6,
+			max_collection_size: 20,
+			similitude_treshold: 0.7,
+			discard_too_similar: true,
+			clustering_method: 'single_linkage',
+			clustering_method_aux: false,
+		}
+		const scoreOptions = {
+			position: 0,
+			orientation: 0,
+			projection: 1,
+		}
+
+		Scorer.genNewCandidates(DataLoader.getCameraList(), null, clusteringOptions, scoreOptions, this.camera)
+		this.sendCollectionsToGui()
+		
+	}
+
+	endSelectionBox()
+	{
+		console.log("end box")
+
+ 
+
+		if(this.selectBox.endRay != null)
+		{
+			//TODO get this from other place
+			const clusteringOptions = {
+				max_num_collections: 6,
+				max_collection_size: 20,
+				similitude_treshold: 0.7,
+				discard_too_similar: true,
+				clustering_method: 'single_linkage',
+				clustering_method_aux: false,
+			}
+			const scoreOptions = {
+				position: 1,
+				orientation: 0,
+				projection: 0,
+			}
+			const vec1aux = new THREE.Vector3()
+			const vec2aux = new THREE.Vector3()
+
+			let rectangle =
+			{
+				startWorld:  this.selectBox.startRay,
+				endWorld: this.selectBox.endRay,
+				startNDC: getNDCposFromWorld(this.camera,this.selectBox.startPos),
+				endNDC: getNDCposFromWorld(this.camera,this.selectBox.endPos),
+			}
+			Scorer.genNewCandidates(DataLoader.getCameraList(), rectangle, clusteringOptions, scoreOptions, this.camera)
+			this.sendCollectionsToGui()
+		}
+		//m_vr_move_utils.lineGeometryVerticesSquare = null
+		//m_scene.remove(m_vr_move_utils.lineSquare)
+		this.selectBox.sceneModelsPointer[0].material.uniforms.squareVR.value = false
+		const camCapture = this.GUI.getCameraCapture()
+		if(camCapture)
+		{
+			const viewMat = new THREE.Matrix4();
+			const projMat = new THREE.Matrix4();
+			viewMat.copy(camCapture.matrixWorldInverse);
+			projMat.copy(camCapture.projectionMatrix)
+			this.selectBox.sceneModelsPointer[0].material.uniforms.viewMatrixCapture.value = viewMat;
+			this.selectBox.sceneModelsPointer[0].material.uniforms.projectionMatrixCapture.value = projMat;
+		}
+
+		this.selectBox.startPos = null
+	    this.selectBox.endPos = null
+	    this.selectBox.startDir = null
+	    this.selectBox.endDir = null
+	    this.selectBox.startRay = null
+	    this.selectBox.endRay = null
+	    this.selectBox.startNDC = null
+		this.selectBox.endNDC = null
+		this.selectBox.sceneModelsPointer = null
+	}
+	updateSelectionBox(dt, scene_models_col, scene_models, renderer)
+	{
+		this.selectBox.sceneModelsPointer = scene_models
+
+		let pos = new THREE.Vector3()
+		let dir = new THREE.Vector3()
+	    this.guidingController.getWorldPosition(pos);
+		this.guidingController.getWorldDirection(dir);
+	    dir.multiplyScalar(-1)
+
+	    this.selectBox.endPos = pos
+	    this.selectBox.endDir = dir
+
+		this.selectBox.startNDC = getNDCposFromWorld(this.camera,this.selectBox.startPos)
+		this.selectBox.endNDC = getNDCposFromWorld(this.camera,this.selectBox.endPos)
+		const v1 = new THREE.Vector2(this.selectBox.startNDC.x,this.selectBox.startNDC.y)
+		const v2 = new THREE.Vector2(this.selectBox.endNDC.x,this.selectBox.endNDC.y)
+	    scene_models[0].material.uniforms.squareVR.value = true
+	    const viewMat = new THREE.Matrix4();
+		const projMat = new THREE.Matrix4();
+		viewMat.copy(this.camera.matrixWorldInverse);
+		projMat.copy(this.camera.projectionMatrix)
+	    scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
+		scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
+		
+		const raycasterEnd =  new THREE.Raycaster(this.selectBox.endPos, this.selectBox.endDir);    
+		const intersectsEnd = raycasterEnd.intersectObjects( scene_models_col );      
+		if(intersectsEnd.length > 0)
+		{
+			this.selectBox.endRay =intersectsEnd[0].point
+			
+			scene_models[0].material.uniforms.squareVR.value = true
+		}
+
+		if(this.selectBox.endRay !=null)
+		{
+			this.selectBox.startNDC = getNDCposFromWorld(this.camera,this.selectBox.startRay)
+			this.selectBox.endNDC = getNDCposFromWorld(this.camera,this.selectBox.endRay)
+			let aux =0;
+			if(this.selectBox.startNDC.x >this.selectBox.endNDC.x)
+			{
+				aux = this.selectBox.startNDC.x
+				this.selectBox.startNDC.x = this.selectBox.endNDC.x
+				this.selectBox.endNDC.x = aux
+			}
+			if(this.selectBox.startNDC.y >this.selectBox.endNDC.y)
+			{
+				aux = this.selectBox.startNDC.y
+				this.selectBox.startNDC.y = this.selectBox.endNDC.y
+				this.selectBox.endNDC.y = aux
+			}
+			scene_models[0].material.uniforms.vUv_VR_square_min.value   = this.selectBox.startNDC
+			scene_models[0].material.uniforms.vUv_VR_square_max.value   = this.selectBox.endNDC
+		}
+	}
+	update(dt, scene_models_col, scene_models, renderer)
 	{
 		if(this.currentPointedObject)
 		{
@@ -709,13 +892,24 @@ export class VRControls {
 			this.drag_timer += dt
 			if(this.drag_timer > 0.5)
 			{
-				this.state = VRStates.DRAGGING
+				
+				
 				if(this.currentClickedObject != null && this.currentClickedObject == this.currentPointedObject && this.currentClickedObject.hasClickFunctions)
-				{
+				{	//IF IS UI WE PROPAGATE THE EVENT
+					this.state = VRStates.DRAGGING_UI
 					this.currentClickedObject.onStartDrag()
 				}
-			}
-				
+				else if(this.currentClickedObject != null && this.currentClickedObject == this.currentPointedObject && this.currentPointedObject.name == PointedObjectNames.WALL)
+				{
+					//IF IS WALL WE START SELECTION BOX
+					this.state = VRStates.SELECTING_AREA
+					this.startSelectionBox(scene_models_col)
+				}
+			}	
+		}
+		else if(this.state == VRStates.SELECTING_AREA)
+		{
+			this.updateSelectionBox(dt, scene_models_col, scene_models, renderer)
 		}
 
 		this.updateControllers()
@@ -723,9 +917,8 @@ export class VRControls {
 		//this.doInputEvents()
 
 
-		if(this.state == VRStates.DRAGGING && this.currentClickedObject.hasClickFunctions)
+		if(this.state == VRStates.DRAGGING_UI && this.currentClickedObject.hasClickFunctions)
 		{
-			
 			const pos = new THREE.Vector3()
 			const dir = new THREE.Vector3()
 			this.guidingController.getWorldPosition(pos);
@@ -854,6 +1047,9 @@ export class VRControls {
 		this.GUI.setProjectCapture(false)
 		this.GUI.hideShowZoomedImage(renderer, scene, show)
 	}
-
+	displayImageCollection(index_capture, collection_index)
+	{
+		this.GUI.displayImageCollection(index_capture, collection_index)
+	}
 	
 }

@@ -3,7 +3,7 @@ import * as THREE from '../../build/three.module.js';
 export class UIElement extends THREE.Group{
 	constructor(name, doParentEvents) {
 		super()
-		this.ui_name = name
+		this.name = name
 		//this.type = ObjectTypes.UI_ELEMENT
 		this.ui_enabled = true;
 		this.ui_childrenHovering = false
@@ -65,7 +65,8 @@ export class UIElement extends THREE.Group{
 	{
 		for(let i=0; i < this.children.length; ++i)
 		{
-			this.children[i].dispose()
+			if(this.children[i].isUIelem)
+				this.children[i].dispose()
 		}
 		
 	}

@@ -63,7 +63,7 @@ export class VRGUIButton extends UIElement{
 
 
 
-		//mesh.name = PointedObjectNames.VR_GUI_BUTTON
+		mesh.name = "Button mesh"
 		mesh.hasClickFunctions = true
 		function funStartClick() { this.parent.onStartClick()}
 		function funEndClick() { this.parent.onEndClick()}
@@ -201,11 +201,6 @@ export class VRGUIButton extends UIElement{
 //corner 9
 //bold
 //Buttons:
-
-//Show similar photos
-//Project on the scene
-//Open photo
-//Go to photo position
 
 //Teleport
 //Zoom

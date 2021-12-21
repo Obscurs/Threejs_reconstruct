@@ -9,6 +9,7 @@ export class Scorer {
 
 	static init(camera_list)
 	{
+		console.log("SCORER INITED")
 		const arrayLength = camera_list.length;
 		for (let i = 0; i < arrayLength; i++) {
 		    const pos =camera_list[i].camera.position; 

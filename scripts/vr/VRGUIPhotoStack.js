@@ -7,7 +7,7 @@ const OFFSET_Z = 0.2
 const ROWS = 3
 const COLS = 3
 export class VRGUIPhotoStack extends UIElement {
-	constructor(hoverFunction, pressFunction, clickFunction) {
+	constructor() {
 		super("Photo stack", true)
 
 		
@@ -20,6 +20,7 @@ export class VRGUIPhotoStack extends UIElement {
 		this.buttonUp = null
 		this.buttonDown = null
 		this.indexCollection = -1
+		this.visible = false
 
 		//arrows up/down
 		this.generatePage(this.currPage)
@@ -27,7 +28,10 @@ export class VRGUIPhotoStack extends UIElement {
 	}
 	generateButtons()
 	{
-		this.buttonUp = new VRGUIButton()
+		var self = this
+
+		function prevAction(p1, p2) { self.prevPage()}
+		this.buttonUp = new VRGUIButton(prevAction, "PREV BUTTON")
 		this.buttonUp.initButtonIcon('../assets/UI/arrow_button', 0.233)
 		this.buttonUp.setPosition((COLS*1.05)/2-0.75,(ROWS*1.05)-0.5,0)
 		this.buttonUp.setScale(0.7, -0.7, 0.7)
@@ -35,7 +39,8 @@ export class VRGUIPhotoStack extends UIElement {
 		this.buttonUp.show()
 		this.add(this.buttonUp)
 
-		this.buttonDown = new VRGUIButton()
+		function prevAction(p1, p2) { self.nextPage()}
+		this.buttonDown = new VRGUIButton(prevAction, "NEXT BUTTON")
 		this.buttonDown.initButtonIcon('../assets/UI/arrow_button', 0.233)
 		this.buttonDown.setPosition((COLS*1.05)/2-0.75,0.25-1,0)
 		this.buttonDown.setScale(0.7, 0.7, 0.7)
@@ -46,6 +51,7 @@ export class VRGUIPhotoStack extends UIElement {
 	}
 	setImages(images, indexCollection)	//capture array
 	{
+		this.currPage = 0
 		this.indexCollection = indexCollection
 		this.images = images
 		this.numPages = Math.ceil(this.images.length/(ROWS*COLS))
@@ -55,14 +61,14 @@ export class VRGUIPhotoStack extends UIElement {
 		if(this.currPage == this.numPages-1)
 			return;
 		this.currPage +=1
-		this.generatePage(this.currPage)
+		this.generatePage()
 	}
 	prevPage()
 	{
 		if(this.currPage == 0)
 			return;
 		this.currPage -=1
-		this.generatePage(this.currPage)
+		this.generatePage()
 		
 	}
 	disposePage()
@@ -70,7 +76,7 @@ export class VRGUIPhotoStack extends UIElement {
 		const auxList = []
 		for(let i = 0; i < this.children.length; ++i)
 		{
-			if(this.children[i].type == PointedObjectNames.VR_COMPLEX_GROUP && !this.children[i].isButton)
+			if(!this.children[i].isButton)
 			{
 				this.children[i].dispose()
 				auxList.push(this.children[i])
@@ -78,31 +84,40 @@ export class VRGUIPhotoStack extends UIElement {
 		}
 		for(let i=0; i < auxList.length; ++i)
 		{
-			this.children.remove(auxList[i])
+			this.remove(auxList[i])
 		}
 		
 
 	}
-	generatePage(page)
+	generatePage()
 	{
-
 		this.disposePage()
 		for(let i = 0; i < ROWS; ++i)
 		{
 			for(let j = 0; j < COLS; ++ j)
 			{
-				const imageIndex = (i*COLS+j)*(ROWS*COLS)*page
-				const testImage = new VRGUIPhoto("", 0,m_camera_list[0], 1.05*i,1.05*j,0)
-				this.add(testImage)
+				const imageIndex = (i*COLS+j)+(ROWS*COLS)*this.currPage+1
+				if(this.images.length <= imageIndex)
+					return
+				else
+				{
+					const imageInCol = this.images[imageIndex]
+					const imageElement = new VRGUIPhoto(imageInCol.imagePath,imageInCol.index, this.indexCollection,imageInCol.camInfo, 1.05*(j),1.05*(ROWS-i-1),0)
+					this.add(imageElement)
+				}
 			}
 		}
 		 
 	}
-
+	setVisible(value)
+	{
+		this.visible = value
+	}
 
 	dispose()
 	{
 		super.dispose()
+		this.setVisible(false)
 		this.disposePage()
 	}
 

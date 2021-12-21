@@ -2,7 +2,7 @@ import * as THREE from '../build/three.module.js';
 import { DataLoader } from './DataLoader.js';
 
 export class ThumbnailSprite extends THREE.Mesh {
-	constructor(path, name, width, height) {	
+	constructor(path, imageIndex, width, height) {	
 		const texture = new THREE.TextureLoader().load(path);
 
 		
@@ -43,14 +43,14 @@ export class ThumbnailSprite extends THREE.Mesh {
 		} );
 		const geometry_sprite = new THREE.PlaneGeometry(1,1);
 		super(geometry_sprite, material_sprite)
-		this.name = name;
+		this.imageIndex = imageIndex;
 		this.texture = texture
 
 		this.hasClickFunctions = true
 	}
-	getName()
+	getIndex()
 	{
-		return this.name
+		return this.imageIndex
 	}
 
 	onHover()

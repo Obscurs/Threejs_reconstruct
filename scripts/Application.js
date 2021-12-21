@@ -131,7 +131,7 @@ export class Application {
 						this.c_application_state.lastFrameInVR = true
 					}
 						
-					this.c_VRControls.update(delta, this.c_sceneModelsCol)
+					this.c_VRControls.update(delta, this.c_sceneModelsCol, this.c_sceneModels, this.c_renderer)
 				}
 				else
 				{
@@ -250,12 +250,9 @@ export class Application {
 
 		DataLoader.restart(model, this.c_scene, this.c_sceneModels, this.c_sceneModelsCol)
 
-
 		document.getElementById("info3").innerHTML  = "";
 		document.getElementById("loadingTextContainer").style.visibility = "visible";
 		
-
-
 		this.c_mainCamera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 0.1, 100 );
 		this.c_mainCamera.position.set( 0,0,0 );
 		this.c_mainCamera.name = "main_camera"
@@ -312,7 +309,19 @@ export class Application {
 			this.c_VRControls.changeCaptureInView(camList[index_capture], this.c_scene, this.c_sceneModels)
 			this.c_VRControls.hideShowZoomedImage(this.c_renderer, this.c_scene, true)
 		}
-			
+	}
+
+	displayImageCollection(index_capture, collection_index)
+	{
+		const camList = DataLoader.getCameraList()
+		
+		if(!this.c_renderer.xr.isPresenting)
+			console.log("INFO: NOT IMPLEMENTED (and should not be implemented this way)")
+		else
+		{
+			this.c_VRControls.displayImageCollection(index_capture, collection_index)
+			//TODO (maybe use index of collection as well as the index camera)
+		}
 	}
 
 }
