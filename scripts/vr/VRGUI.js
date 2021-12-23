@@ -42,7 +42,7 @@ export class VRGUI extends UIElement {
 		/*this.type = PointedObjectNames.VR_COMPLEX_GROUP
 		this.name = PointedObjectNames.VR_GUI*/
 		const material = new THREE.MeshBasicMaterial( { color: 0x555b6e} );
-		material.depthTest = false;
+		//material.depthTest = false;
 		
 		const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.000, 1.000), material);
 		plane.renderOrder = 1
@@ -164,9 +164,9 @@ export class VRGUI extends UIElement {
 		//TODO show
 	}
 
-	changeCaptureInView(camera, scene, sceneModels)
+	changeCaptureInView(camera, scene)
 	{
-		this.c_capture_selected.setCapture(camera, scene, sceneModels)
+		this.c_capture_selected.setCapture(camera, scene)
 	}
 
 	hideShowZoomedImage(renderer, scene, show)

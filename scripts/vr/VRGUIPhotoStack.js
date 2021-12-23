@@ -103,6 +103,7 @@ export class VRGUIPhotoStack extends UIElement {
 				{
 					const imageInCol = this.images[imageIndex]
 					const imageElement = new VRGUIPhoto(imageInCol.imagePath,imageInCol.index, this.indexCollection,imageInCol.camInfo, 1.05*(j),1.05*(ROWS-i-1),0)
+					imageElement.setButtonEnabledSimilar(false)
 					this.add(imageElement)
 				}
 			}

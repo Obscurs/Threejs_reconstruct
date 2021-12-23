@@ -21,20 +21,20 @@ export class UIElement extends THREE.Group{
 	{
 		console.log("start click")
 		this.ui_clicking = true
-		if(this.ui_doParentEvents)
+		if(this.ui_doParentEvents && this.ui_enabled)
 			this.parent.onStartClick()
 	}
 	onEndClick(args = null)
 	{
 		console.log("end click")
 		this.ui_clicking = false
-		if(this.ui_doParentEvents)
+		if(this.ui_doParentEvents && this.ui_enabled)
 			this.parent.onEndClick()
 	}
 
 	onStartDrag()
 	{
-		if(this.ui_doParentEvents)
+		if(this.ui_doParentEvents && this.ui_enabled)
 			this.parent.onStartDrag()
 	}
 	onEndDrag()
@@ -44,7 +44,7 @@ export class UIElement extends THREE.Group{
 	}
 	onUpdateDrag(from, direction)
 	{
-		if(this.ui_doParentEvents)
+		if(this.ui_doParentEvents && this.ui_enabled)
 			this.parent.onUpdateDrag(from, direction)
 	}
 
@@ -53,7 +53,7 @@ export class UIElement extends THREE.Group{
 	{
 		console.log("cancel click")
 		this.ui_clicking = false
-		if(this.ui_doParentEvents)
+		if(this.ui_doParentEvents && this.ui_enabled)
 			this.parent.onCancelClick()
 	}
 

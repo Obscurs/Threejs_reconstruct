@@ -24,7 +24,7 @@ export class VRGUIZoomedPhoto extends UIElement {
 
 		if(this.c_zoomed_mesh)
 		{
-			this.c_zoomed_mesh.renderOrder = 3
+			//this.c_zoomed_mesh.renderOrder = 3
 
 			this.c_zoomed_mesh.hasClickFunctions = true
 

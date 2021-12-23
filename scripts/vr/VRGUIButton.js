@@ -13,7 +13,6 @@ export class VRGUIButton extends UIElement{
 		this.materialClick = null;
 		this.materialDisabled = null;
 
-		this.enabled = true;
 		this.isVRButton = true
 
 		this.texIdle = null;
@@ -32,23 +31,23 @@ export class VRGUIButton extends UIElement{
 		this.materialIdle = new THREE.MeshBasicMaterial({
 		  map: this.texIdle,
 		  transparent: true,
-		  depthTest: false
+		  //depthTest: false
 		});
 		this.materialHover = new THREE.MeshBasicMaterial({
 		  map: this.texHover,
 		  transparent: true,
-		  depthTest: false
+		  //depthTest: false
 		});
 		this.materialClick = new THREE.MeshBasicMaterial({
 		  map: this.texClick,
 		  transparent: true,
-		  depthTest: false
+		  //depthTest: false
 		});
 		this.materialDisabled = new THREE.MeshBasicMaterial({
 		  map: this.texIdle,
 		  transparent: true,
 		  opacity: 0.5,
-		  depthTest: false
+		  //depthTest: false
 		});
 
 		// create a plane geometry for the image with a width of 10
@@ -57,7 +56,7 @@ export class VRGUIButton extends UIElement{
 
 		// combine our image geometry and material into a mesh
 		const mesh = new THREE.Mesh(geometryImage, this.materialIdle);
-		mesh.renderOrder = 2
+		//mesh.renderOrder = 2
 		// set the position of the image mesh in the x,y,z dimensions
 		mesh.position.set(0,0,OFFSET_Z)
 
@@ -70,7 +69,10 @@ export class VRGUIButton extends UIElement{
 		function funStartDrag() { this.parent.onStartDrag()}
 		function funEndDrag() { this.parent.onEndDrag()}
 		function funCancelClick() { this.parent.onCancelClick()}
-		function funHover() { this.parent.onHover()}
+		function funHover() { 
+			//console.log(this)
+			this.parent.onHover()
+		}
 		function funUpdateDrag(p1, p2) { this.parent.onUpdateDrag(p1,p2)}
 
 		mesh.onStartClick = funStartClick
@@ -98,7 +100,7 @@ export class VRGUIButton extends UIElement{
 	{
 		super.onEndClick()
 		this.dirty = true
-		if(this.callbackClick != null)
+		if(this.callbackClick != null && this.ui_enabled)
 			this.callbackClick()
 	}
 	onStartDrag()
@@ -125,9 +127,9 @@ export class VRGUIButton extends UIElement{
 			this.mesh.visible = show
 		}
 	}
-	setEnabled(enabled)
+	setEnabled(value)
 	{
-		super.setEnabled()
+		super.setEnabled(value)
 		this.dirty = true
 	}
 	dispose()
@@ -173,13 +175,13 @@ export class VRGUIButton extends UIElement{
 		if(this.dirty)
 		{
 
-			if(!this.enabled && this.mesh != null && this.materialDisabled != null && this.mesh.material != this.materialDisabled)
+			if(!this.ui_enabled && this.mesh != null && this.materialDisabled != null)
 				this.mesh.material = this.materialDisabled
-			else if(this.ui_clicking && this.mesh != null && this.materialClick != null && this.mesh.material != this.materialClick)
+			else if(this.ui_clicking && this.mesh != null && this.materialClick != null)
 				this.mesh.material = this.materialClick
-			else if(this.ui_hovering && this.mesh != null && this.materialHover != null && this.mesh.material != this.materialHover)
+			else if(this.ui_hovering && this.mesh != null && this.materialHover != null)
 				this.mesh.material = this.materialHover
-			else if(this.mesh != null && this.materialIdle != null && this.mesh.material != this.materialIdle)
+			else if(this.mesh != null && this.materialIdle != null)
 				this.mesh.material = this.materialIdle
 			
 			this.dirty = false

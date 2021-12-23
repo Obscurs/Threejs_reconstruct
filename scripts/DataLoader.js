@@ -24,6 +24,10 @@ class DataLoader {
 	static c_capture_rays_need_recomputation = false
 	static c_model_values = []
 
+	static c_sceneModels = []
+	static c_sceneModelsCol = []
+
+
 	static c_shaders = 
 	{
 		captureImageFrag: null,
@@ -49,8 +53,34 @@ class DataLoader {
 		this.c_capture_rays_need_recomputation = false
 		this.c_count_precomputation_iterations = 0
 		this.c_camera_list = []
+
+		this.disposeModels()
 	}
-	static restart(model, scene, scene_models, scene_models_col)
+	static disposeModels()
+	{
+		for(let i=0; i < this.c_sceneModels.length; ++i)
+		{
+			this.c_sceneModels[i].textureLoaded.dispose()
+			this.c_sceneModels[i].material.dispose()
+			this.c_sceneModels[i].geometry.dispose()
+		}
+		for(let i=0; i < this.c_sceneModelsCol.length; ++i)
+		{
+			this.c_sceneModelsCol[i].material.dispose()
+			this.c_sceneModelsCol[i].geometry.dispose()
+		}
+		this.c_sceneModels = []
+		this.c_sceneModelsCol = []
+	}
+	static getSceneModels()
+	{
+		return this.c_sceneModels
+	}
+	static getSceneModelsCol()
+	{
+		return this.c_sceneModelsCol
+	}
+	static restart(model, scene)
 	{
 		this.clearData()
 
@@ -61,7 +91,7 @@ class DataLoader {
 			this.c_model_values["solsona"] = new ModelInfo("solsona" ,"solsona_meshed_tex.jpg", "solsona_meshed_simplified", 6.73, 0.54, 16.89,-1)
 		}
 
-		this.loadModels(this.c_model_values[model], scene, scene_models, scene_models_col);
+		this.loadModels(this.c_model_values[model], scene);
 		const xmlhttp = new XMLHttpRequest();
 		var self = this
 		xmlhttp.onreadystatechange = function() {
@@ -141,7 +171,7 @@ class DataLoader {
 	}
 
 
-	static loadModel(model, scene, scene_models, scene_models_col )
+	static loadModel(model, scene)
 	{
 		console.log("INFO: Loading "+model.path+"...")
 		const loader = new PLYLoader();
@@ -166,7 +196,7 @@ class DataLoader {
 			mesh.isGUI = false
 			mesh.name = PointedObjectNames.GROUND
 			scene.add( mesh );
-			scene_models_col.push(mesh);
+			self.c_sceneModelsCol.push(mesh);
 
 			self.c_num_models_loaded +=1
 			console.log("INFO: Loading Model Col ground: DONE")
@@ -184,7 +214,6 @@ class DataLoader {
 			} );
 
 			const mesh = new THREE.Mesh( geometry, material );
-
 			const m2 = new THREE.Matrix4();
 			m2.makeRotationX(THREE.Math.degToRad(-90))
 
@@ -193,7 +222,7 @@ class DataLoader {
 			mesh.isGUI = false
 			mesh.name = PointedObjectNames.WALL
 			scene.add( mesh );
-			scene_models_col.push(mesh);
+			self.c_sceneModelsCol.push(mesh);
 
 			self.c_num_models_loaded +=1
 			console.log("INFO: Loading Model Col select: DONE")
@@ -223,13 +252,14 @@ class DataLoader {
 		loader.load( './models/'+model.path+'/meshes/'+model.mesh_name+".ply", function ( geometry ) {
 
 			geometry.computeVertexNormals();
+			let tex = loaderTex.load('./models/'+model.path+'/textures/'+model.texture_name)
 			let uniforms = {
 		        viewMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
 		        projectionMatrixCapture: {type: 'mat4', value: new THREE.Matrix4()},
 		        showRedArea: {type: 'bool', value: false},
 		        projectCapture: {type: 'bool', value: false},
 		        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
-		        texture1: { type: "t", value: loaderTex.load('./models/'+model.path+'/textures/'+model.texture_name)},
+		        texture1: { type: "t", value: tex},
 		        texture2: { type: "t", value: null },
 		        squareVR: {type: 'bool', value: false},
 		        vUv_VR_square_min: {type: 'vec2', value: new THREE.Vector2()},
@@ -242,7 +272,8 @@ class DataLoader {
 				vertexShader: self.c_shaders.sceneVert,
 			} );
 			const mesh = new THREE.Mesh( geometry, material );
-
+			mesh.renderOrder = 0
+			mesh.textureLoaded = tex
 			const m2 = new THREE.Matrix4();
 			m2.makeRotationX(THREE.Math.degToRad(-90))
 
@@ -253,7 +284,7 @@ class DataLoader {
 			mesh.receiveShadow = true;
 			mesh.name = "THEMODEL"
 			scene.add( mesh );
-			scene_models.push(mesh);
+			self.c_sceneModels.push(mesh);
 
 			//TODO Check cams loaded
 			self.c_num_models_loaded +=1
@@ -270,11 +301,11 @@ class DataLoader {
 		return this.c_num_models_loaded == this.c_num_models_to_load 
 				&& this.c_num_cameras_loaded == this.c_num_cameras_to_load
 	}
-	static loadModels(model, scene, scene_models, scene_models_col)
+	static loadModels(model, scene)
 	{
 		this.c_current_model = model
 		this.c_num_models_to_load = 3
-		this.loadModel(model, scene, scene_models, scene_models_col);
+		this.loadModel(model, scene);
 	}
 	static getCurrentModel()
 	{
@@ -305,7 +336,7 @@ class DataLoader {
 				projected2.applyMatrix4( cam2.camera.matrixWorldInverse );
 				if(projected2.z < 0)
 				{
-					if(!checkWallBetweenTwoPoints(cam2.camera.position,cam1.rays[index_ray],m_scene_models))
+					if(!checkWallBetweenTwoPoints(cam2.camera.position,cam1.rays[index_ray],this.c_sceneModels))
 						count_inside_rays_cam1 = count_inside_rays_cam1 +1
 				}
 					
@@ -329,7 +360,7 @@ class DataLoader {
 				projected2.applyMatrix4( cam1.camera.matrixWorldInverse );
 				if(projected2.z < 0)
 				{
-					if(!checkWallBetweenTwoPoints(cam1.camera.position,cam2.rays[index_ray],m_scene_models))
+					if(!checkWallBetweenTwoPoints(cam1.camera.position,cam2.rays[index_ray],this.c_sceneModels))
 						count_inside_rays_cam2 = count_inside_rays_cam2 +1
 				}
 					
@@ -459,7 +490,7 @@ class DataLoader {
 			for(let y = 0; y <= 1; y +=(1/(rays_y-1)))
 			{
 				const NDC_position = new THREE.Vector2(x*2-1,y*2-1); 
-				const point = getWorldIntersectFromNDCxy(this.c_camera_list[i].camera, NDC_position, m_scene_models);
+				const point = getWorldIntersectFromNDCxy(this.c_camera_list[i].camera, NDC_position, this.c_sceneModels);
 				if(point !=null)
 					this.c_camera_list[i].rays.push(point);
 			}

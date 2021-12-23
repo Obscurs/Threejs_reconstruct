@@ -60,8 +60,10 @@ export class CaptureSelected {
 		this.c_loader_high = new THREE.TextureLoader();
 		this.setWidgetVisible(false)
 	}
-	setCapture(camera, scene, sceneModels)
+	setCapture(camera, scene)
 	{
+		const sceneModels = DataLoader.getSceneModels() 
+
 		const directionCapture = new THREE.Vector3();
 		camera.camera.getWorldDirection( directionCapture );
 		const positionCapture = new THREE.Vector3();
@@ -87,8 +89,8 @@ export class CaptureSelected {
 		this.c_high_loaded = false
 		if(this.c_plane_render_target)
 			this.c_plane_render_target.c_high_loaded = false
-		this.loadLowTexture(camera, sceneModels)
-		this.loadHighTexture(camera, sceneModels)
+		this.loadLowTexture(camera)
+		this.loadHighTexture(camera)
 
 
 		const frustumHeightWorld_photo = 2 * this.c_camera_capture.near * Math.tan(THREE.Math.degToRad( camera.camera.fov * 0.5 ));
@@ -111,7 +113,7 @@ export class CaptureSelected {
 				fragmentShader: DataLoader.c_shaders.captureImageFrag,
 				vertexShader: DataLoader.c_shaders.sceneVert,
 			    blending: THREE.NormalBlending,
-	            depthTest: false,
+	            //depthTest: false,
 	            transparent: true
 			} );
 
@@ -138,7 +140,7 @@ export class CaptureSelected {
 				uniforms: {tDiffuse: {value: this.c_render_target_secondary.texture}},
 			    fragmentShader: DataLoader.c_shaders.screenFrag,
 			    vertexShader: DataLoader.c_shaders.spriteVert,
-			    depthTest: false,
+			    //depthTest: false,
 			    depthWrite: false,
 			    transparent: true
 			} );
@@ -172,26 +174,25 @@ export class CaptureSelected {
 		
 
 	}
-	loadLowTexture(camera, sceneModels)
+	loadLowTexture(camera)
 	{
 		var self = this
-		var _sceneModels = sceneModels
+
 		var tex_name = camera.name
 		this.c_loader_low.load(
 			"models/"+DataLoader.getCurrentModel().path+"/thumbnails/"+camera.name,
 			function ( texture ) {
 
-				if(self.c_camera_capture.name == tex_name && !self.c_high_loaded) {self.updateTexture(texture, _sceneModels)}
+				if(self.c_camera_capture.name == tex_name && !self.c_high_loaded) {self.updateTexture(texture)}
 			},
 			function ( err ) {
 				console.error( 'Error trying to load texture (high res) for capture.' );
 			}
 		);
 	}
-	loadHighTexture(camera, sceneModels)
+	loadHighTexture(camera)
 	{
 		var self = this
-		var _sceneModels = sceneModels
 		var tex_name = camera.name
 
 		this.c_loader_high.load(
@@ -199,7 +200,7 @@ export class CaptureSelected {
 			function ( texture ) {
 				self.c_high_loaded = true
 				self.c_plane_render_target.c_high_loaded = true
-				if(self.c_camera_capture.name == tex_name) {self.updateTexture(texture, _sceneModels)}
+				if(self.c_camera_capture.name == tex_name) {self.updateTexture(texture)}
 			},
 			function ( err ) {
 				console.error( 'Error trying to load texture (high res) for capture.' );
@@ -211,8 +212,9 @@ export class CaptureSelected {
 	{
 		return this.c_plane_render_target;
 	}
-	updateTexture(texture, sceneModels)
+	updateTexture(texture)
 	{
+		const sceneModels = DataLoader.getSceneModels() 
 		if(this.c_texture)
 		{
 			this.c_texture.dispose()

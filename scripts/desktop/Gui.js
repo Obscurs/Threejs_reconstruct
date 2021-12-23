@@ -2,6 +2,7 @@ import * as THREE from '../../build/three.module.js';
 import { GUI } from './../../jsm/libs/dat.gui.module.js';
 import { CaptureSelected } from './../CaptureSelected.js';
 import { WebCollection } from './WebCollection.js';
+import { DataLoader } from './../DataLoader.js';
 
 var showViewChanged = false
 export class Gui {
@@ -269,11 +270,11 @@ export class Gui {
 	}
 
 
-	render(scene, renderer, main_camera, scene_models, hide_ui_elements, views_swaped)
+	render(scene, renderer, main_camera, hide_ui_elements, views_swaped)
 	{
-		
-		if(scene_models.length >0)
-			scene_models[0].material.uniforms.projectCapture.value = this.c_gui_options.project_capture_enabled && this.c_capture_selected.getCaptureResult() != null
+		const sceneModels = DataLoader.getSceneModels() 
+		if(sceneModels.length >0)
+			sceneModels[0].material.uniforms.projectCapture.value = this.c_gui_options.project_capture_enabled && this.c_capture_selected.getCaptureResult() != null
 		
 		if(this.c_gui_options.show_view_enabled && !hide_ui_elements)
 		{
@@ -345,9 +346,9 @@ export class Gui {
 		renderer.render( scene, main_camera );
 	}
 
-	changeCaptureInView(camera, scene, sceneModels)
+	changeCaptureInView(camera, scene)
 	{
-		this.c_capture_selected.setCapture(camera, scene, sceneModels)
+		this.c_capture_selected.setCapture(camera, scene)
 		let meshRenderedPlane = this.c_capture_selected.getCaptureResult()
 		if(meshRenderedPlane != null)
 		{

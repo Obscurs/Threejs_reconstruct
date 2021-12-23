@@ -38,7 +38,7 @@ export class ThumbnailSprite extends THREE.Mesh {
 		    fragmentShader:  DataLoader.getShaders().spriteSquaredFrag,
 		    vertexShader:  DataLoader.getShaders().spriteSquaredVert,
 		    blending: THREE.NormalBlending,
-	        depthTest: false,
+	        //depthTest: false,
 	        transparent: true
 		} );
 		const geometry_sprite = new THREE.PlaneGeometry(1,1);

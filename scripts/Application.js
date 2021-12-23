@@ -12,14 +12,12 @@ import { VRButton } from '../jsm/webxr/VRButton.js';
 
 export class Application {
 	constructor() {
-		//this.c_appScene = null
 		this.c_WebControls = null
 		this.c_VRControls = null
 		this.c_renderer = null
 		this.c_mainCamera = null
 		this.c_scene = null
-		this.c_sceneModels = [] //REMOVE?
-		this.c_sceneModelsCol = [] //REMOVE?
+
 		this.c_clock = null
 
 		this.c_application_state = 
@@ -127,11 +125,11 @@ export class Application {
 						//ENTER VR
 						this.c_WebControls.setEnabledOrbitControls(false)
 						this.c_scene.remove(this.c_WebControls.c_camera_group)
-						this.c_VRControls.restart(this.c_scene, this.c_mainCamera, this.c_renderer, this.c_sceneModelsCol, true)
+						this.c_VRControls.restart(this.c_scene, this.c_mainCamera, this.c_renderer, true)
 						this.c_application_state.lastFrameInVR = true
 					}
 						
-					this.c_VRControls.update(delta, this.c_sceneModelsCol, this.c_sceneModels, this.c_renderer)
+					this.c_VRControls.update(delta, this.c_renderer)
 				}
 				else
 				{
@@ -144,8 +142,8 @@ export class Application {
 					}
 					this.c_WebControls.update(delta, this.c_mainCamera)
 				} 
-				
-				this.c_sceneModels[0].material.uniforms.showRedArea.value = this.c_WebControls.getGui().c_gui_options.red_area_enabled;
+				const sceneModels = DataLoader.getSceneModels() 
+				sceneModels[0].material.uniforms.showRedArea.value = this.c_WebControls.getGui().c_gui_options.red_area_enabled;
 				break
 			}
 			case AppStates.APPLICATION_INIT:
@@ -214,10 +212,7 @@ export class Application {
 	{
 		return this.c_mainCamera
 	}
-	getSceneModels()
-	{
-		return this.c_sceneModels
-	}
+
 
 	render() {
 		if(this.c_application_state.state != AppStates.READY_TO_GO)
@@ -225,9 +220,9 @@ export class Application {
 
 		this.c_renderer.clear();
 		if(this.c_renderer.xr.isPresenting)
-			this.c_VRControls.render(this.c_scene, this.c_renderer, this.c_mainCamera, this.c_sceneModels)
+			this.c_VRControls.render(this.c_scene, this.c_renderer, this.c_mainCamera)
 		else
-			this.c_WebControls.render(this.c_scene, this.c_renderer, this.c_mainCamera, this.c_sceneModels)
+			this.c_WebControls.render(this.c_scene, this.c_renderer, this.c_mainCamera)
 	}
 
 
@@ -248,7 +243,7 @@ export class Application {
 		this.clearAppStates()
 		this.clearScene()
 
-		DataLoader.restart(model, this.c_scene, this.c_sceneModels, this.c_sceneModelsCol)
+		DataLoader.restart(model, this.c_scene)
 
 		document.getElementById("info3").innerHTML  = "";
 		document.getElementById("loadingTextContainer").style.visibility = "visible";
@@ -266,20 +261,13 @@ export class Application {
 	clearAppStates()
 	{
 		this.c_application_state.lastFrameInVR = false
-		
-		this.c_sceneModels = [];
-		this.c_sceneModelsCol = [];
-		this.c_current_candidates = [];
-		this.c_current_candidates_collections = [];
-
-		
 	}
 
 	moveToCapturePosition(index_capture)
 	{
 		if(this.c_renderer.xr.isPresenting)
 		{
-		    this.c_VRControls.moveToCapturePosition(this.c_mainCamera, index_capture, this.c_sceneModelsCol)
+		    this.c_VRControls.moveToCapturePosition(this.c_mainCamera, index_capture)
 		}
 		else
 		{
@@ -293,9 +281,9 @@ export class Application {
 		const camList = DataLoader.getCameraList()
 		
 		if(this.c_renderer.xr.isPresenting)
-			this.c_VRControls.changeCaptureInView(camList[index_capture], this.c_scene, this.c_sceneModels)
+			this.c_VRControls.changeCaptureInView(camList[index_capture], this.c_scene)
 		else
-			this.c_WebControls.changeCaptureInView(camList[index_capture], this.c_scene, this.c_sceneModels)
+			this.c_WebControls.changeCaptureInView(camList[index_capture], this.c_scene)
 	}
 
 	showZoomedPhoto(index_capture)
@@ -306,7 +294,7 @@ export class Application {
 			console.log("INFO: NOT IMPLEMENTED (and should not be implemented this way)")
 		else
 		{
-			this.c_VRControls.changeCaptureInView(camList[index_capture], this.c_scene, this.c_sceneModels)
+			this.c_VRControls.changeCaptureInView(camList[index_capture], this.c_scene)
 			this.c_VRControls.hideShowZoomedImage(this.c_renderer, this.c_scene, true)
 		}
 	}

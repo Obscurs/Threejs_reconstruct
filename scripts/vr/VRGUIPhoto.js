@@ -13,7 +13,7 @@ export class VRGUIPhoto extends UIElement{
 		this.cameraInfo = camInfo
 		this.collectionIndex = colIndex
 
-		this.position.set(offset_x, offset_y, offset_z)
+		this.position.set(offset_x, offset_y, offset_z+OFFSET_Z*4)
 
 
 		this.sprite = new ThumbnailSprite(pathImage, this.imageIndex, this.cameraInfo.width, this.cameraInfo.height)
@@ -23,7 +23,7 @@ export class VRGUIPhoto extends UIElement{
 		this.sprite.setUniformSelected(false)
 		this.sprite.setUniformOpacity(1.0);
 		
-		this.sprite.renderOrder = 1
+		//this.sprite.renderOrder = 1
 		//this.sprite.position.set(offset_x,offset_y,OFFSET_Z+offset_z)
 
 		this.sprite.hasClickFunctions = true
@@ -86,6 +86,10 @@ export class VRGUIPhoto extends UIElement{
 		this.sprite.setUniformSelected(value)
 	}
 
+	setButtonEnabledSimilar(value)
+	{
+		this.button4.setEnabled(value)
+	}
 	showButtons(show)
 	{
 		for(let i=0; i < this.children.length; ++i)

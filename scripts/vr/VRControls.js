@@ -23,7 +23,8 @@ const TeleportTypes =
 var IconTypes =
 {
 	SELECT_TOOL: null,
-	TELEPORT_ARROW: null
+	TELEPORT_ARROW: null,
+	UI_POINTER: null
 }
 export class VRControls {
 	constructor(scene, renderer) {
@@ -49,6 +50,7 @@ export class VRControls {
 		this.controllerGrip1 = null
 		this.controllerGrip2 = null
 		this.scene = scene
+		this.sceneGUI = new THREE.Scene();
 		this.renderer = renderer
 		this.camera = null
 
@@ -77,35 +79,40 @@ export class VRControls {
 			endRay: null,
 			startNDC: null,
 			endNDC: null,
-			sceneModelsPointer: null, //TODO get rid of this
 		}
 
-		this.scene_models_col = null
 		this.drag_timer = 0
 		var self = this
 
 		const loader = new PLYLoader();
 		loader.load( '../assets/arrow.ply', function ( geometry ) {
 			const material = new THREE.MeshBasicMaterial( { color: 0xffffff} );
-			material.depthTest = false;
+			//material.depthTest = false;
 			IconTypes.TELEPORT_ARROW = new THREE.Mesh( geometry, material );
-			IconTypes.TELEPORT_ARROW.renderOrder = 1
+			//IconTypes.TELEPORT_ARROW.renderOrder = 10
 
-
+			material.transparent = true;
 			self.models_loaded +=1
 			self.loaded = true;
 			//console.log(self.guidesprite)
 		})
 		loader.load( '../assets/selectTool.ply', function ( geometry ) {
 			const material = new THREE.MeshBasicMaterial( { color: 0xffffff} );
-			material.depthTest = false;
+			//material.depthTest = false;
+			material.transparent = true;
 			IconTypes.SELECT_TOOL = new THREE.Mesh( geometry, material );
-			IconTypes.SELECT_TOOL.renderOrder = 1
+			//IconTypes.SELECT_TOOL.renderOrder = 10
 			//self.guidesprite 
 			self.models_loaded +=1
 			self.loaded = (self.models_loaded == MODELS_TO_LOAD);
 			//console.log(self.guidesprite)
 		})
+
+		const geometryPointer = new THREE.SphereGeometry( 0.015, 16, 16 );
+		const materialPointer = new THREE.MeshBasicMaterial( { color: 0xffffff } );
+		IconTypes.UI_POINTER = new THREE.Mesh( geometryPointer, materialPointer );
+
+
 
 
 
@@ -284,8 +291,11 @@ export class VRControls {
 		this.camera_group.position.z = DataLoader.getCurrentModel().pos_z_cam_start
 		this.camera_group.position.y = DataLoader.getCurrentModel().vr_y+1
 	}
-	restart(scene, camera, renderer, scene_models_col, active)
+	restart(scene, camera, renderer, active)
 	{
+
+		this.sceneGUI = new THREE.Scene();
+		
 		this.guidingController = null
 		
 		this.GUI.restart(scene)
@@ -305,12 +315,11 @@ export class VRControls {
 		this.drag_timer = 0
 
 		this.camera = camera
-		this.scene_models_col = scene_models_col
 
 		if(active)
 		{
 			this.camera_group.add(camera)
-			scene.add(this.camera_group);
+			this.sceneGUI.add(this.camera_group);
 			this.resetCameraPos()
 		}
 	}
@@ -363,10 +372,11 @@ export class VRControls {
 	{
 		return this.loaded
 	}
-	render(scene, renderer, main_camera, scene_models)
+	render(scene, renderer, main_camera)
 	{
-		if(scene_models.length >0)
-			scene_models[0].material.uniforms.projectCapture.value = this.GUI.getProjectCapture()
+		const sceneModels = DataLoader.getSceneModels() 
+		if(sceneModels.length >0)
+			sceneModels[0].material.uniforms.projectCapture.value = this.GUI.getProjectCapture()
 		
 		/*if(this.c_plane_image_secondary != null)
 			this.c_plane_image_secondary.material.uniforms.showTexture.value = this.c_gui_options.show_photo_enabled && this.c_gui_options.show_view_enabled && this.c_gui_options.show_camera_enabled;
@@ -382,6 +392,8 @@ export class VRControls {
 
 		this.GUI.render(renderer, scene)
 		renderer.render( scene, main_camera );
+		renderer.clearDepth();
+		renderer.render(this.sceneGUI, main_camera)
 	}
 	updateControllers()
 	{
@@ -444,7 +456,7 @@ export class VRControls {
 		if(requestedSprite == null)
 		{
 			if(this.guidesprite != null)
-				this.scene.remove(this.guidesprite);
+				this.sceneGUI.remove(this.guidesprite);
 			this.guidesprite = null
 			return
 		}
@@ -452,11 +464,11 @@ export class VRControls {
 		{
 			if(this.guidesprite != null)
 			{
-				this.scene.remove(this.guidesprite);
+				this.sceneGUI.remove(this.guidesprite);
 				requestedSprite.position.copy(this.guidesprite)
 			}
 			this.guidesprite = requestedSprite
-			this.scene.add(this.guidesprite)
+			this.sceneGUI.add(this.guidesprite)
 		}
 		
 	}
@@ -470,7 +482,7 @@ export class VRControls {
 	    //this.scene.add(this.guidesprite);
 	    this.startedMovement = true
 	}
-	endMoveArc(controller, scene_models_col)
+	endMoveArc(controller)
 	{
 		const feetPos = this.renderer.xr.getCamera(this.camera).getWorldPosition(this.tempVec);
         feetPos.y = -1//this.camera_group.position.y;
@@ -479,11 +491,11 @@ export class VRControls {
         const p = this.guidingController.getWorldPosition(this.tempVecP);
         const v = this.guidingController.getWorldDirection(this.tempVecV);
         v.multiplyScalar(6);
-        const offsety = -this.getFloorFromPos(this.camera_group.position, scene_models_col);
+        const offsety = -this.getFloorFromPos(this.camera_group.position);
         const t = (-v.y+offsety  + Math.sqrt((v.y+offsety)**2 - 2*(p.y+offsety)*this.g.y))/this.g.y;
         const cursorPos = positionAtT(this.tempVec1,t,p,v,this.g);
         //cursorPos.y = this.camera_group.position.y+1
-        cursorPos.y = this.getFloorFromPos(cursorPos, scene_models_col) + HEIGHT_OFFSET
+        cursorPos.y = this.getFloorFromPos(cursorPos) + HEIGHT_OFFSET
 
         //console.log("FLOOR Y = "+cursorPos.y)
         // Offset
@@ -500,11 +512,11 @@ export class VRControls {
 
         //this.state = VRStates.IDLE
 	}
-	endMoveLine(controller, scene_models_col)
+	endMoveLine(controller)
 	{
 		const cursorPos = new THREE.Vector3()
 		cursorPos.copy(this.currentPointedPosition)
-		cursorPos.y = this.getFloorFromPos(cursorPos, scene_models_col) + HEIGHT_OFFSET
+		cursorPos.y = this.getFloorFromPos(cursorPos) + HEIGHT_OFFSET
 		this.moveVRCam(cursorPos)
         // clean up
         //this.guidingController = null;
@@ -521,11 +533,11 @@ export class VRControls {
 
 			if(this.teleportType == TeleportTypes.ARC)
 			{
-				this.endMoveArc(controller, this.scene_models_col)
+				this.endMoveArc(controller)
 			}
 			else if(this.teleportType == TeleportTypes.LINE)
 			{
-				this.endMoveLine(controller, this.scene_models_col)
+				this.endMoveLine(controller)
 			}
 	        // feet position
 	        
@@ -592,9 +604,9 @@ export class VRControls {
 		}*/
 		
 	}
-	updatePointedPosition(dt, scene_models_col)
+	updatePointedPosition(dt)
 	{
-
+		const sceneModelsCol = DataLoader.getSceneModelsCol() 
 		if(this.teleportType == TeleportTypes.ARC)
 		{
 	        // cursor position
@@ -603,11 +615,11 @@ export class VRControls {
 	        	const p = this.guidingController.getWorldPosition(this.tempVecP);
 		        const v = this.guidingController.getWorldDirection(this.tempVecV);
 		        v.multiplyScalar(6);
-		        const offsety =  -this.getFloorFromPos(this.camera_group.position, scene_models_col);
+		        const offsety =  -this.getFloorFromPos(this.camera_group.position);
 		        const t = (-v.y+offsety  + Math.sqrt((v.y+offsety)**2 - 2*(p.y+offsety)*this.g.y))/this.g.y;
 		        const cursorPos = positionAtT(this.tempVec1,t,p,v,this.g);
 
-				this.currentPointedGroundY = this.getFloorFromPos(cursorPos, scene_models_col)
+				this.currentPointedGroundY = this.getFloorFromPos(cursorPos)
 				console.log("FLOOR Y = "+this.currentPointedGroundY)
 				this.timerGroundUpdater = 0
 	        }
@@ -626,12 +638,12 @@ export class VRControls {
 				this.guidingController.getWorldPosition(pos);
 			    this.guidingController.getWorldDirection(dir);
 			    dir.multiplyScalar(-1)
-			    const intersection = intersectionObjectLine(scene_models_col, pos, dir)
+			    const intersection = intersectionObjectLine(sceneModelsCol, pos, dir)
 			    const intersectionUI = intersectionObjectLine(this.GUI.children,pos,dir)
 			    if(intersection != null && intersectionUI == null)
 			    {
 			    	this.currentPointedPosition.copy(intersection.point)
-			    	this.currentPointedGroundY = this.getFloorFromPos(this.currentPointedPosition, scene_models_col)
+			    	this.currentPointedGroundY = this.getFloorFromPos(this.currentPointedPosition)
 			    	this.currentPointedObject = intersection.object
 			    	if(this.currentPointedObject.name == PointedObjectNames.GROUND)
 			    		this.updateGuideSprite(IconTypes.TELEPORT_ARROW)
@@ -642,12 +654,15 @@ export class VRControls {
 			    	}
 			    	else
 			    		this.updateGuideSprite(null)
+			    	
 			    }
 			    else if(intersectionUI != null)
 			    {
+			    	this.currentPointedPosition.copy(intersectionUI.point)
 			    	this.currentPointedObject = intersectionUI.object
-			    	this.updateGuideSprite(null)
+			    	this.updateGuideSprite(IconTypes.UI_POINTER)
 			    }
+
 			    
 			}
 			else if(this.guidingController)
@@ -692,10 +707,13 @@ export class VRControls {
         //p.y = p.y+1
         // Set Vector V to the direction of the controller, at 1m/s
         const v = this.guidingController.getWorldDirection(this.tempVecV);
-
         const distance = p.distanceTo( this.currentPointedPosition );
-        const offset = -distance/10
+        
+        //const distance = p.distanceTo( this.currentPointedPosition );
+        const offset = -distance/9
         const vertex = this.tempVec.set(0,0,0);
+        this.lineGeometryVertices.fill(0);
+
         for (let i=1; i<=this.lineSegments; i++) {
 
             // set vertex to current position of the virtual ball at time t
@@ -705,13 +723,18 @@ export class VRControls {
     		this.guidingController.worldToLocal(vertex);
             vertex.toArray(this.lineGeometryVertices,i*3);
         }
+        this.guideline.geometry.attributes.position.needsUpdate = true;
         this.guidelight.position.copy(this.currentPointedPosition)
         if(this.guidesprite != null)
+        {
         	this.guidesprite.position.copy(this.currentPointedPosition)
+        }
+        	
 	}
 
-	startSelectionBox(scene_models_col)
+	startSelectionBox()
 	{
+		const sceneModelsCol = DataLoader.getSceneModelsCol() 
 		console.log("start box")
 		let pos = new THREE.Vector3()
 		let dir = new THREE.Vector3()
@@ -727,10 +750,9 @@ export class VRControls {
 	    this.selectBox.endRay = null
 	    this.selectBox.startNDC = null
 		this.selectBox.endNDC = null
-		this.selectBox.sceneModelsPointer = null
 
 	    var raycasterStart =  new THREE.Raycaster(this.selectBox.startPos,  this.selectBox.startDir);    
-		var intersectsStart = raycasterStart.intersectObjects( scene_models_col ); 
+		var intersectsStart = raycasterStart.intersectObjects( sceneModelsCol ); 
 		if(intersectsStart.length > 0){
 			this.selectBox.startRay = intersectsStart[0].point
 	    	this.selectBox.endRay = intersectsStart[0].point
@@ -796,7 +818,9 @@ export class VRControls {
 		}
 		//m_vr_move_utils.lineGeometryVerticesSquare = null
 		//m_scene.remove(m_vr_move_utils.lineSquare)
-		this.selectBox.sceneModelsPointer[0].material.uniforms.squareVR.value = false
+
+		const sceneModels = DataLoader.getSceneModels() 
+		sceneModels.material.uniforms.squareVR.value = false
 		const camCapture = this.GUI.getCameraCapture()
 		if(camCapture)
 		{
@@ -804,8 +828,8 @@ export class VRControls {
 			const projMat = new THREE.Matrix4();
 			viewMat.copy(camCapture.matrixWorldInverse);
 			projMat.copy(camCapture.projectionMatrix)
-			this.selectBox.sceneModelsPointer[0].material.uniforms.viewMatrixCapture.value = viewMat;
-			this.selectBox.sceneModelsPointer[0].material.uniforms.projectionMatrixCapture.value = projMat;
+			sceneModels[0].material.uniforms.viewMatrixCapture.value = viewMat;
+			sceneModels[0].material.uniforms.projectionMatrixCapture.value = projMat;
 		}
 
 		this.selectBox.startPos = null
@@ -816,11 +840,13 @@ export class VRControls {
 	    this.selectBox.endRay = null
 	    this.selectBox.startNDC = null
 		this.selectBox.endNDC = null
-		this.selectBox.sceneModelsPointer = null
 	}
-	updateSelectionBox(dt, scene_models_col, scene_models, renderer)
+	updateSelectionBox(dt, renderer)
 	{
-		this.selectBox.sceneModelsPointer = scene_models
+		const sceneModelsCol = DataLoader.getSceneModelsCol() 
+		const sceneModels = DataLoader.getSceneModels() 
+
+		this.selectBox.sceneModelsPointer = sceneModels
 
 		let pos = new THREE.Vector3()
 		let dir = new THREE.Vector3()
@@ -835,21 +861,22 @@ export class VRControls {
 		this.selectBox.endNDC = getNDCposFromWorld(this.camera,this.selectBox.endPos)
 		const v1 = new THREE.Vector2(this.selectBox.startNDC.x,this.selectBox.startNDC.y)
 		const v2 = new THREE.Vector2(this.selectBox.endNDC.x,this.selectBox.endNDC.y)
-	    scene_models[0].material.uniforms.squareVR.value = true
+	    sceneModels[0].material.uniforms.squareVR.value = true
 	    const viewMat = new THREE.Matrix4();
 		const projMat = new THREE.Matrix4();
 		viewMat.copy(this.camera.matrixWorldInverse);
 		projMat.copy(this.camera.projectionMatrix)
-	    scene_models[0].material.uniforms.viewMatrixCapture.value = viewMat;
-		scene_models[0].material.uniforms.projectionMatrixCapture.value = projMat;
+	    sceneModels[0].material.uniforms.viewMatrixCapture.value = viewMat;
+		sceneModels[0].material.uniforms.projectionMatrixCapture.value = projMat;
 		
-		const raycasterEnd =  new THREE.Raycaster(this.selectBox.endPos, this.selectBox.endDir);    
-		const intersectsEnd = raycasterEnd.intersectObjects( scene_models_col );      
+		const raycasterEnd =  new THREE.Raycaster(this.selectBox.endPos, this.selectBox.endDir); 
+
+		const intersectsEnd = raycasterEnd.intersectObjects( sceneModelsCol );      
 		if(intersectsEnd.length > 0)
 		{
 			this.selectBox.endRay =intersectsEnd[0].point
 			
-			scene_models[0].material.uniforms.squareVR.value = true
+			sceneModels[0].material.uniforms.squareVR.value = true
 		}
 
 		if(this.selectBox.endRay !=null)
@@ -869,11 +896,11 @@ export class VRControls {
 				this.selectBox.startNDC.y = this.selectBox.endNDC.y
 				this.selectBox.endNDC.y = aux
 			}
-			scene_models[0].material.uniforms.vUv_VR_square_min.value   = this.selectBox.startNDC
-			scene_models[0].material.uniforms.vUv_VR_square_max.value   = this.selectBox.endNDC
+			sceneModels[0].material.uniforms.vUv_VR_square_min.value   = this.selectBox.startNDC
+			sceneModels[0].material.uniforms.vUv_VR_square_max.value   = this.selectBox.endNDC
 		}
 	}
-	update(dt, scene_models_col, scene_models, renderer)
+	update(dt, renderer)
 	{
 		if(this.currentPointedObject)
 		{
@@ -903,17 +930,17 @@ export class VRControls {
 				{
 					//IF IS WALL WE START SELECTION BOX
 					this.state = VRStates.SELECTING_AREA
-					this.startSelectionBox(scene_models_col)
+					this.startSelectionBox()
 				}
 			}	
 		}
 		else if(this.state == VRStates.SELECTING_AREA)
 		{
-			this.updateSelectionBox(dt, scene_models_col, scene_models, renderer)
+			this.updateSelectionBox(dt, renderer)
 		}
 
 		this.updateControllers()
-		this.updatePointedPosition(dt, scene_models_col)
+		this.updatePointedPosition(dt)
 		//this.doInputEvents()
 
 
@@ -973,10 +1000,11 @@ export class VRControls {
 				geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( [ 0.5, 0.5, 0.5, 0, 0, 0 ], 3 ) );
 
 				material = new THREE.LineBasicMaterial( { vertexColors: true, blending: THREE.AdditiveBlending } );
-				material.depthTest = false;
+				//material.depthTest = false;
 				material.transparent = true;
+				material.opacity = 0;
 				const theline = new THREE.Line( geometry, material );
-				//theline.renderOrder = 1
+				theline.renderOrder = 1
 				return theline
 
 			case 'gaze':
@@ -989,25 +1017,27 @@ export class VRControls {
 
 	}
 
-	moveToCapturePosition(camera, index_capture, modelscol)
+	moveToCapturePosition(camera, index_capture)
 	{
 		var newpos = new THREE.Vector3()
 		var captureCam = (DataLoader.getCameraList())[index_capture].camera
 		newpos.copy(captureCam.position)
-		newpos.y = this.getFloorFromPos(newpos, modelscol)
+		newpos.y = this.getFloorFromPos(newpos)
 		this.camera_group.position.copy(newpos)
 	}
 
-	getFloorFromPos(position, scene_models_col)
+	getFloorFromPos(position)
 	{
+		const sceneModelsCol = DataLoader.getSceneModelsCol() 
+
 		const auxPos = new THREE.Vector3(position.x,100 ,position.z)
 		const auxUp = new THREE.Vector3(0,-1,0)
 		const raycasterFloor =  new THREE.Raycaster(auxPos, auxUp);    
 		const models = []
-		for(let i=0; i<scene_models_col.length; ++i )
+		for(let i=0; i<sceneModelsCol.length; ++i )
 		{
-			if(scene_models_col[i].name=="THEMODEL_COL_GROUND")
-				models.push(scene_models_col[i])
+			if(sceneModelsCol[i].name=="THEMODEL_COL_GROUND")
+				models.push(sceneModelsCol[i])
 		}
 		const intersectsFloor = raycasterFloor.intersectObjects( models );  
 		//console.log(intersectsFloor)
@@ -1036,9 +1066,9 @@ export class VRControls {
 	{
 		this.GUI.updatePhotoCollections(collections)
 	}
-	changeCaptureInView(camera, scene, models)
+	changeCaptureInView(camera, scene)
 	{
-		this.GUI.changeCaptureInView(camera, scene, models)
+		this.GUI.changeCaptureInView(camera, scene)
 		this.GUI.setProjectCapture(true)
 	}
 

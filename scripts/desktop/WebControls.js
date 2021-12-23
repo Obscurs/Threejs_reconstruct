@@ -119,9 +119,9 @@ export class WebControls {
 		
 	}
 
-	changeCaptureInView(camera, scene, sceneModels)
+	changeCaptureInView(camera, scene)
 	{
-		this.c_gui.changeCaptureInView(camera, scene, sceneModels)
+		this.c_gui.changeCaptureInView(camera, scene)
 		this.c_controls_secondary.reset();
 	}
 
@@ -239,10 +239,10 @@ export class WebControls {
 		this.c_controls.update()
 	}
 
-	render(scene, renderer, main_camera, scene_models)
+	render(scene, renderer, main_camera)
 	{
 		//this.c_camera_group.visible = false
-		this.c_gui.render(scene, renderer, main_camera, scene_models, this.c_select_controls_enabled, this.c_views_swaped)
+		this.c_gui.render(scene, renderer, main_camera, this.c_select_controls_enabled, this.c_views_swaped)
 		//this.c_camera_group.visible = true
 	}
 }
@@ -284,8 +284,8 @@ function onDocumentPointerUp(self, event ) {
 		0.5 );
 
 
-			const minWorldPoint = getWorldIntersectFromNDCxy(APPLICATION.getMainCamera(),self.c_selection_rectangle.startNDC, APPLICATION.getSceneModels());
-			const maxWorldPoint = getWorldIntersectFromNDCxy(APPLICATION.getMainCamera(),self.c_selection_rectangle.endNDC, APPLICATION.getSceneModels());
+			const minWorldPoint = getWorldIntersectFromNDCxy(APPLICATION.getMainCamera(),self.c_selection_rectangle.startNDC, DataLoader.getSceneModels());
+			const maxWorldPoint = getWorldIntersectFromNDCxy(APPLICATION.getMainCamera(),self.c_selection_rectangle.endNDC, DataLoader.getSceneModels());
 			console.log(self.c_selection_rectangle.startNDC)
 			console.log(self.c_selection_rectangle.endNDC)
 			self.c_selection_rectangle.startWorld = minWorldPoint;
