@@ -111,9 +111,9 @@ export function intersectionObjectLine(models, pos, dir)
     	let curr_depth = intersects[ 0 ].distance
     	for(let i=0; i <intersects.length; i++)
     	{
-    		if(intersects[ 0 ].distance < curr_depth)
+    		if(intersects[ i ].distance < curr_depth || (curr_index.object.parent && curr_index.object.parent.isUIelem && !curr_index.object.parent.ui_isVisible ))
     		{
-    			curr_depth = intersects[ 0 ].distance;
+    			curr_depth = intersects[ i ].distance;
     			curr_index = intersects[ i ];
     		}
     	}

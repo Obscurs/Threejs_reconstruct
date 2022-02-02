@@ -4,6 +4,7 @@ import {VRGUIPhotoStack} from './VRGUIPhotoStack.js';
 import {VRGUIButton} from './VRGUIButton.js';
 import {VRGUIPhoto} from './VRGUIPhoto.js';
 import {VRGUIZoomedPhoto} from './VRGUIZoomedPhoto.js';
+import {VRGUIQuestionarie} from './VRGUIQuestionarie.js';
 import {UIElement} from './../ui/UIElement.js';
 import { CaptureSelected } from './../CaptureSelected.js';
 
@@ -19,10 +20,16 @@ export class VRGUI extends UIElement {
 		this.camera_group = camera_group
 		this.colSphere = null
 		this.photo_stack = new VRGUIPhotoStack()
+		this.photo_stack.setScale(2.0,2.0,1.0)
+		this.photo_stack.setPosition(0,1.6,0)
 		this.zoomed_photo = new VRGUIZoomedPhoto()
+		this.zoomed_photo.setPosition(0,0,0.1)
 		this.main_photos = new UIElement("Main Photos", true);
 		this.project_capture = false
 		this.current_col_index_highlighted = -1
+		this.texPanel = null
+		this.panel = null
+		this.questionarie = null
 
 
 		/*this.main_photos.name = PointedObjectNames.VR_GUI_GROUP_STACKS
@@ -39,15 +46,14 @@ export class VRGUI extends UIElement {
 
 
 
-		/*this.type = PointedObjectNames.VR_COMPLEX_GROUP
-		this.name = PointedObjectNames.VR_GUI*/
-		const material = new THREE.MeshBasicMaterial( { color: 0x555b6e} );
-		//material.depthTest = false;
-		
-		const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.000, 1.000), material);
-		plane.renderOrder = 1
-		plane.name = PointedObjectNames.VR_GUI_PLANE
-		plane.hasClickFunctions = true
+		var loader = new THREE.TextureLoader();
+		this.texPanel = loader.load('../assets/UI/panels/horizontal_panel.png')
+		this.materialPanel = new THREE.MeshBasicMaterial( { map: this.texPanel, transparent: true, opacity: 0.8,} );
+
+		this.panel = new THREE.Mesh(new THREE.PlaneGeometry(4.000, 1.000), this.materialPanel);
+		//this.panel.renderOrder = 1
+		this.panel.name = PointedObjectNames.VR_GUI_PLANE
+		this.panel.hasClickFunctions = true
 
 		function funStartClick() { this.parent.onStartClick()}
 		function funEndClick() { this.parent.onEndClick()}
@@ -56,19 +62,21 @@ export class VRGUI extends UIElement {
 		function funCancelClick() { this.parent.onCancelClick()}
 		function funHover() { this.parent.onHover()}
 		function funUpdateDrag(p1, p2) { this.parent.onUpdateDrag(p1,p2)}
-		plane.onStartClick = funStartClick
-		plane.onEndClick = funEndClick
-		plane.onStartDrag = funStartDrag
-		plane.onEndDrag = funEndDrag
-		plane.onUpdateDrag = funUpdateDrag
-		plane.onCancelClick = funCancelClick
-		plane.onHover = funHover
+		function funDispose() {}
+		this.panel.onStartClick = funStartClick
+		this.panel.onEndClick = funEndClick
+		this.panel.onStartDrag = funStartDrag
+		this.panel.onEndDrag = funEndDrag
+		this.panel.onUpdateDrag = funUpdateDrag
+		this.panel.onCancelClick = funCancelClick
+		this.panel.dispose = funDispose
+		this.panel.onHover = funHover
 
-		
+		this.questionarie = new VRGUIQuestionarie(-2.75,0,0,1)
 
-
+		this.add(this.questionarie)
 		this.add(this.main_photos)
-		this.add(plane)
+		this.add(this.panel)
 		this.add(this.zoomed_photo)
 		this.add(this.photo_stack)
 
@@ -79,6 +87,13 @@ export class VRGUI extends UIElement {
 		const auxPos = new THREE.Vector3()
 		this.camera_group.getWorldPosition(auxPos);
 		this.updatePositionUI(auxPos,auxDir)
+	}
+	dispose()
+	{
+		super.dispose()
+		this.panel.material.dispose()
+		this.panel.geometry.dispose()
+		this.texPanel.dispose()
 	}
 	restart(scene)
 	{
@@ -127,7 +142,7 @@ export class VRGUI extends UIElement {
 		}
 		for(let i=0; i < collections.length; ++i)
 		{
-			const newImage = new VRGUIPhoto(collections[i][0].imagePath,collections[i][0].index, i,collections[i][0].camInfo, 1.05*i,0,0)
+			const newImage = new VRGUIPhoto(collections[i][0].imagePath,collections[i][0].index, i,collections[i][0].camInfo, 1.1*0.66*(i+0.70)-2,0,0, 0.66)
 			this.main_photos.add(newImage)
 		}
 	}
@@ -159,9 +174,6 @@ export class VRGUI extends UIElement {
 		this.photo_stack.setImages(this.currentCollections[collection_index], collection_index)
 		this.photo_stack.generatePage()
 		this.photo_stack.setVisible(true)
-
-		//TODO fill current
-		//TODO show
 	}
 
 	changeCaptureInView(camera, scene)
@@ -187,6 +199,7 @@ export class VRGUI extends UIElement {
 	{
 		this.visible = false
 		this.c_capture_selected.render(renderer, scene, true)
+		this.c_capture_selected.setEnabled(false)
 		this.visible = true
 	}
 

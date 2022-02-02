@@ -12,9 +12,17 @@ export class UIElement extends THREE.Group{
 		this.ui_hovering = false
 		this.ui_hoveredThisFrame = false
 		this.ui_dragging = false
+		this.ui_isVisible = true
 
 		this.hasClickFunctions = true
 		this.isUIelem = true
+
+	}
+
+	setVisible(value)
+	{
+		this.ui_isVisible = value
+		this.visible = value
 	}
 
 	onStartClick(args = null)

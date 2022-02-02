@@ -282,8 +282,6 @@ export class VRControls {
 		//this.camera_group.add(camera)
 		this.scene.add(this.camera_group);
 		
-		//this.scene.add(this.colPlane);
-		//this.resetCameraPos()
 	}
 	resetCameraPos()
 	{
@@ -349,7 +347,7 @@ export class VRControls {
 	genCandidatesWIP()
 	{
 		const clusteringOptions = {
-			max_num_collections: 6,
+			max_num_collections: 5,
 			max_collection_size: 20,
 			similitude_treshold: 0.7,
 			discard_too_similar: true,
@@ -377,10 +375,6 @@ export class VRControls {
 		const sceneModels = DataLoader.getSceneModels() 
 		if(sceneModels.length >0)
 			sceneModels[0].material.uniforms.projectCapture.value = this.GUI.getProjectCapture()
-		
-		/*if(this.c_plane_image_secondary != null)
-			this.c_plane_image_secondary.material.uniforms.showTexture.value = this.c_gui_options.show_photo_enabled && this.c_gui_options.show_view_enabled && this.c_gui_options.show_camera_enabled;
-		*/
 
 		const width = Math.floor( window.innerWidth );
 		const height = Math.floor( window.innerHeight);
@@ -419,15 +413,6 @@ export class VRControls {
 		            	this.rightControllerData = data 
 	            }
 	            
-	           
-	            /*if (!source.gamepad || handedness != "right") continue;
-	            const controller = this.renderer.xr.getController(i++);
-
-	            var data = {
-	                //handedness: handedness,
-	                buttons: source.gamepad.buttons.map((b) => b.value),
-	                axes: source.gamepad.axes.slice(0)
-	            };*/
 	        }
 	        if(this.rightControllerData && !this.startedMovement)
 	        	this.startMovingUser(this.rightControllerData.controller)
@@ -497,20 +482,7 @@ export class VRControls {
         //cursorPos.y = this.camera_group.position.y+1
         cursorPos.y = this.getFloorFromPos(cursorPos) + HEIGHT_OFFSET
 
-        //console.log("FLOOR Y = "+cursorPos.y)
-        // Offset
-        //const offset = cursorPos.addScaledVector(feetPos ,-1);
-
-        // Do the locomotion
-        //locomotion(offset);
         this.moveVRCam(cursorPos)
-        // clean up
-       // this.guidingController = null;
-        //this.guidelight.intensity = 0;
-        /*controller.remove(this.guideline);
-        this.scene.remove(this.guidesprite);*/
-
-        //this.state = VRStates.IDLE
 	}
 	endMoveLine(controller)
 	{
@@ -518,13 +490,6 @@ export class VRControls {
 		cursorPos.copy(this.currentPointedPosition)
 		cursorPos.y = this.getFloorFromPos(cursorPos) + HEIGHT_OFFSET
 		this.moveVRCam(cursorPos)
-        // clean up
-        //this.guidingController = null;
-        //this.guidelight.intensity = 0;
-        //controller.remove(this.guideline);
-        //this.scene.remove(this.guidesprite);
-
-        //this.state = VRStates.IDLE
 	}
 	endMovingUser(controller)
 	{
@@ -543,67 +508,8 @@ export class VRControls {
 	        
 	    }
 	}
-	doJoystickEvents()
-	{
-		/*if(this.defaulted)
-		{
-			if(this.rightControllerData.axes[3] < -0.5 && this.state == VRStates.IDLE)
-			{
-				this.startMovingUser(this.rightControllerData.controller)
-				
-			} else if(this.rightControllerData.axes[3] > -0.2 && this.state == VRStates.MOVING)
-			{
-				this.endMovingUser(this.rightControllerData.controller)
-			}
-		} else{
-			if(this.rightControllerData.axes[3] > -0.1 && this.state == VRStates.IDLE)
-			{
-				this.defaulted = true
-			}
-		}*/
-		
 
-		
-	}
 	
-	doInputEvents()
-	{
-		/*this.doJoystickEvents()
-		if(this.isAButtonPressed(this.rightControllerData))
-		{
-			if(this.state == VRStates.IDLE)
-			{
-				
-				this.state = VRStates.DELETING_ITEM
-			}
-		}
-		else
-		{
-			if(this.state == VRStates.DELETING_ITEM)
-				this.state = VRStates.IDLE
-		}
-		if(this.isStickButtonPressed(this.rightControllerData))
-		{
-			if(this.state == VRStates.IDLE)
-			{
-				//Show UI
-				var pos = new THREE.Vector3()
-				var dir = new THREE.Vector3()
-				this.rightControllerData.controller.getWorldPosition(pos);
-			    this.rightControllerData.controller.getWorldDirection(dir);
-				//this.selector.showUI(pos, dir)
-				this.state = VRStates.SHOWING_UI
-			}
-		}
-		else
-		{
-			if(this.state == VRStates.SHOWING_UI)
-			{
-				this.state = VRStates.IDLE
-			}
-		}*/
-		
-	}
 	updatePointedPosition(dt)
 	{
 		const sceneModelsCol = DataLoader.getSceneModelsCol() 
@@ -704,8 +610,6 @@ export class VRControls {
 	updateGuidingControllerLine()
 	{
 		const p = this.guidingController.getWorldPosition(this.tempVecP);
-        //p.y = p.y+1
-        // Set Vector V to the direction of the controller, at 1m/s
         const v = this.guidingController.getWorldDirection(this.tempVecV);
         const distance = p.distanceTo( this.currentPointedPosition );
         
@@ -763,7 +667,7 @@ export class VRControls {
 	{
 		//TODO get this from other place
 		const clusteringOptions = {
-			max_num_collections: 6,
+			max_num_collections: 5,
 			max_collection_size: 20,
 			similitude_treshold: 0.7,
 			discard_too_similar: true,
@@ -791,7 +695,7 @@ export class VRControls {
 		{
 			//TODO get this from other place
 			const clusteringOptions = {
-				max_num_collections: 6,
+				max_num_collections: 5,
 				max_collection_size: 20,
 				similitude_treshold: 0.7,
 				discard_too_similar: true,
@@ -816,8 +720,6 @@ export class VRControls {
 			Scorer.genNewCandidates(DataLoader.getCameraList(), rectangle, clusteringOptions, scoreOptions, this.camera)
 			this.sendCollectionsToGui()
 		}
-		//m_vr_move_utils.lineGeometryVerticesSquare = null
-		//m_scene.remove(m_vr_move_utils.lineSquare)
 
 		const sceneModels = DataLoader.getSceneModels() 
 		sceneModels.material.uniforms.squareVR.value = false
@@ -909,11 +811,8 @@ export class VRControls {
 				this.currentPointedObject.onHover()
 		}
 			
-		this.GUI.update(dt/*, this.currentPointedObject*/)
-		/*if(this.currentPointedObject != null && this.currentPointedObject.type == PointedObjectNames.hasClickFunctions)
-		{
-			this.currentPointedObject.onHover()
-		}*/
+		this.GUI.update(dt)
+
 		if(this.state == VRStates.CLICKING)
 		{
 			this.drag_timer += dt
@@ -941,7 +840,6 @@ export class VRControls {
 
 		this.updateControllers()
 		this.updatePointedPosition(dt)
-		//this.doInputEvents()
 
 
 		if(this.state == VRStates.DRAGGING_UI && this.currentClickedObject.hasClickFunctions)
@@ -954,26 +852,7 @@ export class VRControls {
 			this.currentClickedObject.onUpdateDrag(pos,dir)
 		}
 			
-		/*const session = this.renderer.xr.getSession();
-		let i = 0;
-		if (session) {
-	        for (const source of session.inputSources) {
-	        	var handedness;
-	            if (source && source.handedness) {
-	                handedness = source.handedness; //left or right controllers
-	            }
-
-	            if (!source.gamepad || handedness != "right") continue;
-	            const controller = this.renderer.xr.getController(i++);
-
-	            var data = {
-	                //handedness: handedness,
-	                buttons: source.gamepad.buttons.map((b) => b.value),
-	                axes: source.gamepad.axes.slice(0)
-	            };
-	            this.doVRinputEvents(controller, data)
-	        }
-	    }*/
+	
 
 		if (this.guidingController) {
 			if(this.teleportType == TeleportTypes.ARC)
@@ -1059,7 +938,6 @@ export class VRControls {
 
 	moveVRCam(offset)
 	{
-		//this.camera_group.position.add(offset)
 		this.camera_group.position.copy(offset)
 	}
 	updateVRCollections(collections)

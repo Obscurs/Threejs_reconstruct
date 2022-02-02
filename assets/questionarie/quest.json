@@ -1,0 +1,64 @@
+{
+   "pages":[
+      {
+         "elements":[
+            {
+               "type":"img",
+               "data": "img1.png",
+               "size":0.8
+            }
+         ],
+         "buttons":[
+            "Next"
+         ]
+      },
+      {
+         "elements":[
+            {
+               "type":"img",
+               "data": "img2.png",
+               "size":0.8
+            }
+         ],
+         "buttons":[
+            "Back", "Start"
+         ]
+      },
+      {
+         "elements":[
+            {
+               "type":"img",
+               "data": "img3.png",
+               "size":0.8
+            }
+         ],
+         "buttons":[
+            "Restart", "Start/Stop"
+         ]
+      },
+      {
+         "elements":[
+            {
+               "type":"img",
+               "data": "img4.png",
+               "size":0.8
+            }
+         ],
+         "buttons":[
+            "Restart", "Start/Stop"
+         ]
+      },
+      {
+         "elements":[
+            {
+               "type":"img",
+               "data": "img5.png",
+               "size":0.8
+            }
+         ],
+         "buttons":[
+            "RestartQuest", "Export"
+         ]
+      }
+   ]
+}

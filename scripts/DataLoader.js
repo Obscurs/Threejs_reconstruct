@@ -479,6 +479,21 @@ class DataLoader {
 		saveAs(blob, 'precomputedCameraData.txt')
 		console.log("INFO: Saving Precomputed File: DONE")
 	}
+
+	static saveQuestionarieData(times)
+	{
+		console.log("INFO: Saving Questionarie File...")
+		const parts = []
+		parts.push("TIMES:\n");
+		for(let i = 0; i < times.length; ++i)
+		{
+			parts.push(times[i]+" ");
+		}
+		const blob = new Blob(parts);
+		const date = Date.now();
+		saveAs(blob, 'questionarieData_'+date+'_.txt')
+		console.log("INFO: Saving Questionarie File: DONE")
+	}
 	static precomputeRays(rays_x, rays_y, i)
 	{
 		console.log("INFO: precomputing rays...")

@@ -2,9 +2,9 @@ import * as THREE from '../../build/three.module.js';
 import {VRGUIButton} from './VRGUIButton.js';
 import { ThumbnailSprite } from './../ThumbnailSprite.js';
 import {UIElement} from './../ui/UIElement.js';
-const OFFSET_Z = 0.05
+const OFFSET_Z = 0.005
 export class VRGUIPhoto extends UIElement{
-	constructor(pathImage, index, colIndex, camInfo, offset_x, offset_y, offset_z) {
+	constructor(pathImage, index, colIndex, camInfo, offset_x, offset_y, offset_z, scale) {
 		
 		super("PHOTO ELEM", true)
 
@@ -12,8 +12,8 @@ export class VRGUIPhoto extends UIElement{
 		this.imageIndex = index
 		this.cameraInfo = camInfo
 		this.collectionIndex = colIndex
-
-		this.position.set(offset_x, offset_y, offset_z+OFFSET_Z*4)
+		this.scale.set(scale,scale,scale)
+		this.position.set(offset_x, offset_y, offset_z+OFFSET_Z)
 
 
 		this.sprite = new ThumbnailSprite(pathImage, this.imageIndex, this.cameraInfo.width, this.cameraInfo.height)
@@ -53,29 +53,29 @@ export class VRGUIPhoto extends UIElement{
 
 		function zoomFun(p1, p2) { APPLICATION.showZoomedPhoto(self.imageIndex)}
 		this.button1 = new VRGUIButton(zoomFun, "BUTTON OPEN")
-		this.button1.initButtonIcon('../assets/UI/open_button', 0.233)
-		this.button1.setPosition(-0.25,-0.35,0.1)
+		this.button1.initButtonIcon('zoom', 1)
+		this.button1.setPosition(-0.30,-0.30,0.005)
 		this.button1.setScale(0.3, 0.3, 0.3)
 		this.add(this.button1)
 
 		function projFun(p1, p2) { APPLICATION.changeCaptureInView(self.imageIndex)}
 		this.button2 = new VRGUIButton(projFun, "BUTTON PROJECT")
-		this.button2.initButtonIcon('../assets/UI/project_button', 0.233)
-		this.button2.setPosition(0.25,0.35,0.1)
+		this.button2.initButtonIcon('project', 1)
+		this.button2.setPosition(0.30,0.30,0.005)
 		this.button2.setScale(0.3, 0.3, 0.3)
 		this.add(this.button2)
 
 		function teleFun(p1, p2) { APPLICATION.moveToCapturePosition(self.imageIndex)}
 		this.button3 = new VRGUIButton(teleFun, "BUTTON TELEPORT")
-		this.button3.initButtonIcon('../assets/UI/teleport_button', 0.233)
-		this.button3.setPosition(0.25,-0.35,0.1)
+		this.button3.initButtonIcon('teleport', 1)
+		this.button3.setPosition(0.30,-0.30,0.005)
 		this.button3.setScale(0.3, 0.3, 0.3)
 		this.add(this.button3)
 
 		function colFun(p1, p2) { APPLICATION.displayImageCollection(self.imageIndex, self.collectionIndex)}
 		this.button4 = new VRGUIButton(colFun, "BUTTON COLLECTION")
-		this.button4.initButtonIcon('../assets/UI/show_collection_button', 0.233)
-		this.button4.setPosition(-0.25,0.35,0.1)
+		this.button4.initButtonIcon('similar', 1)
+		this.button4.setPosition(-0.30,0.30,0.005)
 		this.button4.setScale(0.3, 0.3, 0.3)
 		this.add(this.button4)
 

@@ -24,10 +24,10 @@ export class VRGUIButton extends UIElement{
 	initButtonIcon(imagePath, ratio)
 	{
 		var loader = new THREE.TextureLoader();
-		this.texIdle = loader.load(imagePath+"_idle.png")
-		this.texHover = loader.load(imagePath+"_hover.png")
-		this.texClick = loader.load(imagePath+"_click.png")
-
+		this.texIdle = loader.load('../assets/UI/buttons/idle/button_'+imagePath+'.png')
+		this.texHover = loader.load('../assets/UI/buttons/hover/button_'+imagePath+'.png')
+		this.texClick = loader.load('../assets/UI/buttons/click/button_'+imagePath+'.png')
+		
 		this.materialIdle = new THREE.MeshBasicMaterial({
 		  map: this.texIdle,
 		  transparent: true,
@@ -124,7 +124,8 @@ export class VRGUIButton extends UIElement{
 		this.dirty = true
 		if(this.mesh != null)
 		{
-			this.mesh.visible = show
+			//this.mesh.visible = show
+			this.setVisible(show)
 		}
 	}
 	setEnabled(value)

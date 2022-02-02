@@ -9,22 +9,54 @@ const COLS = 3
 export class VRGUIPhotoStack extends UIElement {
 	constructor() {
 		super("Photo stack", true)
-
-		
-
 		this.images = []
 		this.currPage = 0
 		this.numPages = -1
-		this.position.set(0,1,0)
-		this.scale.set(0.5,0.5,0.5)
+		
 		this.buttonUp = null
 		this.buttonDown = null
 		this.indexCollection = -1
 		this.visible = false
+		this.texPanel = null
+		this.panel = null
 
+		this.generatePanel()
 		//arrows up/down
 		this.generatePage(this.currPage)
 		this.generateButtons()
+		
+	}
+	generatePanel()
+	{
+		var loader = new THREE.TextureLoader();
+		this.texPanel = loader.load('../assets/UI/panels/square_panel.png')
+		this.materialPanel = new THREE.MeshBasicMaterial( { map: this.texPanel, transparent: true, opacity: 0.8,} );
+
+		this.panel = new THREE.Mesh(new THREE.PlaneGeometry(1.000, 1.000), this.materialPanel);
+		//this.panel.renderOrder = 1
+		this.panel.name = PointedObjectNames.VR_GUI_PLANE
+		this.panel.hasClickFunctions = true
+
+		function funStartClick() { this.parent.onStartClick()}
+		function funEndClick() { this.parent.onEndClick()}
+		function funStartDrag() { this.parent.onStartDrag()}
+		function funEndDrag() { this.parent.onEndDrag()}
+		function funCancelClick() { this.parent.onCancelClick()}
+		function funHover() { this.parent.onHover()}
+		function funUpdateDrag(p1, p2) { this.parent.onUpdateDrag(p1,p2)}
+		function funDispose() {}
+		this.panel.onStartClick = funStartClick
+		this.panel.onEndClick = funEndClick
+		this.panel.onStartDrag = funStartDrag
+		this.panel.onEndDrag = funEndDrag
+		this.panel.onUpdateDrag = funUpdateDrag
+		this.panel.onCancelClick = funCancelClick
+		this.panel.dispose = funDispose
+		this.panel.onHover = funHover
+
+		this.add(this.panel)
+		console.log(this.panel)
+		console.log(this.children)
 	}
 	generateButtons()
 	{
@@ -32,18 +64,18 @@ export class VRGUIPhotoStack extends UIElement {
 
 		function prevAction(p1, p2) { self.prevPage()}
 		this.buttonUp = new VRGUIButton(prevAction, "PREV BUTTON")
-		this.buttonUp.initButtonIcon('../assets/UI/arrow_button', 0.233)
-		this.buttonUp.setPosition((COLS*1.05)/2-0.75,(ROWS*1.05)-0.5,0)
-		this.buttonUp.setScale(0.7, -0.7, 0.7)
+		this.buttonUp.initButtonIcon('arrow', 0.233)
+		this.buttonUp.setPosition(0,0.45,0)
+		this.buttonUp.setScale(0.2, -0.2, 1.0)
 		this.buttonUp.isButton = true
 		this.buttonUp.show()
 		this.add(this.buttonUp)
 
 		function prevAction(p1, p2) { self.nextPage()}
 		this.buttonDown = new VRGUIButton(prevAction, "NEXT BUTTON")
-		this.buttonDown.initButtonIcon('../assets/UI/arrow_button', 0.233)
-		this.buttonDown.setPosition((COLS*1.05)/2-0.75,0.25-1,0)
-		this.buttonDown.setScale(0.7, 0.7, 0.7)
+		this.buttonDown.initButtonIcon('arrow', 0.233)
+		this.buttonDown.setPosition(0,-0.45,0)
+		this.buttonDown.setScale(0.2, 0.2, 1.0)
 		this.buttonDown.isButton = true
 		this.buttonDown.show()
 		this.add(this.buttonDown)
@@ -76,7 +108,7 @@ export class VRGUIPhotoStack extends UIElement {
 		const auxList = []
 		for(let i = 0; i < this.children.length; ++i)
 		{
-			if(!this.children[i].isButton)
+			if(!this.children[i].isButton && !this.children[i].name == PointedObjectNames.VR_GUI_PLANE)
 			{
 				this.children[i].dispose()
 				auxList.push(this.children[i])
@@ -102,7 +134,7 @@ export class VRGUIPhotoStack extends UIElement {
 				else
 				{
 					const imageInCol = this.images[imageIndex]
-					const imageElement = new VRGUIPhoto(imageInCol.imagePath,imageInCol.index, this.indexCollection,imageInCol.camInfo, 1.05*(j),1.05*(ROWS-i-1),0)
+					const imageElement = new VRGUIPhoto(imageInCol.imagePath,imageInCol.index, this.indexCollection,imageInCol.camInfo, 0.28*(j)-0.28,0.28*(ROWS-i-1)-0.28,0.0, 0.25)
 					imageElement.setButtonEnabledSimilar(false)
 					this.add(imageElement)
 				}
@@ -120,6 +152,9 @@ export class VRGUIPhotoStack extends UIElement {
 		super.dispose()
 		this.setVisible(false)
 		this.disposePage()
+		this.panel.material.dispose()
+		this.panel.geometry.dispose()
+		this.texPanel.dispose()
 	}
 
 }

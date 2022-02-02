@@ -9,7 +9,6 @@ export class VRGUIZoomedPhoto extends UIElement {
 		super("ZOOMED IMAGE", true)
 
 		this.c_zoomed_mesh = null
-		this.position.z = 0.21
 		this.scale.set(MIN_SCALE, MIN_SCALE, 1.0)
 		this.c_timer_zoom = 0
 
