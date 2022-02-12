@@ -13,7 +13,7 @@ export class CaptureSelected {
 		this.c_plane_render_target = null;
 		this.c_group_widget = new THREE.Group()
 		this.c_high_loaded = false
-
+		this.c_current_camera = null
 		this.init(scene)
 
 	}
@@ -39,6 +39,10 @@ export class CaptureSelected {
 		}
 
 	}
+	getCurrentSelectedCamera()
+	{
+		return this.c_current_camera
+	}
 	getCameraCapture()
 	{
 		return this.c_camera_capture
@@ -62,6 +66,7 @@ export class CaptureSelected {
 	}
 	setCapture(camera, scene)
 	{
+		this.c_current_camera = camera
 		const sceneModels = DataLoader.getSceneModels() 
 
 		const directionCapture = new THREE.Vector3();
@@ -141,7 +146,7 @@ export class CaptureSelected {
 			    fragmentShader: DataLoader.c_shaders.screenFrag,
 			    vertexShader: DataLoader.c_shaders.spriteVert,
 			    //depthTest: false,
-			    depthWrite: false,
+			    //depthWrite: false,
 			    transparent: true
 			} );
 
@@ -156,7 +161,7 @@ export class CaptureSelected {
 		}
 
 		this.c_plane_render_target = plane_rt
-		this.c_plane_render_target.renderOrder = 0
+		//this.c_plane_render_target.renderOrder = 0
 		/*if(this.c_renderer.xr.isPresenting)
 		{
 			if(this.c_plane_render_target != null)

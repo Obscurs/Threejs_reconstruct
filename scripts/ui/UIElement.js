@@ -24,6 +24,16 @@ export class UIElement extends THREE.Group{
 		this.ui_isVisible = value
 		this.visible = value
 	}
+	
+	isVisible()
+	{
+		if(!this.ui_isVisible)
+			return false
+		else if(this.parent && this.parent.isUIelem)
+			return this.parent.isVisible()
+		else
+			return true
+	}
 
 	onStartClick(args = null)
 	{

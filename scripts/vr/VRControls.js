@@ -722,7 +722,7 @@ export class VRControls {
 		}
 
 		const sceneModels = DataLoader.getSceneModels() 
-		sceneModels.material.uniforms.squareVR.value = false
+		sceneModels[0].material.uniforms.squareVR.value = false
 		const camCapture = this.GUI.getCameraCapture()
 		if(camCapture)
 		{
@@ -938,7 +938,9 @@ export class VRControls {
 
 	moveVRCam(offset)
 	{
+		this.GUI.onMoveEvent(this.camera_group.position, offset)
 		this.camera_group.position.copy(offset)
+
 	}
 	updateVRCollections(collections)
 	{

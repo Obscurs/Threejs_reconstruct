@@ -16,7 +16,6 @@ export class VRGUIPhotoStack extends UIElement {
 		this.buttonUp = null
 		this.buttonDown = null
 		this.indexCollection = -1
-		this.visible = false
 		this.texPanel = null
 		this.panel = null
 
@@ -24,6 +23,7 @@ export class VRGUIPhotoStack extends UIElement {
 		//arrows up/down
 		this.generatePage(this.currPage)
 		this.generateButtons()
+		this.setVisible(false)
 		
 	}
 	generatePanel()
@@ -142,10 +142,7 @@ export class VRGUIPhotoStack extends UIElement {
 		}
 		 
 	}
-	setVisible(value)
-	{
-		this.visible = value
-	}
+
 
 	dispose()
 	{

@@ -272,7 +272,7 @@ class DataLoader {
 				vertexShader: self.c_shaders.sceneVert,
 			} );
 			const mesh = new THREE.Mesh( geometry, material );
-			mesh.renderOrder = 0
+			//mesh.renderOrder = 0
 			mesh.textureLoaded = tex
 			const m2 = new THREE.Matrix4();
 			m2.makeRotationX(THREE.Math.degToRad(-90))
@@ -480,7 +480,7 @@ class DataLoader {
 		console.log("INFO: Saving Precomputed File: DONE")
 	}
 
-	static saveQuestionarieData(times)
+	static saveQuestionarieData(times, distances, imageNames)
 	{
 		console.log("INFO: Saving Questionarie File...")
 		const parts = []
@@ -488,6 +488,16 @@ class DataLoader {
 		for(let i = 0; i < times.length; ++i)
 		{
 			parts.push(times[i]+" ");
+		}
+		parts.push("\nDISTANCES:\n");
+		for(let i = 0; i < times.length; ++i)
+		{
+			parts.push(distances[i]+" ");
+		}
+		parts.push("\nLAST IMAGES SELECTED:\n");
+		for(let i = 0; i < times.length; ++i)
+		{
+			parts.push(imageNames[i]+", ");
 		}
 		const blob = new Blob(parts);
 		const date = Date.now();

@@ -16,8 +16,13 @@ export class VRGUIQuestionarie extends UIElement{
 		this.questData = null
 		this.currentPageIndex = 0
 		this.recordedData = []
+		this.recordedDistance = []
+		this.recordedImages = []
 		this.currentTimer = 0
 		this.recording = false
+		this.currentDistanceTracked = 0
+		this.auxRecordDistancePos = new THREE.Vector3()
+		this.auxRecordDistanceCurrentPos = new THREE.Vector3()
 		const pathJson = "/assets/questionarie/quest.json"
 		var xmlhttp = new XMLHttpRequest();
 		var self = this;
@@ -105,28 +110,53 @@ export class VRGUIQuestionarie extends UIElement{
 	}
 	startRecordTime()
 	{
+		this.currentDistanceTracked = 0
+		this.auxRecordDistancePos.copy(this.auxRecordDistanceCurrentPos)
 		this.recording = true
 		this.currentTimer = 0
 	}
 	stopRecordTime()
 	{
+
 		this.recording = false
+		console.log(this.currentDistanceTracked)
+		console.log(this.auxRecordDistancePos)
+		console.log(this.auxRecordDistanceCurrentPos)
+		this.currentDistanceTracked += this.auxRecordDistancePos.distanceTo(this.auxRecordDistanceCurrentPos)
+		const camName = this.parent.getSelectedImageName()
+		this.recordedImages.push(camName)
+		this.recordedDistance.push(this.currentDistanceTracked)
 		this.recordedData.push(this.currentTimer)
+		this.currentDistanceTracked = 0
 		this.currentTimer = 0
 	}
 	restartQuest()
 	{
 		this.disposePage()
 		this.recordedData = []
+		this.recordedDistance = []
+		this.recordedImages = []
 		this.currentPageIndex = 0
 		this.initPage()
+	}
+	incDistanceDueTeleport(oldPos, newPos)
+	{
+		if(this.recording)
+		{
+			this.currentDistanceTracked += this.auxRecordDistancePos.distanceTo(newPos)
+			this.auxRecordDistancePos.copy(newPos)
+		}
 	}
 
 	exportData()
 	{
-		DataLoader.saveQuestionarieData(this.recordedData)
+		DataLoader.saveQuestionarieData(this.recordedData, this.recordedDistance, this.recordedImages)
 	}
 
+	setCamPos(pos)
+	{
+		this.auxRecordDistanceCurrentPos.copy(pos)
+	}
 	update(dt)
 	{
 		super.update(dt)

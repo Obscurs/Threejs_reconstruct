@@ -88,6 +88,25 @@ export class VRGUI extends UIElement {
 		this.camera_group.getWorldPosition(auxPos);
 		this.updatePositionUI(auxPos,auxDir)
 	}
+
+	getSelectedImageName()
+	{
+		if(this.c_capture_selected != null)
+		{
+			const cam = this.c_capture_selected.getCurrentSelectedCamera()
+			if(cam != null)
+				return cam.name
+			else 
+				return "no image"
+		}
+	}
+	onMoveEvent(oldPos, newPos)
+	{
+		if(this.questionarie != null)
+		{
+			this.questionarie.incDistanceDueTeleport(oldPos, newPos)
+		}
+	}
 	dispose()
 	{
 		super.dispose()
@@ -201,6 +220,12 @@ export class VRGUI extends UIElement {
 		this.c_capture_selected.render(renderer, scene, true)
 		this.c_capture_selected.setEnabled(false)
 		this.visible = true
+	}
+	update(dt)
+	{
+		super.update(dt)
+		if(this.questionarie != null)
+			this.questionarie.setCamPos(this.camera_group.position)
 	}
 
 	

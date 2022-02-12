@@ -109,18 +109,24 @@ export function intersectionObjectLine(models, pos, dir)
     	
     	let curr_index = intersects[ 0 ]
     	let curr_depth = intersects[ 0 ].distance
+    	let isVisible = true //TODO Rename this to something like "isHiteable"
+    	if(curr_index.object.parent && curr_index.object.parent.isUIelem && !curr_index.object.parent.isVisible())
+    		isVisible = false
     	for(let i=0; i <intersects.length; i++)
     	{
-    		if(intersects[ i ].distance < curr_depth || (curr_index.object.parent && curr_index.object.parent.isUIelem && !curr_index.object.parent.ui_isVisible ))
+    		if(intersects[ i ].distance < curr_depth || !isVisible)
     		{
     			curr_depth = intersects[ i ].distance;
     			curr_index = intersects[ i ];
+    			isVisible = true
+    			if(curr_index.object.parent && curr_index.object.parent.isUIelem && !curr_index.object.parent.isVisible())
+    				isVisible = false
     		}
     	}
-    	return curr_index
+    	if(isVisible)
+    		return curr_index
     }
-    else
-    	return null
+    return null
 }
 
 

@@ -224,7 +224,13 @@ export class Application {
 		else
 			this.c_WebControls.render(this.c_scene, this.c_renderer, this.c_mainCamera)
 	}
-
+	getControls()
+	{
+		if(this.c_renderer.xr.isPresenting)
+			return this.c_VRControls
+		else
+			return this.c_WebControls
+	}
 
 
 
