@@ -23,7 +23,7 @@ export class VRGUIQuestPage extends UIElement{
 
 		this.initWithData(data)
 	}
-
+	
 	addImageElement(offset_y,imagePath,scale)
 	{
 		var loader = new THREE.TextureLoader();

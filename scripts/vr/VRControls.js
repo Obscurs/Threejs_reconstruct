@@ -689,8 +689,6 @@ export class VRControls {
 	{
 		console.log("end box")
 
- 
-
 		if(this.selectBox.endRay != null)
 		{
 			//TODO get this from other place

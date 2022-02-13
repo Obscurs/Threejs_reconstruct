@@ -55,8 +55,6 @@ export class VRGUIPhotoStack extends UIElement {
 		this.panel.onHover = funHover
 
 		this.add(this.panel)
-		console.log(this.panel)
-		console.log(this.children)
 	}
 	generateButtons()
 	{
@@ -68,16 +66,16 @@ export class VRGUIPhotoStack extends UIElement {
 		this.buttonUp.setPosition(0,0.45,0)
 		this.buttonUp.setScale(0.2, -0.2, 1.0)
 		this.buttonUp.isButton = true
-		this.buttonUp.show()
+		this.buttonUp.show(true)
 		this.add(this.buttonUp)
 
-		function prevAction(p1, p2) { self.nextPage()}
-		this.buttonDown = new VRGUIButton(prevAction, "NEXT BUTTON")
+		function nextAction(p1, p2) { self.nextPage()}
+		this.buttonDown = new VRGUIButton(nextAction, "NEXT BUTTON")
 		this.buttonDown.initButtonIcon('arrow', 0.233)
 		this.buttonDown.setPosition(0,-0.45,0)
 		this.buttonDown.setScale(0.2, 0.2, 1.0)
 		this.buttonDown.isButton = true
-		this.buttonDown.show()
+		this.buttonDown.show(true)
 		this.add(this.buttonDown)
 
 	}
@@ -108,7 +106,7 @@ export class VRGUIPhotoStack extends UIElement {
 		const auxList = []
 		for(let i = 0; i < this.children.length; ++i)
 		{
-			if(!this.children[i].isButton && !this.children[i].name == PointedObjectNames.VR_GUI_PLANE)
+			if(this.children[i].name == PointedObjectNames.VR_GUI_PHOTO_ELEM)
 			{
 				this.children[i].dispose()
 				auxList.push(this.children[i])
@@ -118,7 +116,6 @@ export class VRGUIPhotoStack extends UIElement {
 		{
 			this.remove(auxList[i])
 		}
-		
 
 	}
 	generatePage()

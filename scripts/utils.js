@@ -106,7 +106,6 @@ export function intersectionObjectLine(models, pos, dir)
 	
     if ( intersects.length > 0 ) 
     {
-    	
     	let curr_index = intersects[ 0 ]
     	let curr_depth = intersects[ 0 ].distance
     	let isVisible = true //TODO Rename this to something like "isHiteable"
@@ -123,6 +122,7 @@ export function intersectionObjectLine(models, pos, dir)
     				isVisible = false
     		}
     	}
+
     	if(isVisible)
     		return curr_index
     }

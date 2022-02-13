@@ -32,9 +32,6 @@ const ClusteringMethods =
 	BASIC: "basic",
 }
 
-
-
-
 const m_views = [
 	{
 		left: 0.0,

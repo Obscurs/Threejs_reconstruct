@@ -95,6 +95,17 @@ export class UIElement extends THREE.Group{
 		this.position.y = y
 		this.position.z = z
 	}
+
+	rotateAroundAxis(axis, radians)
+	{
+		let rotObjectMatrix = new THREE.Matrix4();
+	    rotObjectMatrix.makeRotationAxis(axis.normalize(), radians);
+
+	    this.matrix.multiply(rotObjectMatrix);
+
+	    this.rotation.setFromRotationMatrix(this.matrix);
+	}
+
 	setScale(x, y, z)
 	{
 		this.scale.x = x

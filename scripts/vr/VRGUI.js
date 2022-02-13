@@ -21,7 +21,9 @@ export class VRGUI extends UIElement {
 		this.colSphere = null
 		this.photo_stack = new VRGUIPhotoStack()
 		this.photo_stack.setScale(2.0,2.0,1.0)
-		this.photo_stack.setPosition(0,1.6,0)
+		this.photo_stack.setPosition(0,1.6,0.4)
+		const rotAxisStack = new THREE.Vector3(1,0,0)
+		this.photo_stack.rotateAroundAxis(rotAxisStack, 0.5)
 		this.zoomed_photo = new VRGUIZoomedPhoto()
 		this.zoomed_photo.setPosition(0,0,0.1)
 		this.main_photos = new UIElement("Main Photos", true);
@@ -34,15 +36,16 @@ export class VRGUI extends UIElement {
 
 		/*this.main_photos.name = PointedObjectNames.VR_GUI_GROUP_STACKS
 		this.isGUI = true*/
-		const geometryColSphere = new THREE.SphereGeometry( 2, 32, 16 );
+		const geometryColSphere = new THREE.SphereGeometry( 2.5, 32, 16 );
 		const materialColSphere = new THREE.MeshBasicMaterial( {
 						opacity: 0.0,
 						transparent: true,
+						depthWrite: false
 					} );
 		materialColSphere.side = THREE.BackSide
 		this.colSphere = new THREE.Mesh( geometryColSphere, materialColSphere );
-		
 		this.camera_group.add(this.colSphere)
+		
 
 
 
@@ -72,8 +75,9 @@ export class VRGUI extends UIElement {
 		this.panel.dispose = funDispose
 		this.panel.onHover = funHover
 
-		this.questionarie = new VRGUIQuestionarie(-2.75,0,0,1)
-
+		this.questionarie = new VRGUIQuestionarie(-2.75,0,0.5,1)
+		const rotAxisQuest = new THREE.Vector3(0,1,0)
+		this.questionarie.rotateAroundAxis(rotAxisQuest, 0.785398)
 		this.add(this.questionarie)
 		this.add(this.main_photos)
 		this.add(this.panel)
@@ -186,8 +190,6 @@ export class VRGUI extends UIElement {
 		}
 		this.current_col_index_highlighted = collection_index
 		this.main_photos.children[this.current_col_index_highlighted].setHighlighted(true)
-
-
 
 		this.photo_stack.disposePage()
 		this.photo_stack.setImages(this.currentCollections[collection_index], collection_index)

@@ -6,7 +6,7 @@ const OFFSET_Z = 0.005
 export class VRGUIPhoto extends UIElement{
 	constructor(pathImage, index, colIndex, camInfo, offset_x, offset_y, offset_z, scale) {
 		
-		super("PHOTO ELEM", true)
+		super(PointedObjectNames.VR_GUI_PHOTO_ELEM, true)
 
 		this.sprite = null
 		this.imageIndex = index
