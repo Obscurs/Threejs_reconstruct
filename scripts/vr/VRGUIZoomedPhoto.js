@@ -59,7 +59,7 @@ export class VRGUIZoomedPhoto extends UIElement {
 	show()
 	{
 		console.log("show")
-		this.c_timer_zoom = -1.5
+		this.c_timer_zoom = -1.0
 		this.scale.set(MIN_SCALE, MIN_SCALE, 1.0)
 		
 	}
@@ -67,53 +67,40 @@ export class VRGUIZoomedPhoto extends UIElement {
 	{
 		console.log("hide")
 		if(this.c_timer_zoom == 0.0)
-			this.c_timer_zoom = 1
+			this.c_timer_zoom = 1.0
 	}
 	update(dt)
 	{
 		super.update(dt)
 		if(this.c_timer_zoom <0.0)
 		{
+			let normalized = (MAX_SCALE-MIN_SCALE)
+			if(this.c_timer_zoom > 0)
+				this.c_timer_zoom = 0.0
+			let currentScale = normalized*(1.0-this.c_timer_zoom*(-1))
 			if(this.c_zoomed_mesh.c_high_loaded && this.c_timer_zoom >= -1 )
 			{
 				this.c_zoomed_mesh.visible = true
 				this.c_timer_zoom += dt*2
-				let normalized = (MAX_SCALE-MIN_SCALE)
-				let currentScale = normalized*(1.0-this.c_timer_zoom*(-1))
-
-				
-				if(this.c_timer_zoom > 0)
-					this.c_timer_zoom = 0.0
-				else
-				{
-					this.scale.set(currentScale, currentScale, 1.0)
-				}
 			}
 			else
 			{
 				this.c_timer_zoom += dt	
 			}
-			
+			this.scale.set(currentScale, currentScale, 1.0)
 			
 		}
 		else if(this.c_timer_zoom > 0.0)
 		{
-
 			this.c_timer_zoom -= dt*3
 			let normalized = (MAX_SCALE-MIN_SCALE)
-			let currentScale = normalized*(this.c_timer_zoom)
-			
 			if(this.c_timer_zoom <= 0.0)
 			{
 				this.c_timer_zoom = 0.0
 				this.c_zoomed_mesh.visible = false
 			}
-				
-			else
-			{
-				this.scale.set(currentScale, currentScale, 1.0)
-				
-			}
+			let currentScale = normalized*(this.c_timer_zoom)
+			this.scale.set(currentScale, currentScale, 1.0)
 		}
 	}
 	onEndClick()
