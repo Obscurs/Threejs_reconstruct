@@ -359,8 +359,6 @@ export class VRControls {
 			orientation: 0,
 			projection: 0,
 		}
-		console.log(Scorer.c_min_pos)
-		console.log(this.camera)
 		Scorer.genNewCandidates(DataLoader.getCameraList(), null, clusteringOptions, scoreOptions, this.camera)
 		this.sendCollectionsToGui()
 
@@ -526,7 +524,7 @@ export class VRControls {
 		        const cursorPos = positionAtT(this.tempVec1,t,p,v,this.g);
 
 				this.currentPointedGroundY = this.getFloorFromPos(cursorPos)
-				console.log("FLOOR Y = "+this.currentPointedGroundY)
+				//console.log("FLOOR Y = "+this.currentPointedGroundY)
 				this.timerGroundUpdater = 0
 	        }
 	        else if(this.guidingController)
@@ -688,7 +686,6 @@ export class VRControls {
 	endSelectionBox()
 	{
 		console.log("end box")
-
 		if(this.selectBox.endRay != null)
 		{
 			//TODO get this from other place
@@ -712,8 +709,8 @@ export class VRControls {
 			{
 				startWorld:  this.selectBox.startRay,
 				endWorld: this.selectBox.endRay,
-				startNDC: getNDCposFromWorld(this.camera,this.selectBox.startPos),
-				endNDC: getNDCposFromWorld(this.camera,this.selectBox.endPos),
+				startNDC: getNDCposFromWorld(this.camera,this.selectBox.startRay),
+				endNDC: getNDCposFromWorld(this.camera,this.selectBox.endRay),
 			}
 			Scorer.genNewCandidates(DataLoader.getCameraList(), rectangle, clusteringOptions, scoreOptions, this.camera)
 			this.sendCollectionsToGui()
@@ -756,7 +753,6 @@ export class VRControls {
 
 	    this.selectBox.endPos = pos
 	    this.selectBox.endDir = dir
-
 		this.selectBox.startNDC = getNDCposFromWorld(this.camera,this.selectBox.startPos)
 		this.selectBox.endNDC = getNDCposFromWorld(this.camera,this.selectBox.endPos)
 		const v1 = new THREE.Vector2(this.selectBox.startNDC.x,this.selectBox.startNDC.y)

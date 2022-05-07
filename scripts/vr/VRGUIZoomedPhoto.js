@@ -75,9 +75,7 @@ export class VRGUIZoomedPhoto extends UIElement {
 		if(this.c_timer_zoom <0.0)
 		{
 			let normalized = (MAX_SCALE-MIN_SCALE)
-			if(this.c_timer_zoom > 0)
-				this.c_timer_zoom = 0.0
-			let currentScale = normalized*(1.0-this.c_timer_zoom*(-1))
+			
 			if(this.c_zoomed_mesh.c_high_loaded && this.c_timer_zoom >= -1 )
 			{
 				this.c_zoomed_mesh.visible = true
@@ -87,6 +85,9 @@ export class VRGUIZoomedPhoto extends UIElement {
 			{
 				this.c_timer_zoom += dt	
 			}
+			if(this.c_timer_zoom > 0)
+				this.c_timer_zoom = 0.0
+			let currentScale = normalized*(1.0-this.c_timer_zoom*(-1))
 			this.scale.set(currentScale, currentScale, 1.0)
 			
 		}

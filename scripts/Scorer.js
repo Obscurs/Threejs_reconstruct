@@ -103,9 +103,6 @@ export class Scorer {
 			const minNDCpoint = getNDCposFromWorld(camera_list[index_cam].camera, selection_rectangle.startWorld)
 			const maxNDCpoint = getNDCposFromWorld(camera_list[index_cam].camera, selection_rectangle.endWorld)
 			
-			//console.log("minmax")
-			//console.log(minNDCpoint)
-			//console.log(maxNDCpoint)
 			if(minNDCpoint != null && maxNDCpoint !=null)
 			{
 				if(minNDCpoint.x >maxNDCpoint.x)

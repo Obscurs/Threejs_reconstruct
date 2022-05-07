@@ -144,6 +144,7 @@ export class Application {
 				} 
 				const sceneModels = DataLoader.getSceneModels() 
 				sceneModels[0].material.uniforms.showRedArea.value = this.c_WebControls.getGui().c_gui_options.red_area_enabled;
+				sceneModels[0].material.uniforms.u_time.value += delta;
 				break
 			}
 			case AppStates.APPLICATION_INIT:

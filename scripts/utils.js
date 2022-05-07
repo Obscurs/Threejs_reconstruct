@@ -132,8 +132,6 @@ export function intersectionObjectLine(models, pos, dir)
 
 export function singleLinkageClustering(num_clusters, num_elements_per_cluster, cameraList, candidates)
 {
-
-
 	const result = []
 	for (let i = 0; i < candidates.length; i++) {
 		//TODO use class for this structure

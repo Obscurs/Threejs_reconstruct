@@ -261,6 +261,8 @@ class DataLoader {
 		        //texture1: { type: "t", value: THREE.ImageUtils.loadTexture( "./models/textures/doma-interior_texture16k.jpg" ) },
 		        texture1: { type: "t", value: tex},
 		        texture2: { type: "t", value: null },
+		        u_time: { type: "f", value: 0 },
+		        isLoading: {type: 'bool', value: false},
 		        squareVR: {type: 'bool', value: false},
 		        vUv_VR_square_min: {type: 'vec2', value: new THREE.Vector2()},
 		        vUv_VR_square_max: {type: 'vec2', value: new THREE.Vector2()},

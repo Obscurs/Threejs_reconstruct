@@ -188,7 +188,7 @@ export class CaptureSelected {
 			"models/"+DataLoader.getCurrentModel().path+"/thumbnails/"+camera.name,
 			function ( texture ) {
 
-				if(self.c_camera_capture.name == tex_name && !self.c_high_loaded) {self.updateTexture(texture)}
+				if(self.c_camera_capture.name == tex_name && !self.c_high_loaded) {self.updateTexture(texture, true)}
 			},
 			function ( err ) {
 				console.error( 'Error trying to load texture (high res) for capture.' );
@@ -205,7 +205,7 @@ export class CaptureSelected {
 			function ( texture ) {
 				self.c_high_loaded = true
 				self.c_plane_render_target.c_high_loaded = true
-				if(self.c_camera_capture.name == tex_name) {self.updateTexture(texture)}
+				if(self.c_camera_capture.name == tex_name) {self.updateTexture(texture, false)}
 			},
 			function ( err ) {
 				console.error( 'Error trying to load texture (high res) for capture.' );
@@ -217,7 +217,7 @@ export class CaptureSelected {
 	{
 		return this.c_plane_render_target;
 	}
-	updateTexture(texture)
+	updateTexture(texture, isLoading)
 	{
 		const sceneModels = DataLoader.getSceneModels() 
 		if(this.c_texture)
@@ -226,7 +226,10 @@ export class CaptureSelected {
 		}
 		this.c_texture = texture
 		if(sceneModels.length >0)
+		{
+			sceneModels[0].material.uniforms.isLoading.value = isLoading;
 			sceneModels[0].material.uniforms.texture2.value = this.c_texture;
+		}
 		if(this.c_plane_image_secondary != null)
 			this.c_plane_image_secondary.material.uniforms.texture1.value = this.c_texture;
 		this.c_textureChanged = true

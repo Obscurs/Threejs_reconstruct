@@ -3,8 +3,10 @@ uniform sampler2D texture2;
 uniform bool showRedArea;
 uniform bool projectCapture;
 uniform bool squareVR;
+uniform bool isLoading;
 uniform vec2 vUv_VR_square_min;
 uniform vec2 vUv_VR_square_max;
+uniform float u_time;
 varying vec2 vUv;
 varying vec3 capturePos;
 void main() {
@@ -31,7 +33,25 @@ void main() {
   	if(capturePos.x > -1.0 && capturePos.x < 1.0 && capturePos.y > -1.0 && capturePos.y < 1.0 && capturePos.z > -1.0 && capturePos.z < 1.0)
   	{
   		vec2 texCoords = vec2((capturePos.x+1.0f)/2.0f,(capturePos.y+1.0f)/2.0f);
-  		gl_FragColor = texture2D(texture2, texCoords);
+      if(isLoading)
+      {
+        vec4 col = texture2D(texture2, texCoords);
+        vec3 colWave = vec3(1.0,1.0,1.0);
+          
+        float x = (0.5f-texCoords.x);
+        float y = (0.5f-texCoords.y);
+        
+        float r = -(x*x + y*y);
+        float z = 1.0 + 0.5*sin((r+u_time*0.15f)/0.043);
+        
+        vec3 texcol = vec3(z,z,z);
+        
+        gl_FragColor = mix(vec4(colWave*texcol,1.0),col,0.8);
+      }
+      else
+      {
+        gl_FragColor = texture2D(texture2, texCoords);
+      }
   	}
   	else
   	{
