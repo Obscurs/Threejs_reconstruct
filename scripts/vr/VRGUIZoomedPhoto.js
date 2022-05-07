@@ -2,7 +2,7 @@ import * as THREE from '../../build/three.module.js';
 import {UIElement} from './../ui/UIElement.js';
 import { CaptureSelected } from './../CaptureSelected.js';
 
-const MAX_SCALE = 0.002
+const MAX_SCALE = 0.003
 const MIN_SCALE = 0.0001
 export class VRGUIZoomedPhoto extends UIElement {
 	constructor() {
@@ -43,7 +43,7 @@ export class VRGUIZoomedPhoto extends UIElement {
 			this.c_zoomed_mesh.onHover = funHover
 
 
-			this.c_zoomed_mesh.position.z = 0
+			this.c_zoomed_mesh.position.z = 0.15
 
 
 			this.add(this.c_zoomed_mesh)
