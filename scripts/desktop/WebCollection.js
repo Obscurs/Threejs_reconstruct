@@ -2,6 +2,7 @@ import * as THREE from '../../build/three.module.js';
 import {UIElement} from './../ui/UIElement.js';
 import { DataLoader } from './../DataLoader.js';
 import { ThumbnailSprite } from './../ThumbnailSprite.js';
+import { Scorer } from './../Scorer.js';
 export class WebCollection extends UIElement{
 	constructor(name, doParentEvents) {
 		super(name, doParentEvents)

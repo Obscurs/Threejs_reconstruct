@@ -1,7 +1,7 @@
 
 let APPLICATION;
 const NUM_RAYS_PRECOMPUTE = 10;	//rays x rays
-
+const VERSION = "v2.1.2"
 const AppStates =
 {
 	APPLICATION_INIT: "init_state",

@@ -263,6 +263,7 @@ class DataLoader {
 		        texture2: { type: "t", value: null },
 		        u_time: { type: "f", value: 0 },
 		        isLoading: {type: 'bool', value: false},
+		        isDisabled: {type: 'bool', value: false},
 		        squareVR: {type: 'bool', value: false},
 		        vUv_VR_square_min: {type: 'vec2', value: new THREE.Vector2()},
 		        vUv_VR_square_max: {type: 'vec2', value: new THREE.Vector2()},

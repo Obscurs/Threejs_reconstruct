@@ -64,11 +64,14 @@ export class VRControls {
 		this.currentPointedPosition = new THREE.Vector3()
 		this.currentPointedObject = null
 		this.currentClickedObject = null
+		this.currentClickedControllerPos = new THREE.Vector3()
+		this.currentClickedControllerDir = new THREE.Vector3()
 		this.timerGroundUpdater =0
 		this.startedMovement = false
 		this.teleportType = TeleportTypes.LINE
 		this.models_loaded = 0
 		this.GUI = new VRGUI(this.camera_group)
+		this.navigationDisabled = false
 
 		this.selectBox = {
 			startPos: null,
@@ -157,6 +160,14 @@ export class VRControls {
 			}*/
 			self.state = VRStates.CLICKING
 			self.currentClickedObject = self.currentPointedObject
+
+			self.currentClickedControllerPos = new THREE.Vector3()
+			self.currentClickedControllerDir = new THREE.Vector3()
+	    	self.guidingController.getWorldPosition(self.currentClickedControllerPos);
+			self.guidingController.getWorldDirection(self.currentClickedControllerDir);
+			self.currentClickedControllerDir.multiplyScalar(-1)
+
+			self.currentClickedPosition = self.currentPointedPosition
 			if(self.currentClickedObject.hasClickFunctions)
 			{
 				self.currentClickedObject.onStartClick()
@@ -187,11 +198,11 @@ export class VRControls {
 					}
 
 				}
-				if(self.currentPointedObject.name==PointedObjectNames.GROUND) //check collision object to decide what to do
+				if(self.currentPointedObject.name==PointedObjectNames.GROUND && !self.navigationDisabled) //check collision object to decide what to do
 				{
 					self.endMovingUser(self.rightControllerData.controller)
 				}
-				else if(self.currentPointedObject.name==PointedObjectNames.WALL)
+				else if(self.currentPointedObject.name==PointedObjectNames.WALL && !self.navigationDisabled)
 				{
 					self.updateCollectionNoBox()
 				}
@@ -288,6 +299,9 @@ export class VRControls {
 		this.camera_group.position.x = DataLoader.getCurrentModel().pos_x_cam_start
 		this.camera_group.position.z = DataLoader.getCurrentModel().pos_z_cam_start
 		this.camera_group.position.y = DataLoader.getCurrentModel().vr_y+1
+
+		//this.camera_group.lookAt(DataLoader.getCurrentModel().target_x_cam_start, DataLoader.getCurrentModel().target_y_cam_start, DataLoader.getCurrentModel().target_z_cam_start)
+
 	}
 	restart(scene, camera, renderer, active)
 	{
@@ -433,6 +447,12 @@ export class VRControls {
 		return controllerData.buttons[5] == 1
 	}
 
+	enableSceneNavigation(enabled)
+	{
+		const sceneModels = DataLoader.getSceneModels()
+		this.navigationDisabled = !enabled;
+		sceneModels[0].material.uniforms.isDisabled.value = !enabled;
+	}
 
 	updateGuideSprite(requestedSprite)
 	{
@@ -549,9 +569,9 @@ export class VRControls {
 			    	this.currentPointedPosition.copy(intersection.point)
 			    	this.currentPointedGroundY = this.getFloorFromPos(this.currentPointedPosition)
 			    	this.currentPointedObject = intersection.object
-			    	if(this.currentPointedObject.name == PointedObjectNames.GROUND)
+			    	if(this.currentPointedObject.name == PointedObjectNames.GROUND && !this.navigationDisabled)
 			    		this.updateGuideSprite(IconTypes.TELEPORT_ARROW)
-			    	else if(this.currentPointedObject.name == PointedObjectNames.WALL)
+			    	else if(this.currentPointedObject.name == PointedObjectNames.WALL && !this.navigationDisabled)
 			    	{
 			    		this.updateGuideSprite(IconTypes.SELECT_TOOL)
 			    		this.guidesprite.lookAt(pos)
@@ -638,16 +658,11 @@ export class VRControls {
 	{
 		const sceneModelsCol = DataLoader.getSceneModelsCol() 
 		console.log("start box")
-		let pos = new THREE.Vector3()
-		let dir = new THREE.Vector3()
-	    this.guidingController.getWorldPosition(pos);
-		this.guidingController.getWorldDirection(dir);
-	    dir.multiplyScalar(-1)
 
-		this.selectBox.startPos = pos
-	    this.selectBox.endPos = pos
-	    this.selectBox.startDir = dir
-	    this.selectBox.endDir = dir
+		this.selectBox.startPos = this.currentClickedControllerPos
+	    this.selectBox.endPos = this.currentClickedControllerPos
+	    this.selectBox.startDir = this.currentClickedControllerDir
+	    this.selectBox.endDir = this.currentClickedControllerDir
 	    this.selectBox.startRay = null
 	    this.selectBox.endRay = null
 	    this.selectBox.startNDC = null
@@ -677,8 +692,10 @@ export class VRControls {
 			orientation: 0,
 			projection: 1,
 		}
-
+		let lookAtVectorBackup = new THREE.Vector3(this.camera.matrix[8], this.camera.matrix[9], this.camera.matrix[10]);
+		this.camera.lookAt(this.currentPointedPosition)
 		Scorer.genNewCandidates(DataLoader.getCameraList(), null, clusteringOptions, scoreOptions, this.camera)
+		this.camera.lookAt(lookAtVectorBackup)
 		this.sendCollectionsToGui()
 		
 	}
@@ -819,7 +836,7 @@ export class VRControls {
 					this.state = VRStates.DRAGGING_UI
 					this.currentClickedObject.onStartDrag()
 				}
-				else if(this.currentClickedObject != null && this.currentClickedObject == this.currentPointedObject && this.currentPointedObject.name == PointedObjectNames.WALL)
+				else if(this.currentClickedObject != null && this.currentClickedObject == this.currentPointedObject && this.currentPointedObject.name == PointedObjectNames.WALL && !this.navigationDisabled)
 				{
 					//IF IS WALL WE START SELECTION BOX
 					this.state = VRStates.SELECTING_AREA

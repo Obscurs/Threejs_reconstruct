@@ -44,6 +44,11 @@ export class VRGUIQuestionarie extends UIElement{
 
 	initPage()
 	{
+		if(this.questData[this.currentPageIndex].pageType == "question")
+		{
+			console.log(this.parent)
+			APPLICATION.enableSceneNavigation(false)
+		}
 		const page = new VRGUIQuestPage(0,0,0,1, this.questData[this.currentPageIndex])
 		this.page = page
 		this.add(page)
@@ -110,6 +115,7 @@ export class VRGUIQuestionarie extends UIElement{
 	}
 	startRecordTime()
 	{
+		APPLICATION.enableSceneNavigation(true)
 		this.currentDistanceTracked = 0
 		this.auxRecordDistancePos.copy(this.auxRecordDistanceCurrentPos)
 		this.recording = true

@@ -19,6 +19,7 @@ export class VRGUI extends UIElement {
 		this.currentCollections = []
 		this.camera_group = camera_group
 		this.colSphere = null
+		this.setScale(0.5,0.5,0.5)
 		this.photo_stack = new VRGUIPhotoStack()
 		this.photo_stack.setScale(2.0,2.0,1.0)
 		this.photo_stack.setPosition(0,1.6,0.4)
@@ -33,10 +34,9 @@ export class VRGUI extends UIElement {
 		this.panel = null
 		this.questionarie = null
 
-
 		/*this.main_photos.name = PointedObjectNames.VR_GUI_GROUP_STACKS
 		this.isGUI = true*/
-		const geometryColSphere = new THREE.SphereGeometry( 2.5, 32, 16 );
+		const geometryColSphere = new THREE.SphereGeometry( 1.25, 32, 16 );
 		const materialColSphere = new THREE.MeshBasicMaterial( {
 						opacity: 0.0,
 						transparent: true,

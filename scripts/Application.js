@@ -31,7 +31,7 @@ export class Application {
 	init()
 	{
 		this.c_clock = new THREE.Clock();
-
+		document.getElementById("AppVer").innerHTML = VERSION;
 		const container = document.createElement( 'div' );
 		document.body.appendChild( container );
 		var self = this
@@ -70,16 +70,16 @@ export class Application {
 	}
 	onWindowResize()
 	{
-		this.c_mainCamera.aspect = window.innerWidth / window.innerHeight;
-		this.c_mainCamera.updateProjectionMatrix();
+		APPLICATION.c_mainCamera.aspect = window.innerWidth / window.innerHeight;
+		APPLICATION.c_mainCamera.updateProjectionMatrix();
 
-		this.c_renderer.setSize( window.innerWidth, window.innerHeight );
+		APPLICATION.c_renderer.setSize( window.innerWidth, window.innerHeight );
 
 		m_views[1].height = 0.3
 		m_views[1].width = (m_views[1].height*(window.innerWidth / window.innerHeight))*(1/(window.innerWidth / window.innerHeight))
 		m_views[1].left = 1.0-m_views[1].width
 
-		this.c_WebControls.onWindowResize()
+		APPLICATION.c_WebControls.onWindowResize()
 	}
 
 	initControls()
@@ -263,6 +263,14 @@ export class Application {
 		this.c_VRControls.restart(this.c_scene, this.c_mainCamera, this.c_renderer)
 		
 		this.animate();
+	}
+
+	enableSceneNavigation(enabled)
+	{
+		if(this.c_renderer.xr.isPresenting)
+		{
+			this.c_VRControls.enableSceneNavigation(enabled)
+		}
 	}
 
 	clearAppStates()

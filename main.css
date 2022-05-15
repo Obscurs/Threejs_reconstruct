@@ -68,6 +68,10 @@ button {
 	pointer-events: none;
 	z-index: 1; /* TODO Solve this in HTML */
 }
+#info4 {
+	position: absolute;
+	z-index: 1; /* TODO Solve this in HTML */
+}
 
 a, button, input, select {
 	pointer-events: auto;

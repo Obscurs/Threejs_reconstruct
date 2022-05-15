@@ -15,6 +15,7 @@ export class VRGUIPhotoStack extends UIElement {
 		
 		this.buttonUp = null
 		this.buttonDown = null
+		this.buttonClose = null
 		this.indexCollection = -1
 		this.texPanel = null
 		this.panel = null
@@ -78,6 +79,20 @@ export class VRGUIPhotoStack extends UIElement {
 		this.buttonDown.show(true)
 		this.add(this.buttonDown)
 
+		function closeAction(p1, p2) { self.closeUI()}
+		this.buttonClose = new VRGUIButton(closeAction, "CLOSE BUTTON")
+		this.buttonClose.initButtonIcon('close', 0.233)
+		this.buttonClose.setPosition(0.45, 0.45,0)
+		this.buttonClose.setScale(0.05, 0.20, 1.0)
+		this.buttonClose.isButton = true
+		this.buttonClose.show(true)
+		this.add(this.buttonClose)
+
+	}
+	closeUI()
+	{
+		console.log("close")
+		this.setVisible(false)
 	}
 	setImages(images, indexCollection)	//capture array
 	{
@@ -139,7 +154,6 @@ export class VRGUIPhotoStack extends UIElement {
 		}
 		 
 	}
-
 
 	dispose()
 	{

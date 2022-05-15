@@ -11,6 +11,7 @@ export class ModelInfo {
 	}
 	refinePosAndOrientation()
 	{
+		//TODO: this should go from config file
 		if(this.path == "doma")
 		{
 			this.target_x_cam_start = 10.972;
@@ -26,9 +27,9 @@ export class ModelInfo {
 		}
 		else if(this.path == "pedret")
 		{
-			this.target_x_cam_start = 2.50;
-			this.target_y_cam_start = 0.125;
-			this.target_z_cam_start = -7.854;
+			this.target_x_cam_start = 1.50;
+			this.target_y_cam_start = 0.0;
+			this.target_z_cam_start = -10.854;
 		}
 	}
 }

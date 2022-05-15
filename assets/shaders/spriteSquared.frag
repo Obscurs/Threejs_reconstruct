@@ -6,7 +6,7 @@ uniform bool selected;
 
 varying vec2 vUv;
 varying vec2 squaredUV;
-float borderSel = 0.015;
+float borderSel = 0.007;
 void main() {
 
 	if(vUv.x > 0.98 || vUv.x < 0.02 || vUv.y > 0.98 || vUv.y < 0.02)
