@@ -822,7 +822,7 @@ export class VRControls {
 				this.currentPointedObject.onHover()
 		}
 			
-		this.GUI.update(dt)
+		this.GUI.update(dt, this.camera)
 
 		if(this.state == VRStates.CLICKING)
 		{

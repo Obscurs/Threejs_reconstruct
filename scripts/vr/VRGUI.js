@@ -10,6 +10,8 @@ import { CaptureSelected } from './../CaptureSelected.js';
 
 const MAX_NUM_STACKS = 6
 const MAX_SIZE_STACK = 8
+const MAX_UI_ANGLE = 1.96
+const RADIUS_SPHERE = 1.25
 export class VRGUI extends UIElement {
 	constructor(camera_group) {
 		super("VR GUI", false)
@@ -36,7 +38,7 @@ export class VRGUI extends UIElement {
 
 		/*this.main_photos.name = PointedObjectNames.VR_GUI_GROUP_STACKS
 		this.isGUI = true*/
-		const geometryColSphere = new THREE.SphereGeometry( 1.25, 32, 16 );
+		const geometryColSphere = new THREE.SphereGeometry( RADIUS_SPHERE, 32, 16 );
 		const materialColSphere = new THREE.MeshBasicMaterial( {
 						opacity: 0.0,
 						transparent: true,
@@ -168,6 +170,24 @@ export class VRGUI extends UIElement {
 			const newImage = new VRGUIPhoto(collections[i][0].imagePath,collections[i][0].index, i,collections[i][0].camInfo, 1.1*0.66*(i+0.70)-2,0,0, 0.66)
 			this.main_photos.add(newImage)
 		}
+		if(AUTO_ENABLED)
+		{
+			if(this.project_capture)
+			{
+				if(collections.length > 0)
+				{
+					APPLICATION.changeCaptureInView(collections[0][0].index)
+				}
+			}
+			else if(this.zoomed_photo.isShown())
+			{
+				if(collections.length > 0)
+				{
+					APPLICATION.showZoomedPhoto(collections[0][0].index)
+				}
+			}
+		}
+		
 	}
 	updateDrag(from, direction)
 	{
@@ -223,11 +243,66 @@ export class VRGUI extends UIElement {
 		this.c_capture_selected.setEnabled(false)
 		this.visible = true
 	}
-	update(dt)
+
+	avoidUIbehindCamera(camera)
+	{
+	//TODO CLEAN THIS
+		const cameraDir = new THREE.Vector3()
+		camera.getWorldDirection(cameraDir)
+		cameraDir.y = 0
+		cameraDir.normalize()
+		cameraDir.x = cameraDir.x*RADIUS_SPHERE
+		cameraDir.z = cameraDir.z*RADIUS_SPHERE
+		const uiDir = new THREE.Vector3()
+
+		const cameraGroupWorldPos = new THREE.Vector3()
+		const uiGroupWorldPos = new THREE.Vector3()
+		this.camera_group.getWorldPosition(cameraGroupWorldPos)
+		this.getWorldPosition(uiGroupWorldPos)
+
+
+		uiDir.x = uiGroupWorldPos.x - cameraGroupWorldPos.x
+		uiDir.y = 0
+		uiDir.z =uiGroupWorldPos.z - cameraGroupWorldPos.z
+		uiDir.normalize()
+
+		
+		const angleVecs = cameraDir.angleTo(uiDir)
+		const angleVecsAbs = Math.abs(angleVecs)
+
+		if(angleVecs > MAX_UI_ANGLE)
+		{
+			cameraDir.multiplyScalar(-1)
+			const leftDir = new THREE.Vector3()
+			const rightDir = new THREE.Vector3()
+			leftDir.copy(cameraDir)
+			rightDir.copy(cameraDir)
+			const axis = new THREE.Vector3(0,1,0)
+
+			leftDir.applyAxisAngle(axis,((angleVecs-MAX_UI_ANGLE)/1.3)+MAX_UI_ANGLE)
+			rightDir.applyAxisAngle(axis,-(((angleVecs-MAX_UI_ANGLE)/1.3)+MAX_UI_ANGLE))
+			cameraGroupWorldPos.y = uiGroupWorldPos.y
+			if(leftDir.distanceTo(uiDir) > rightDir.distanceTo(uiDir))
+			{
+				this.updateDrag(cameraGroupWorldPos, leftDir)
+			}
+			else
+			{
+				this.updateDrag(cameraGroupWorldPos, rightDir)
+			}
+		}
+	}
+	update(dt, camera)
 	{
 		super.update(dt)
 		if(this.questionarie != null)
 			this.questionarie.setCamPos(this.camera_group.position)
+
+		if(camera != null)
+		{
+			this.avoidUIbehindCamera(camera)
+		}
+		
 	}
 
 	

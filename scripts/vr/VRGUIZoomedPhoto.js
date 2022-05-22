@@ -11,6 +11,7 @@ export class VRGUIZoomedPhoto extends UIElement {
 		this.c_zoomed_mesh = null
 		this.scale.set(MIN_SCALE, MIN_SCALE, 1.0)
 		this.c_timer_zoom = 0
+		this.c_isShown = false;
 
 	}
 
@@ -61,13 +62,18 @@ export class VRGUIZoomedPhoto extends UIElement {
 		console.log("show")
 		this.c_timer_zoom = -1.0
 		this.scale.set(MIN_SCALE, MIN_SCALE, 1.0)
-		
+		this.c_isShown = true
 	}
 	hide()
 	{
 		console.log("hide")
 		if(this.c_timer_zoom == 0.0)
 			this.c_timer_zoom = 1.0
+		this.c_isShown = false
+	}
+	isShown()
+	{
+		return this.c_isShown
 	}
 	update(dt)
 	{

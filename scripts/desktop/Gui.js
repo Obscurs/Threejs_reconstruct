@@ -5,6 +5,7 @@ import { WebCollection } from './WebCollection.js';
 import { DataLoader } from './../DataLoader.js';
 
 var showViewChanged = false
+var autoChanged = false
 export class Gui {
 	
 	constructor()
@@ -94,7 +95,6 @@ export class Gui {
 
 		this.viewFolder = this.gui.addFolder( 'Display options' );
 
-
 		this.viewFolder.add(this.c_gui_options, 'red_area_enabled').name( 'Show highlighted area' ).listen().onChange(function ()
 		{
 		});
@@ -111,8 +111,10 @@ export class Gui {
 		{
 			showViewChanged = true
 		});
-		this.viewFolder.add(this.c_gui_options, 'auto_score_enabled').name( 'Auto-detect' ).listen().onChange(function ()
+
+		this.viewFolder.add(this.c_gui_options, 'auto_score_enabled').name( 'Auto-detection' ).listen().onChange(function ()
 		{
+			autoChanged = true
 		});
 		this.viewFolder.add(this.c_gui_options, 'show_photo_collection').name( 'Show collection' ).listen().onChange(function ()
 		{
@@ -151,6 +153,11 @@ export class Gui {
 			}
 			showViewChanged = false;
 
+		}
+		if(autoChanged)
+		{
+			autoChanged = false
+			AUTO_ENABLED = this.c_gui_options.auto_score_enabled
 		}
 		this.c_web_collection.update(delta, candidates)
 	}
